@@ -4,13 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
 import Image from "next/image";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
-import { useFormState } from "react-dom";
+import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
+import { useActionState } from "react";
 import { createTeacher, updateTeacher } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { CldUploadWidget } from "next-cloudinary";
+import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
 
 const TeacherForm = ({
   type,
@@ -32,19 +32,24 @@ const TeacherForm = ({
   });
 
   const [img, setImg] = useState<any>();
+  const [isPending, startTransition] = useTransition();
 
-  const [state, formAction] = useFormState(
-    type === "create" ? createTeacher : updateTeacher,
+  // Create wrapper functions that match the expected signature
+  const createTeacherWrapper = async (prevState: any, formData: TeacherSchema) => {
+    return await createTeacher(prevState, formData);
+  };
+
+  const updateTeacherWrapper = async (prevState: any, formData: TeacherSchema) => {
+    return await updateTeacher(prevState, formData);
+  };
+
+  const [state, formAction] = useActionState(
+    type === "create" ? createTeacherWrapper : updateTeacherWrapper,
     {
       success: false,
       error: false,
     }
   );
-
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction({ ...data, img: img?.secure_url });
-  });
 
   const router = useRouter();
 
@@ -57,6 +62,31 @@ const TeacherForm = ({
   }, [state, router, type, setOpen]);
 
   const { subjects } = relatedData;
+
+  const onSubmit = handleSubmit((formData) => {
+    console.log("Form data before submission:", formData);
+    
+    // Get selected subjects from the form
+    const subjectsSelect = document.querySelector('select[multiple]') as HTMLSelectElement;
+    const selectedSubjects = Array.from(subjectsSelect?.selectedOptions || []).map(option => option.value);
+    
+    const formattedData = {
+      ...formData,
+      img: img?.secure_url || undefined,
+      subjects: selectedSubjects || [],
+      // Convert empty strings to undefined for optional fields
+      email: formData.email || undefined,
+      phone: formData.phone || undefined,
+      // Handle password for updates - ensure it's either a string or undefined
+      password: type === "update" && formData.password === "" ? undefined : formData.password,
+    };
+    
+    console.log("Formatted data:", formattedData);
+    
+    startTransition(() => {
+      formAction(formattedData);
+    });
+  });
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -81,14 +111,24 @@ const TeacherForm = ({
           register={register}
           error={errors?.email}
         />
-        <InputField
-          label="Password"
-          name="password"
-          type="password"
-          defaultValue={data?.password}
-          register={register}
-          error={errors?.password}
-        />
+        {type === "create" && (
+          <InputField
+            label="Password"
+            name="password"
+            type="password"
+            register={register}
+            error={errors?.password}
+          />
+        )}
+        {type === "update" && (
+          <InputField
+            label="Password (leave blank to keep current)"
+            name="password"
+            type="password"
+            register={register}
+            error={errors?.password}
+          />
+        )}
       </div>
       <span className="text-xs text-gray-400 font-medium">
         Personal Information
@@ -123,16 +163,9 @@ const TeacherForm = ({
           error={errors.address}
         />
         <InputField
-          label="Blood Type"
-          name="bloodType"
-          defaultValue={data?.bloodType}
-          register={register}
-          error={errors.bloodType}
-        />
-        <InputField
           label="Birthday"
           name="birthday"
-          defaultValue={data?.birthday.toISOString().split("T")[0]}
+          defaultValue={data?.birthday ? data.birthday.toISOString().split("T")[0] : ""}
           register={register}
           error={errors.birthday}
           type="date"
@@ -154,6 +187,7 @@ const TeacherForm = ({
             {...register("sex")}
             defaultValue={data?.sex}
           >
+            <option value="">Select Sex</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
           </select>
@@ -163,20 +197,23 @@ const TeacherForm = ({
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
+        <div className="flex flex-col gap-2 w-full md:w-1/2">
           <label className="text-xs text-gray-500">Subjects</label>
           <select
             multiple
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full h-32"
             {...register("subjects")}
-            defaultValue={data?.subjects}
+            defaultValue={data?.subjects?.map((subject: any) => subject.id.toString()) || []}
           >
-            {subjects.map((subject: { id: number; name: string }) => (
-              <option value={subject.id} key={subject.id}>
+            {subjects?.map((subject: { id: number; name: string }) => (
+              <option value={subject.id.toString()} key={subject.id}>
                 {subject.name}
               </option>
             ))}
           </select>
+          <p className="text-xs text-gray-400">
+            Hold Ctrl/Cmd to select multiple subjects
+          </p>
           {errors.subjects?.message && (
             <p className="text-xs text-red-400">
               {errors.subjects.message.toString()}
@@ -204,10 +241,14 @@ const TeacherForm = ({
         </CldUploadWidget>
       </div>
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">Something went wrong! Please check all required fields.</span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button 
+        type="submit" 
+        className="bg-orange-400 text-white p-2 rounded-md"
+        disabled={isPending}
+      >
+        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

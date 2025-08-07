@@ -1,5 +1,6 @@
 import Menu from "@/components/Menu";
 import Navbar from "@/components/Navbar";
+import { NotificationProvider } from "@/components/NotificationContext";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -9,6 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
+    <NotificationProvider>
     <div className="h-screen flex">
       {/* LEFT */}
       <div className="w-[14%] md:w-[8%] lg:w-[16%] xl:w-[14%] p-4">
@@ -16,7 +18,7 @@ export default function DashboardLayout({
           href="/"
           className="flex items-center justify-center lg:justify-start gap-2"
         >
-          <Image src="/logo.png" alt="logo" width={32} height={32} />
+          <Image src="/logo.png" alt="logo" width={32} height={32} className="w-auto h-auto" />
           <span className="hidden lg:block font-bold">Synapse Education</span>
         </Link>
         <Menu />
@@ -27,5 +29,6 @@ export default function DashboardLayout({
         {children}
       </div>
     </div>
+  </NotificationProvider>
   );
 }

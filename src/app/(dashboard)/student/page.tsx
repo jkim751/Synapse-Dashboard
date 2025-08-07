@@ -1,36 +1,56 @@
-
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
-import BigCalendar from "@/components/BigCalender";
-import EventCalendar from "@/components/EventCalendar";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
 const StudentPage = async () => {
-  const { userId } = auth();
+  const { userId, sessionClaims } = await auth();
+  const userName = String(sessionClaims?.firstName || sessionClaims?.name || "Student");
 
-  const classItem = await prisma.class.findMany({
+  const student = await prisma.student.findUnique({
     where: {
-      students: { some: { id: userId! } },
+      id: userId!,
+    },
+    include: {
+      class: true,
     },
   });
 
-  console.log(classItem);
-  return (
-    <div className="p-4 flex gap-4 flex-col xl:flex-row">
-      {/* LEFT */}
-      <div className="h-full w-full xl:w-2/3">
-        <div className="h-full bg-white p-4 rounded-md">
-          <h1 className="text-xl font-semibold">Schedule (4A)</h1>
-          <BigCalendarContainer type="classId" id={classItem[0].id} />
+  if (!student) {
+    return (
+      <div className="flex flex-col">
+        <div className="p-4 pb-2">
+          <h1 className="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold text-gray-800 mb-2">
+            Welcome, {userName}!
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            Student record not found. Please contact your administrator.
+          </p>
         </div>
       </div>
-      {/* RIGHT */}
-      <div className="h-full w-full xl:w-1/3 flex flex-col gap-8">
-        <EventCalendar />
-        <Announcements />
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      {/* WELCOME MESSAGE */}
+      <div className="p-4 pb-2">
+        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+          Welcome, {userName}!
+        </h1>
+        <p className="text-sm sm:text-base text-gray-600">
+          Hope you have a great day!
+        </p>
       </div>
-    </div>
+       {/* BOTTOM */}
+       <div className="mt-4 bg-white rounded-md p-4 h-[900px] overflow-hidden">
+          <h1 className="mb-4">Student&apos;s Schedule</h1>
+          <div className="h-[calc(100%-2rem)]">
+            <BigCalendarContainer type="classId" id={student.class.id} showNotifications={true} />
+          </div>
+        </div>
+      </div>
+
   );
 };
 

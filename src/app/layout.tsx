@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Synapse Education Portal",
   description: "Synapse Education Dashboard",
+  icons: {icon: '/favicon.ico',},
 };
 
 export default function RootLayout({

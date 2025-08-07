@@ -1,12 +1,37 @@
 import Image from "next/image";
 import EventCalendar from "./EventCalendar";
 import EventList from "./EventList";
+import { auth } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
 
 const EventCalendarContainer = async ({
   searchParams,
 }: {
   searchParams: { [keys: string]: string | undefined };
 }) => {
+  const { userId, sessionClaims } = await auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  const roleConditions = {
+    teacher: { lessons: { some: { teacherId: userId! } } },
+    student: { students: { some: { id: userId! } } },
+    parent: { students: { some: { parentId: userId! } } },
+  };
+
+  const data = await prisma.event.findMany({
+    where: {
+      ...(role !== "admin" && {
+        OR: [
+          { classId: null },
+          { class: roleConditions[role as keyof typeof roleConditions] || {} },
+        ],
+      }),
+    },
+    include: {
+      class: true,
+    },
+  });
+
   const { date } = searchParams;
   return (
     <div className="bg-white p-4 rounded-md">

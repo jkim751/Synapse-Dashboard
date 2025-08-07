@@ -3,20 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
-import {
-  classSchema,
-  ClassSchema,
-  subjectSchema,
-  SubjectSchema,
-} from "@/lib/formValidationSchemas";
-import {
-  createClass,
-  createSubject,
-  updateClass,
-  updateSubject,
-} from "@/lib/actions";
-import { useFormState } from "react-dom";
-import { Dispatch, SetStateAction, useEffect } from "react";
+import { classSchema, ClassSchema } from "@/lib/formValidationSchemas";
+import { createClass, updateClass } from "@/lib/actions";
+import { useActionState } from "react";
+import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
@@ -39,9 +29,9 @@ const ClassForm = ({
     resolver: zodResolver(classSchema),
   });
 
-  // AFTER REACT 19 IT'LL BE USEACTIONSTATE
+  const [isPending, startTransition] = useTransition();
 
-  const [state, formAction] = useFormState(
+  const [state, formAction] = useActionState(
     type === "create" ? createClass : updateClass,
     {
       success: false,
@@ -49,16 +39,11 @@ const ClassForm = ({
     }
   );
 
-  const onSubmit = handleSubmit((data) => {
-    console.log(data);
-    formAction(data);
-  });
-
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Subject has been ${type === "create" ? "created" : "updated"}!`);
+      toast(`Class has been ${type === "create" ? "created" : "updated"}!`);
       setOpen(false);
       router.refresh();
     }
@@ -66,12 +51,17 @@ const ClassForm = ({
 
   const { teachers, grades } = relatedData;
 
+  const onSubmit = handleSubmit((data) => {
+    startTransition(() => {
+      formAction(data);
+    });
+  });
+
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">
         {type === "create" ? "Create a new class" : "Update the class"}
       </h1>
-
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
           label="Class name"
@@ -102,19 +92,13 @@ const ClassForm = ({
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
             {...register("supervisorId")}
-            defaultValue={data?.teachers}
+            defaultValue={data?.supervisorId}
           >
-            {teachers.map(
-              (teacher: { id: string; name: string; surname: string }) => (
-                <option
-                  value={teacher.id}
-                  key={teacher.id}
-                  selected={data && teacher.id === data.supervisorId}
-                >
-                  {teacher.name + " " + teacher.surname}
-                </option>
-              )
-            )}
+            {teachers.map((teacher: { id: string; name: string; surname: string }) => (
+              <option value={teacher.id} key={teacher.id}>
+                {teacher.name + " " + teacher.surname}
+              </option>
+            ))}
           </select>
           {errors.supervisorId?.message && (
             <p className="text-xs text-red-400">
@@ -130,11 +114,7 @@ const ClassForm = ({
             defaultValue={data?.gradeId}
           >
             {grades.map((grade: { id: number; level: number }) => (
-              <option
-                value={grade.id}
-                key={grade.id}
-                selected={data && grade.id === data.gradeId}
-              >
+              <option value={grade.id} key={grade.id}>
                 {grade.level}
               </option>
             ))}
@@ -149,8 +129,12 @@ const ClassForm = ({
       {state.error && (
         <span className="text-red-500">Something went wrong!</span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+    <button 
+        type="submit" 
+        className="bg-orange-400 text-white p-2 rounded-md"
+        disabled={isPending}
+      >
+        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

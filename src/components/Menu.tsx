@@ -1,6 +1,11 @@
+"use client"
+
+import { useUser } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const menuItems = [
   {
@@ -52,25 +57,31 @@ const menuItems = [
         icon: "/exam.png",
         label: "Exams",
         href: "/list/exams",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/assignment.png",
         label: "Assignments",
         href: "/list/assignments",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/result.png",
         label: "Results",
         href: "/list/results",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["teacher", "student", "parent"],
       },
       {
         icon: "/attendance.png",
         label: "Attendance",
         href: "/list/attendance",
         visible: ["admin", "teacher",],
+      },
+      {
+        label: "Attendance History",
+        href: "/list/attendance/history",
+        icon: "/singleLesson.png",
+        visible: ["admin", "teacher"],
       },
       {
         icon: "/calendar.png",
@@ -85,18 +96,32 @@ const menuItems = [
         visible: ["admin", "teacher", "student", "parent"],
       },
       {
-        icon: "/",
+        icon: "/finance.png",
         label: "Payments",
-        href: "/list/announcements",
-        visible: ["admin", "parent",],
+        href: "/list/invoices",
+        visible: ["parent"],
       },
-    ],
+      {
+        icon: "/finance.png",
+        label: "Xero Dashboard",
+        href: "/list/xero",
+        visible: ["admin"],
+      },
+      {
+        icon: "/finance.png",
+        label: "Payroll",
+        href: "/list/payroll",
+        visible: ["teacher"],
+      },
+    ],  
   },
 ];
 
-const Menu = async () => {
-  const user = await currentUser();
-  const role = user?.publicMetadata.role as string;
+const Menu = () => {
+  const { user } = useUser();
+  const role = user?.publicMetadata?.role as string;
+  const pathname = usePathname();
+  
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
@@ -106,12 +131,14 @@ const Menu = async () => {
           </span>
           {i.items.map((item) => {
             if (item.visible.includes(role)) {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
                 <Link
                   href={item.href}
                   key={item.label}
-                  className="flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-lamaSkyLight"
-                >
+                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-lamaSkyLight ${
+                    isActive ? 'bg-orange-100' : ''
+                  }`}                >
                   <Image src={item.icon} alt="" width={20} height={20} />
                   <span className="hidden lg:block">{item.label}</span>
                 </Link>

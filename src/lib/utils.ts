@@ -2,44 +2,77 @@
 // FOR THIS REASON WE'LL GET THE LAST WEEK AS THE REFERENCE WEEK.
 // IN THE TUTORIAL WE'RE TAKING THE NEXT WEEK AS THE REFERENCE WEEK.
 
-const getLatestMonday = (): Date => {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const latestMonday = today;
-  latestMonday.setDate(today.getDate() - daysSinceMonday);
-  return latestMonday;
-};
-
 export const adjustScheduleToCurrentWeek = (
-  lessons: { title: string; start: Date; end: Date }[]
-): { title: string; start: Date; end: Date }[] => {
-  const latestMonday = getLatestMonday();
+  lessons: {
+    title: string;
+    start: Date;
+    end: Date;
+    subject?: string;
+    teacher?: string;
+    classroom?: string;
+    description?: string;
+    lessonId?: number;
+  }[]
+): {
+  title: string;
+  start: Date;
+  end: Date;
+  subject?: string;
+  teacher?: string;
+  classroom?: string;
+  description?: string;
+  lessonId?: number;
+}[] => {
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
 
-  return lessons.map((lesson) => {
+  // Get the first day of current month
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+
+  // Get the last day of current month
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+  // Generate events for the entire current month
+  const adjustedLessons: typeof lessons = [];
+
+  lessons.forEach((lesson) => {
     const lessonDayOfWeek = lesson.start.getDay();
 
-    const daysFromMonday = lessonDayOfWeek === 0 ? 6 : lessonDayOfWeek - 1;
+    // Find all occurrences of this day of week in the current month
+    for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+      const currentDate = new Date(currentYear, currentMonth, day);
+      
+      if (currentDate.getDay() === lessonDayOfWeek) {
+        const startTime = new Date(lesson.start);
+        const endTime = new Date(lesson.end);
 
-    const adjustedStartDate = new Date(latestMonday);
+        const newStart = new Date(
+          currentYear,
+          currentMonth,
+          day,
+          startTime.getHours(),
+          startTime.getMinutes(),
+          startTime.getSeconds()
+        );
 
-    adjustedStartDate.setDate(latestMonday.getDate() + daysFromMonday);
-    adjustedStartDate.setHours(
-      lesson.start.getHours(),
-      lesson.start.getMinutes(),
-      lesson.start.getSeconds()
-    );
-    const adjustedEndDate = new Date(adjustedStartDate);
-    adjustedEndDate.setHours(
-      lesson.end.getHours(),
-      lesson.end.getMinutes(),
-      lesson.end.getSeconds()
-    );
+        const newEnd = new Date(
+          currentYear,
+          currentMonth,
+          day,
+          endTime.getHours(),
+          endTime.getMinutes(),
+          endTime.getSeconds()
+        );
 
-    return {
-      title: lesson.title,
-      start: adjustedStartDate,
-      end: adjustedEndDate,
-    };
+        adjustedLessons.push({
+          ...lesson,
+          start: newStart,
+          end: newEnd,
+        });
+      }
+    }
   });
+
+  return adjustedLessons;
 };

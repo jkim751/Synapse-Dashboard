@@ -3,7 +3,6 @@ import Image from "next/image";
 import {
   BarChart,
   Bar,
-  Rectangle,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -19,7 +18,7 @@ const AttendanceChart = ({
 }) => {
   return (
     <ResponsiveContainer width="100%" height="90%">
-      <BarChart width={500} height={300} data={data} barSize={20}>
+       <BarChart width={500} height={300} data={data} barSize={20}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ddd" />
         <XAxis
           dataKey="name"

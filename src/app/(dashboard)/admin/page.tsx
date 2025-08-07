@@ -1,19 +1,30 @@
 import Announcements from "@/components/Announcements";
-import AttendanceChartContainer from "@/components/AttendanceChartContainer";
-import CountChartContainer from "@/components/CountChartContainer";
-import EventCalendarContainer from "@/components/EventCalendarContainer";
-import FinanceChart from "@/components/FinanceChart";
+import BigCalendarContainer from "@/components/BigCalendarContainer";
 import UserCard from "@/components/UserCard";
+import { auth } from "@clerk/nextjs/server";
 
-const AdminPage = ({
+const AdminPage = async ({
   searchParams,
 }: {
   searchParams: { [keys: string]: string | undefined };
 }) => {
+  const { sessionClaims } = await auth();
+  const userName = (sessionClaims?.firstName as string) || (sessionClaims?.name as string) || "Admin";
   return (
-    <div className="p-4 flex gap-4 flex-col md:flex-row">
+    <div className="flex flex-col">
+      {/* WELCOME MESSAGE */}
+      <div className="p-4 pb-2">
+        <h1 className="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold text-gray-800 mb-2">
+          Welcome, {userName}!
+        </h1>
+      <p className="text-sm sm:text-base text-gray-600">
+        Here's your overview of today 
+      </p>
+    </div>
+
+    <div className="p-4 pt-2 flex gap-4 flex-col md:flex-col">
       {/* LEFT */}
-      <div className="w-full lg:w-2/3 flex flex-col gap-8">
+      <div className="w-full lg:w-full flex flex-col gap-8">
         {/* USER CARDS */}
         <div className="flex gap-4 justify-between flex-wrap">
           <UserCard type="admin" />
@@ -21,28 +32,23 @@ const AdminPage = ({
           <UserCard type="student" />
           <UserCard type="parent" />
         </div>
-        {/* MIDDLE CHARTS */}
-        <div className="flex gap-4 flex-col lg:flex-row">
-          {/* COUNT CHART */}
-          <div className="w-full lg:w-1/3 h-[450px]">
-            <CountChartContainer />
-          </div>
-          {/* ATTENDANCE CHART */}
-          <div className="w-full lg:w-2/3 h-[450px]">
-            <AttendanceChartContainer />
+      {/* MASTER CALENDAR */}
+      <div className="w-full h-[1000px]">
+          <div className="bg-white p-4 rounded-md h-full">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Master Schedule - All Lessons</h2>
+            <div className="h-[calc(100%-3rem)]">
+              <BigCalendarContainer />
+            </div>
           </div>
         </div>
-        {/* BOTTOM CHART */}
-        <div className="w-full h-[500px]">
-          <FinanceChart />
-        </div>
+         
       </div>
       {/* RIGHT */}
-      <div className="w-full lg:w-1/3 flex flex-col gap-8">
-        <EventCalendarContainer searchParams={searchParams}/>
+      <div className="w-full lg:w-full flex flex-col gap-8">
         <Announcements />
       </div>
-    </div>
+      </div>
+      </div>
   );
 };
 

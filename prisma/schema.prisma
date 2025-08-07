@@ -21,7 +21,6 @@ model Student {
   phone       String?      @unique
   address     String
   img         String?
-  bloodType   String
   sex         UserSex
   createdAt   DateTime     @default(now())
   parentId    String
@@ -33,6 +32,7 @@ model Student {
   attendances Attendance[]
   results     Result[]
   birthday    DateTime
+  xeroContactId String? // Xero contact ID for financial operations
 }
 
 model Teacher {
@@ -44,7 +44,6 @@ model Teacher {
   phone     String?   @unique
   address   String
   img       String?
-  bloodType String
   sex       UserSex
   createdAt DateTime  @default(now())
   subjects  Subject[]
@@ -102,15 +101,16 @@ model Lesson {
   startTime DateTime
   endTime   DateTime
 
-  subjectId   Int
-  subject     Subject      @relation(fields: [subjectId], references: [id])
-  classId     Int
-  class       Class        @relation(fields: [classId], references: [id])
-  teacherId   String
-  teacher     Teacher      @relation(fields: [teacherId], references: [id])
-  exams       Exam[]
-  assignments Assignment[]
-  attendances Attendance[]
+  subjectId     Int
+  subject       Subject        @relation(fields: [subjectId], references: [id])
+  classId       Int
+  class         Class          @relation(fields: [classId], references: [id])
+  teacherId     String
+  teacher       Teacher        @relation(fields: [teacherId], references: [id])
+  exams         Exam[]
+  assignments   Assignment[]
+  attendances   Attendance[]
+  notifications Notification[]
 }
 
 model Exam {
@@ -178,6 +178,37 @@ model Announcement {
   classId Int?
   class   Class? @relation(fields: [classId], references: [id])
 }
+model XeroTokens {
+  id           String   @id @default(cuid())
+  accessToken  String
+  refreshToken String
+  tenantId     String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("xero_tokens")
+}
+
+model Notification {
+   id            String   @id @default(cuid())
+  title         String
+  message       String
+  type          String   @default("general")
+  recipientId   String
+  recipientType String   @default("STUDENT")
+  senderId      String?
+  lessonId      Int?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lesson Lesson? @relation(fields: [lessonId], references: [id]) 
+
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
 
 enum UserSex {
   MALE
@@ -190,4 +221,6 @@ enum Day {
   WEDNESDAY
   THURSDAY
   FRIDAY
+  SATURDAY
+  SUNDAY
 }

@@ -9,6 +9,7 @@ type InputFieldProps = {
   error?: FieldError;
   hidden?: boolean;
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  options?: { value: string; label: string }[];
 };
 
 const InputField = ({
@@ -20,7 +21,31 @@ const InputField = ({
   error,
   hidden,
   inputProps,
+  options,
 }: InputFieldProps) => {
+  if (type === "select") {
+    return (
+      <div className={hidden ? "hidden" : "flex flex-col gap-2 w-full md:w-1/4"}>
+        <label className="text-xs text-gray-500">{label}</label>
+        <select
+          className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+          {...register(name)}
+          defaultValue={defaultValue}
+        >
+          <option value="">Select {label}</option>
+          {options?.map((option) => (
+            <option value={option.value} key={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {error?.message && (
+          <p className="text-xs text-red-400">{error.message.toString()}</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={hidden ? "hidden" : "flex flex-col gap-2 w-full md:w-1/4"}>
       <label className="text-xs text-gray-500">{label}</label>

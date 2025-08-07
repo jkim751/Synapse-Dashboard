@@ -41,13 +41,9 @@ async function main() {
     { name: "Mathematics" },
     { name: "Science" },
     { name: "English" },
-    { name: "History" },
-    { name: "Geography" },
     { name: "Physics" },
     { name: "Chemistry" },
     { name: "Biology" },
-    { name: "Computer Science" },
-    { name: "Art" },
   ];
 
   for (const subject of subjectData) {
@@ -65,9 +61,8 @@ async function main() {
         email: `teacher${i}@example.com`,
         phone: `123-456-789${i}`,
         address: `Address${i}`,
-        bloodType: "A+",
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
-        subjects: { connect: [{ id: (i % 10) + 1 }] }, 
+        subjects: { connect: [{ id: (i % 6) + 1 }] }, 
         classes: { connect: [{ id: (i % 6) + 1 }] }, 
         birthday: new Date(new Date().setFullYear(new Date().getFullYear() - 30)),
       },
@@ -86,7 +81,7 @@ async function main() {
         ], 
         startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
         endTime: new Date(new Date().setHours(new Date().getHours() + 3)), 
-        subjectId: (i % 10) + 1, 
+        subjectId: (i % 6) + 1, 
         classId: (i % 6) + 1, 
         teacherId: `teacher${(i % 15) + 1}`, 
       },
@@ -119,7 +114,6 @@ async function main() {
         email: `student${i}@example.com`,
         phone: `987-654-321${i}`,
         address: `Address${i}`,
-        bloodType: "O-",
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
         parentId: `parentId${Math.ceil(i / 2) % 25 || 25}`, 
         gradeId: (i % 6) + 1, 
@@ -200,6 +194,30 @@ async function main() {
       },
     });
   }
+    // NOTIFICATION
+    for (let i = 1; i <= 15; i++) {
+      await prisma.notification.create({
+        data: {
+          title: `Notification ${i}`,
+          message: i <= 5 
+            ? `Student student${i} is running late for lesson ${i}` 
+            : i <= 10 
+            ? `Assignment ${i - 5} has been submitted by student${i - 5}`
+            : `Exam ${i - 10} reminder for tomorrow`,
+          type: i <= 5 ? "LATE" : i <= 10 ? "ASSIGNMENT" : "EXAM",
+          recipientId: i <= 5 
+            ? `teacher${(i % 15) + 1}` 
+            : i <= 10 
+            ? `teacher${((i - 5) % 15) + 1}`
+            : `student${i - 10}`,
+          recipientType: i <= 10 ? "TEACHER" : "STUDENT",
+          isRead: i % 3 === 0, // Some notifications are read
+          lessonId: i <= 5 ? i : null,
+          createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
+        },
+      });
+    }
+  
 
   console.log("Seeding completed successfully.");
 }

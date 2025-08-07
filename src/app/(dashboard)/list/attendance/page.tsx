@@ -7,18 +7,23 @@ import { Class, Prisma, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 type AttendanceList = Class & { supervisor: Teacher };
 
 const AttendanceListPage = async ({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) => {
 
-const { sessionClaims } = auth();
+const { userId, sessionClaims } = await auth();
 const role = (sessionClaims?.metadata as { role?: string })?.role;
+const resolvedSearchParams = await searchParams;
 
+if (!role || !["admin", "teacher"].includes(role)) {
+  redirect("/");
+}
 
 const columns = [
   {
@@ -42,34 +47,58 @@ const renderRow = (item: AttendanceList) => (
     </td>
     <td>
       <div className="flex items-center gap-2">
-      <Link href={`/list/attendance/${item.id}`}>
-            <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky">
-              <Image src="/view.png" alt="" width={16} height={16} />
-            </button>
-      </Link>
+        <Link href={`/list/attendance/${item.id}`}>
+          <button className="w-7 h-7 flex items-center justify-center rounded-full bg-orange-200">
+            <Image src="/view.png" alt="" width={16} height={16} />
+          </button>
+        </Link>
       </div>
-      </td>
+    </td>
 
   </tr>
 );
 
-  const { page, ...queryParams } = searchParams;
+const { page, ...queryParams } = resolvedSearchParams;
 
-  const p = page ? parseInt(page) : 1;
+const p = page ? parseInt(page) : 1;
 
+// Build query with role-based filtering
+const query: Prisma.ClassWhereInput = {};
+
+// If user is a teacher, only show their classes
+if (role === "teacher" && userId) {
+  query.lessons = {
+    some: {
+      teacherId: userId
+    }
+  }
+}
+
+if (queryParams.search) {
+  query.OR = [
+    { name: { contains: queryParams.search, mode: "insensitive" } },
+    { supervisor: { name: { contains: queryParams.search, mode: "insensitive" } } },
+    { supervisor: { surname: { contains: queryParams.search, mode: "insensitive" } } },
+  ];
+}
   // URL PARAMS CONDITION
-
-  const query: Prisma.ClassWhereInput = {};
+  const queryParamsFromSearch: Prisma.ClassWhereInput = {};
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
-          case "supervisorId":
-            query.supervisorId = value;
+          case "teacherId":
+            query.lessons = {
+              some: {
+                teacherId: value ?? undefined,
+              },
+            };
             break;
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            if (value) {
+              query.name = { contains: value, mode: "insensitive" } as Prisma.StringFilter;
+            }
             break;
           default:
             break;
