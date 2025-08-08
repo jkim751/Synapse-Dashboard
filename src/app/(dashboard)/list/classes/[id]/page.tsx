@@ -11,17 +11,19 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 
-type StudentList = Student & { class: Class; grade: Grade };
+type StudentList = Student & { classes: Class; grade: Grade };
 
 const SingleClassPage = async ({
-  params: { id },
+  params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { [key: string]: string | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) => {
+  const { id } = await params;
   const { sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const resolvedSearchParams = await searchParams;
 
   const classId = parseInt(id);
 
@@ -112,12 +114,16 @@ const SingleClassPage = async ({
     </tr>
   );
 
-  const { page, ...queryParams } = searchParams;
+  const { page, ...queryParams } = resolvedSearchParams;
   const p = page ? parseInt(page) : 1;
 
   // Build query for students in this class
   const query: Prisma.StudentWhereInput = {
-    classId: classId,
+    classes: {
+      some: {
+        classId: classId
+      },
+    },
   };
 
   if (queryParams) {
@@ -142,7 +148,7 @@ const SingleClassPage = async ({
     prisma.student.findMany({
       where: query,
       include: {
-        class: true,
+        classes: true,
         grade: true,
       },
       take: ITEM_PER_PAGE,
@@ -167,7 +173,7 @@ const SingleClassPage = async ({
           </div>
           <div className="text-sm text-gray-500 mt-1">
             <p>Grade: {classInfo.grade?.level}</p>
-            <p>Supervisor: {classInfo.supervisor.name} {classInfo.supervisor.surname}</p>
+            <p>Supervisor: {classInfo.supervisor?.name} {classInfo.supervisor?.surname}</p>
             <p>Capacity: {classInfo._count.students}</p>
           </div>
         </div>

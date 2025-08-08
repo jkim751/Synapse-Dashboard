@@ -20,33 +20,35 @@ type ClassWithRelations = Class & {
     supervisor: Teacher | null;
     grade: Grade;
   };
-  
+
   type LessonWithRelations = Lesson & {
     subject: Subject;
     teacher: Teacher;
   };
-  
+
   const SingleClassAttendancePage = async ({
-    params: { id },
+    params,
     searchParams,
   }: {
-    params: { id: string };
-    searchParams: { [key: string]: string | undefined };
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ [key: string]: string | undefined }>;
   }) => {
+    const { id } = await params;
     const { sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
-  
+    const resolvedSearchParams = await searchParams;
+
     if (!role || !["admin", "teacher"].includes(role)) {
       redirect("/");
     }
-  
+
     const classId = parseInt(id);
-  
+
     // Validate classId
     if (isNaN(classId)) {
       return <div>Invalid class ID</div>;
     }
-  
+
     // Get class information
     const classInfo = await prisma.class.findUnique({
       where: { id: classId },
@@ -55,7 +57,7 @@ type ClassWithRelations = Class & {
           grade: true,
       },
     });
-  
+
     if (!classInfo) {
       return <div>Class not found</div>;
     }
@@ -63,33 +65,37 @@ type ClassWithRelations = Class & {
   if (role === "teacher" && classInfo.supervisor?.id !== sessionClaims?.userId) {
     redirect("/attendance"); // Redirect to the main attendance page if not their class
   }
-  
-    const { page, ...queryParams } = searchParams;
+
+    const { page, ...queryParams } = resolvedSearchParams;
     const p = page ? parseInt(page) : 1;
-  
+
    // Get selected date, default to today
    const today = new Date();
    const selectedDateStr = queryParams.date || today.toISOString().split('T')[0];
    const selectedDate = new Date(selectedDateStr);
    selectedDate.setHours(0, 0, 0, 0); // Normalize to start of the day
- 
+
    const startOfDay = new Date(selectedDate);
    startOfDay.setHours(0, 0, 0, 0);
    const endOfDay = new Date(selectedDate);
    endOfDay.setHours(23, 59, 59, 999);
-  
+
     // Build query for students
     const query: Prisma.StudentWhereInput = {
-      classId: classId,
+      classes:{
+        some: {
+          classId: classId,
+        },
+      },
     };
-  
+
     if (queryParams.search) {
       query.OR = [
         { name: { contains: queryParams.search, mode: "insensitive" } },
         { surname: { contains: queryParams.search, mode: "insensitive" } },
       ];
     }
-  
+
     // Get students with their attendance records
     const [students, count] = await prisma.$transaction([
       prisma.student.findMany({
@@ -113,7 +119,7 @@ type ClassWithRelations = Class & {
       }),
       prisma.student.count({ where: query }),
     ]);
-  
+
      // Get lessons for the selected date for this class
   const dayLessons = await prisma.lesson.findMany({
     where: {
@@ -142,7 +148,7 @@ type ClassWithRelations = Class & {
       lesson: true,
     },
   });
-  
+
     const columns = [
       {
         header: "Student",
@@ -159,9 +165,9 @@ type ClassWithRelations = Class & {
         accessor: "overall",
         className: "text-center min-w-[120px]",
       },
- 
+
     ];
-  
+
     const renderRow = (student: StudentWithAttendance) => {
       const attendanceMap = new Map(
         student.attendances.map((att) => [att.lessonId, att.present])
@@ -250,7 +256,7 @@ type ClassWithRelations = Class & {
 function getDayFromDate(date: Date): "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" {
   const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
   const dayName = days[date.getDay()];
-  
+
   // Only return weekdays, default to MONDAY for weekends
   if (["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"].includes(dayName)) {
     return dayName as "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY";
@@ -259,5 +265,3 @@ function getDayFromDate(date: Date): "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURS
 }
 
 export default SingleClassAttendancePage;
-
-

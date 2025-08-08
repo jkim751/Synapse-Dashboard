@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
 interface Notification {
@@ -28,11 +28,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { isSignedIn, userId } = useAuth();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!isSignedIn || !userId) return;
 
     try {
-      const response = await fetch("/api/notifications");
+      const response = await fetch("/api/attendance/notifications");
       if (response.ok) {
         const data = await response.json();
         const formattedNotifications = data.map((notif: any) => ({
@@ -49,11 +49,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
-  };
+  }, [isSignedIn, userId]);
 
   useEffect(() => {
     fetchNotifications();
-  }, [isSignedIn, userId]);
+  }, [fetchNotifications]);
 
   const addNotification = (title: string, message: string) => {
     const newNotification: Notification = {
@@ -68,7 +68,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch("/api/notifications", {
+      const response = await fetch("/api/attendance/notifications", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

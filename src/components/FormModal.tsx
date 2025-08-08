@@ -289,15 +289,19 @@ const FormModal = ({
     const [state, formAction] = useActionState(deleteActionMap[table], {
       success: false,
       error: false,
+      message: "",
     });
 
     const router = useRouter();
 
     useEffect(() => {
       if (state.success) {
-        toast(`${table} has been deleted!`);
+        toast.success(state.message || `${table} has been deleted successfully!`);
         setOpen(false);
         router.refresh();
+      }
+      if (state.error && !state.success) {
+        toast.error(state.message || `Failed to delete ${table}!`);
       }
     }, [state, router]);
 

@@ -27,7 +27,7 @@ const LoginPage = () => {
       <div className="h-screen flex items-center justify-start pl-10 bg-cover bg-center bg-no-repeat" style={{backgroundImage: "url('/study_hub.png')"}}>
         <div className="bg-white p-12 rounded-md shadow-2xl text-center">
           <div className="mb-6">
-            <img 
+            <Image
               src="/logo.png" 
               alt="Synapse Logo" 
               className="w-16 h-16 mx-auto animate-spin"
@@ -51,7 +51,7 @@ const LoginPage = () => {
       <div className="h-screen flex items-center justify-center bg-orange-60">
         <div className="bg-white p-12 rounded-md shadow-2xl text-center">
           <div className="mb-6">  
-            <img 
+            <Image
               src="/logo.png" 
               alt="Synapse Logo" 
               className="w-16 h-16 mx-auto animate-spin"

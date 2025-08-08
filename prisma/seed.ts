@@ -17,7 +17,7 @@ async function main() {
   });
 
   // GRADE
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 9; i <= 12; i++) {
     await prisma.grade.create({
       data: {
         level: i,
@@ -26,7 +26,7 @@ async function main() {
   }
 
   // CLASS
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= 4; i++) {
     await prisma.class.create({
       data: {
         name: `${i}A`, 
@@ -36,14 +36,33 @@ async function main() {
     });
   }
 
+  // Additional classes for demonstrating multi-class enrollment
+  for (let i = 1; i <= 4; i++) {
+    await prisma.class.create({
+      data: {
+        name: `${i}B`, 
+        gradeId: i, 
+        capacity: Math.floor(Math.random() * (20 - 15 + 1)) + 15,
+      },
+    });
+  }
+
   // SUBJECT
   const subjectData = [
-    { name: "Mathematics" },
-    { name: "Science" },
+    { name: "Math Prelim" },
+    { name: "Math Adv" },
+    { name: "Math Ext 1" },
+    { name: "Math Ext 2" },
+    { name: "Math" },
     { name: "English" },
+    { name: "English Prelim" },
+    { name: "English Adv" },
+    { name: "English Ext 1" },
+    { name: "English Ext 2" },
     { name: "Physics" },
     { name: "Chemistry" },
     { name: "Biology" },
+    { name: "Economics" },
   ];
 
   for (const subject of subjectData) {
@@ -62,8 +81,8 @@ async function main() {
         phone: `123-456-789${i}`,
         address: `Address${i}`,
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
-        subjects: { connect: [{ id: (i % 6) + 1 }] }, 
-        classes: { connect: [{ id: (i % 6) + 1 }] }, 
+        subjects: { connect: [{ id: (i % 14) + 1 }] }, 
+        classes: { connect: [{ id: (i % 8) + 1 }] }, // Updated to work with 8 classes
         birthday: new Date(new Date().setFullYear(new Date().getFullYear() - 30)),
       },
     });
@@ -81,8 +100,8 @@ async function main() {
         ], 
         startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
         endTime: new Date(new Date().setHours(new Date().getHours() + 3)), 
-        subjectId: (i % 6) + 1, 
-        classId: (i % 6) + 1, 
+        subjectId: (i % 14) + 1, 
+        classId: (i % 8) + 1, // Updated to work with 8 classes
         teacherId: `teacher${(i % 15) + 1}`, 
       },
     });
@@ -103,24 +122,49 @@ async function main() {
     });
   }
 
-  // STUDENT
+  // STUDENT - Updated to remove direct classId
   for (let i = 1; i <= 50; i++) {
     await prisma.student.create({
       data: {
         id: `student${i}`, 
         username: `student${i}`, 
-        name: `SName${i}`,
+        name: `SName${i}`,  
         surname: `SSurname ${i}`,
         email: `student${i}@example.com`,
         phone: `987-654-321${i}`,
         address: `Address${i}`,
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
         parentId: `parentId${Math.ceil(i / 2) % 25 || 25}`, 
-        gradeId: (i % 6) + 1, 
-        classId: (i % 6) + 1, 
+        gradeId: (i % 4) + 1, 
+        // Removed classId from here
         birthday: new Date(new Date().setFullYear(new Date().getFullYear() - 10)),
       },
     });
+  }
+
+  // STUDENT-CLASS RELATIONSHIPS - Create many-to-many relationships
+  for (let i = 1; i <= 50; i++) {
+    const gradeId = (i % 4) + 1;
+    
+    // Primary class (A class)
+    await prisma.studentClass.create({
+      data: {
+        studentId: `student${i}`,
+        classId: gradeId, // A class (1-4)
+        isPrimary: true,
+      },
+    });
+
+    // Some students (30%) are enrolled in multiple classes (B class as well)
+    if (i % 3 === 0) {
+      await prisma.studentClass.create({
+        data: {
+          studentId: `student${i}`,
+          classId: gradeId + 4, // B class (5-8)
+          isPrimary: false,
+        },
+      });
+    }
   }
 
   // EXAM
@@ -151,6 +195,7 @@ async function main() {
   for (let i = 1; i <= 10; i++) {
     await prisma.result.create({
       data: {
+        title: i <= 5 ? `Exam ${i} Result` : `Assignment ${i - 5} Result`,
         score: 90, 
         studentId: `student${i}`, 
         ...(i <= 5 ? { examId: i } : { assignmentId: i - 5 }), 
@@ -178,7 +223,7 @@ async function main() {
         description: `Description for Event ${i}`, 
         startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
         endTime: new Date(new Date().setHours(new Date().getHours() + 2)), 
-        classId: (i % 5) + 1, 
+        classId: (i % 8) + 1, // Updated to work with 8 classes
       },
     });
   }
@@ -190,34 +235,34 @@ async function main() {
         title: `Announcement ${i}`, 
         description: `Description for Announcement ${i}`, 
         date: new Date(), 
-        classId: (i % 5) + 1, 
+        classId: (i % 8) + 1, // Updated to work with 8 classes
       },
     });
   }
-    // NOTIFICATION
-    for (let i = 1; i <= 15; i++) {
-      await prisma.notification.create({
-        data: {
-          title: `Notification ${i}`,
-          message: i <= 5 
-            ? `Student student${i} is running late for lesson ${i}` 
-            : i <= 10 
-            ? `Assignment ${i - 5} has been submitted by student${i - 5}`
-            : `Exam ${i - 10} reminder for tomorrow`,
-          type: i <= 5 ? "LATE" : i <= 10 ? "ASSIGNMENT" : "EXAM",
-          recipientId: i <= 5 
-            ? `teacher${(i % 15) + 1}` 
-            : i <= 10 
-            ? `teacher${((i - 5) % 15) + 1}`
-            : `student${i - 10}`,
-          recipientType: i <= 10 ? "TEACHER" : "STUDENT",
-          isRead: i % 3 === 0, // Some notifications are read
-          lessonId: i <= 5 ? i : null,
-          createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
-        },
-      });
-    }
-  
+
+  // NOTIFICATION
+  for (let i = 1; i <= 15; i++) {
+    await prisma.notification.create({
+      data: {
+        title: `Notification ${i}`,
+        message: i <= 5 
+          ? `Student student${i} is running late for lesson ${i}` 
+          : i <= 10 
+          ? `Assignment ${i - 5} has been submitted by student${i - 5}`
+          : `Exam ${i - 10} reminder for tomorrow`,
+        type: i <= 5 ? "LATE" : i <= 10 ? "ASSIGNMENT" : "EXAM",
+        recipientId: i <= 5 
+          ? `teacher${(i % 15) + 1}` 
+          : i <= 10 
+          ? `teacher${((i - 5) % 15) + 1}`
+          : `student${i - 10}`,
+        recipientType: i <= 10 ? "TEACHER" : "STUDENT",
+        isRead: i % 3 === 0, // Some notifications are read
+        lessonId: i <= 5 ? i : null,
+        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
+      },
+    });
+  }
 
   console.log("Seeding completed successfully.");
 }

@@ -116,18 +116,20 @@ const EventListPage = async ({
 
   // ROLE CONDITIONS
 
-  const roleConditions = {
-    teacher: { lessons: { some: { teacherId: currentUserId! } } },
-    student: { students: { some: { id: currentUserId! } } },
-    parent: { students: { some: { parentId: currentUserId! } } },
-  };
+  if (role !== "admin") {
+    const roleConditions = {
+      teacher: { lessons: { some: { teacherId: currentUserId! } } },
+      student: { students: { some: { id: currentUserId! } } },
+      parent: { students: { some: { parentId: currentUserId! } } },
+    };
 
-  query.OR = [
-    { classId: null },
-    {
-      class: roleConditions[role as keyof typeof roleConditions] || {},
-    },
-  ];
+    query.OR = [
+      { classId: null },
+      {
+        class: roleConditions[role as keyof typeof roleConditions] || {},
+      },
+    ];
+  }
 
   const [data, count] = await prisma.$transaction([
     prisma.event.findMany({

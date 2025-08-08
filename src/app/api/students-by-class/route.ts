@@ -1,34 +1,44 @@
+// app/api/students-by-class/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const classId = searchParams.get("classId");
+    const searchParams = request.nextUrl.searchParams;
+    const classId = searchParams.get('classId');
 
     if (!classId) {
-      return NextResponse.json({ error: "Class ID is required" }, { status: 400 });
+      return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
     }
 
+    // Fetch students that are enrolled in the specified class
     const students = await prisma.student.findMany({
       where: {
-        classId: parseInt(classId),
+        classes: {
+          some: {
+            classId: parseInt(classId)
+          }
+        }
       },
       select: {
         id: true,
         name: true,
         surname: true,
+        username: true,
       },
       orderBy: [
-        { name: "asc" },
-        { surname: "asc" }
-      ],
+        { surname: 'asc' },
+        { name: 'asc' }
+      ]
     });
 
     return NextResponse.json(students);
   } catch (error) {
-    console.error("Error fetching students:", error);
-    return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 });
+    console.error('Error fetching students by class:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch students' },
+      { status: 500 }
+    );
   }
 }

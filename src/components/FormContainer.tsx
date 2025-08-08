@@ -50,15 +50,48 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         });
         relatedData = { subjects: teacherSubjects };
         break;
-      case "student":
-        const studentGrades = await prisma.grade.findMany({
-          select: { id: true, level: true },
-        });
-        const studentClasses = await prisma.class.findMany({
-          include: { _count: { select: { students: true } } },
-        });
-        relatedData = { classes: studentClasses, grades: studentGrades };
-        break;
+        case "student":
+  const studentGrades = await prisma.grade.findMany({
+    select: { id: true, level: true },
+  });
+  
+  const studentClasses = await prisma.class.findMany({
+    include: { 
+      _count: { select: { students: true } },
+      grade: true, // Include grade info for filtering
+    },
+  });
+  
+  const studentParents = await prisma.parent.findMany({
+    select: { id: true, name: true, surname: true },
+  });
+  
+  // If updating, fetch the student's current classes
+  if (type === "update" && id) {
+    const studentWithClasses = await prisma.student.findUnique({
+      where: { id: id as string },
+      include: {
+        classes: {
+          select: { 
+            classId: true,
+            isPrimary: true,
+          },
+        },
+      },
+    });
+    
+    // Merge current classes info with the data
+    if (data && studentWithClasses?.classes) {
+      data.classes = studentWithClasses.classes;
+    }
+  }
+  
+  relatedData = { 
+    classes: studentClasses, 
+    grades: studentGrades,
+    parents: studentParents,
+  };
+  break;
       case "exam":
         const lessonsQuery = role === "teacher" 
         ? { teacherId: currentUserId! }

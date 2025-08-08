@@ -11,7 +11,7 @@ import { auth } from "@clerk/nextjs/server";
 type AssignmentList = Assignment & {
   lesson: {
     subject: Subject;
-    class: Class;
+    classes: Class;
     teacher: Teacher;
   };
 };
@@ -63,7 +63,7 @@ const AssignmentListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">{item.lesson.subject.name}</td>
-      <td>{item.lesson.class.name}</td>
+      <td>{item.lesson.classes.name}</td>
       <td className="hidden md:table-cell">
         {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
       </td>
@@ -127,7 +127,7 @@ const AssignmentListPage = async ({
       query.lesson.class = {
         students: {
           some: {
-            id: currentUserId!,
+            id: parseInt(currentUserId!),
           },
         },
       };
@@ -136,7 +136,9 @@ const AssignmentListPage = async ({
       query.lesson.class = {
         students: {
           some: {
-            parentId: currentUserId!,
+            parent: {
+              id: currentUserId!,
+            },
           },
         },
       };

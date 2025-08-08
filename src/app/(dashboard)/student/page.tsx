@@ -11,9 +11,7 @@ const StudentPage = async () => {
     where: {
       id: userId!,
     },
-    include: {
-      class: true,
-    },
+    include: { classes: { include: { class: true } }},
   });
 
   if (!student) {
@@ -46,7 +44,7 @@ const StudentPage = async () => {
        <div className="mt-4 bg-white rounded-md p-4 h-[900px] overflow-hidden">
           <h1 className="mb-4">Student&apos;s Schedule</h1>
           <div className="h-[calc(100%-2rem)]">
-            <BigCalendarContainer type="classId" id={student.class.id} showNotifications={true} />
+            <BigCalendarContainer type="classId" id={student.classes[0].id} showNotifications={true} />
           </div>
         </div>
       </div>

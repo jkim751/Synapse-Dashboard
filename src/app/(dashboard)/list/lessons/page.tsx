@@ -32,7 +32,7 @@ const columns = [
   },
   {
     header: "Class",
-    accessor: "class",
+    accessor: "classes",
   },
   {
     header: "Teacher",

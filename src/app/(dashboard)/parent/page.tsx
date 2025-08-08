@@ -3,10 +3,10 @@ import BigCalendarContainer from "@/components/BigCalendarContainer";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
+const { userId, sessionClaims} = await auth();
+const currentUserId = userId;
 
 const ParentPage = async () => {
-  const { userId, sessionClaims} = await auth();
-  const currentUserId = userId;
 
   const students = await prisma.student.findMany({
     where: {
@@ -24,7 +24,7 @@ const ParentPage = async () => {
           Welcome, {userName}!
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Monitor your children's progress
+          Monitor your childrens progress
         </p>
       </div>
       <div className="flex-1 p-4 flex gap-4 flex-col xl:flex-row">
@@ -32,7 +32,7 @@ const ParentPage = async () => {
           {students.length > 0 ? (
             <div className="bg-white p-4 rounded-md h-[850px]">
               <h1 className="text-xl font-semibold mb-4">
-                Children's Schedule
+                Childrens Schedule
                 {students.length > 1 && (
                   <span className="text-sm text-gray-600 ml-2">
                     ({students.map(s => s.name).join(", ")})
@@ -40,7 +40,7 @@ const ParentPage = async () => {
                 )}
               </h1>
               <div className="h-[calc(100%-2rem)]">
-                <BigCalendarContainer type="classId" id={students[0].classId} />
+                <BigCalendarContainer type="classId" id={students[0].classId } />
               </div>
             </div>
           ) : (

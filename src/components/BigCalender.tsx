@@ -21,7 +21,7 @@ const subjectColorMap: Record<string, string> = {
   'Chemistry': '#CAFDFB',  
   'Physics': '#FFFEC0',   
   'Economics': '#FFCCE9',
-  'Event': '#FC711899',    
+  'Event': '#FC711866',    
 };
   
 // Generate consistent colors for subjects and events

@@ -5,13 +5,21 @@ import TableSearch from "@/components/TableSearch";
 
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Class, Prisma, Student } from "@prisma/client";
+import { Class, Grade, Prisma, Student } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 
 import { auth } from "@clerk/nextjs/server";
 
-type StudentList = Student & { class: Class };
+// Updated type to handle multiple classes
+type StudentList = Student & { 
+  classes: Array<{
+    classId: number;
+    isPrimary: boolean;
+    class: Class;
+  }>;
+  grade: Grade;
+};
 
 const StudentListPage = async ({
   searchParams,
@@ -57,60 +65,75 @@ const StudentListPage = async ({
       : []),
   ];
 
-  const renderRow = (item: StudentList) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
-      <td className="flex items-center gap-4 p-4">
-        <Image
-          src={item.img || "/noAvatar.png"}
-          alt=""
-          width={40}
-          height={40}
-          className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-        />
-        <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name}</h3>
-          <p className="text-xs text-gray-500">{item.class.name}</p>
-        </div>
-      </td>
-      <td className="hidden md:table-cell">{item.username}</td>
-      <td className="hidden md:table-cell">{item.class.name[0]}</td>
-      <td className="hidden md:table-cell">{item.phone}</td>
-      <td className="hidden md:table-cell">{item.address}</td>
-      <td>
-        <div className="flex items-center gap-2">
-          <Link href={`/list/students/${item.id}`}>
-            <button className="w-7 h-7 flex items-center justify-center rounded-full bg-orange-200">
-              <Image src="/view.png" alt="" width={16} height={16} />
-            </button>
-          </Link>
-          {role === "admin" && (
-            // <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaPurple">
-            //   <Image src="/delete.png" alt="" width={16} height={16} />
-            // </button>
-            <FormContainer table="student" type="delete" id={item.id} />
-          )}
-        </div>
-      </td>
-    </tr>
-  );
+  const renderRow = (item: StudentList) => {
+    // Get primary class or first class
+    const primaryClass = item.classes.find(c => c.isPrimary)?.class || item.classes[0]?.class;
+    const additionalClassesCount = item.classes.length - 1;
+    
+    return (
+      <tr
+        key={item.id}
+        className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+      >
+        <td className="flex items-center gap-4 p-4">
+          <Image
+            src={item.img || "/noAvatar.png"}
+            alt=""
+            width={40}
+            height={40}
+            className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
+          />
+          <div className="flex flex-col">
+            <h3 className="font-semibold">{item.name}</h3>
+            <div className="flex items-center gap-1">
+              <p className="text-xs text-gray-500">
+                {primaryClass?.name || "No class"}
+              </p>
+              {additionalClassesCount > 0 && (
+                <span className="text-xs text-gray-400">
+                  (+{additionalClassesCount} more)
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="hidden md:table-cell">{item.username}</td>
+        <td className="hidden md:table-cell">{item.grade.level}</td>
+        <td className="hidden md:table-cell">{item.phone}</td>
+        <td className="hidden md:table-cell">{item.address}</td>
+        <td>
+          <div className="flex items-center gap-2">
+            <Link href={`/list/students/${item.id}`}>
+              <button className="w-7 h-7 flex items-center justify-center rounded-full bg-orange-200">
+                <Image src="/view.png" alt="" width={16} height={16} />
+              </button>
+            </Link>
+            {role === "admin" && (
+              <FormContainer table="student" type="delete" id={item.id} />
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   const { page, ...queryParams } = resolvedSearchParams;
 
   const p = page ? parseInt(page) : 1;
 
   // URL PARAMS CONDITION
-
   const query: Prisma.StudentWhereInput = {};
   
-   // ROLE CONDITIONS
-   if (role === "teacher") {
-    query.class = {
-      lessons: {
-        some: {
-          teacherId: userId!,
+  // ROLE CONDITIONS
+  if (role === "teacher") {
+    query.classes = {
+      some: {
+        class: {
+          lessons: {
+            some: {
+              teacherId: userId!,
+            },
+          },
         },
       },
     };
@@ -120,17 +143,34 @@ const StudentListPage = async ({
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
+          case "classId":
+            // Handle direct classId parameter
+            query.classes = {
+              some: {
+                classId: parseInt(value),
+              },
+            };
+            break;
           case "teacherId":
-            query.class = {
-              lessons: {
-                some: {
-                  teacherId: value,
+            query.classes = {
+              some: {
+                class: {
+                  lessons: {
+                    some: {
+                      teacherId: value,
+                    },
+                  },
                 },
               },
             };
             break;
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            query.OR = [
+              { name: { contains: value, mode: "insensitive" } },
+              { surname: { contains: value, mode: "insensitive" } },
+              { username: { contains: value, mode: "insensitive" } },
+              { email: { contains: value, mode: "insensitive" } },
+            ];
             break;
           default:
             break;
@@ -143,7 +183,15 @@ const StudentListPage = async ({
     prisma.student.findMany({
       where: query,
       include: {
-        class: true,
+        classes: {
+          include: {
+            class: true,
+          },
+          orderBy: {
+            isPrimary: 'desc', // Primary classes first
+          },
+        },
+        grade: true,
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
@@ -160,9 +208,6 @@ const StudentListPage = async ({
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
             {role === "admin" && (
-              // <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
-              //   <Image src="/plus.png" alt="" width={14} height={14} />
-              // </button>
               <FormContainer table="student" type="create" />
             )}
           </div>

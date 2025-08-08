@@ -47,10 +47,6 @@ const SubjectForm = ({
       toast(`Subject has been ${type === "create" ? "created" : "updated"}!`);
       setOpen(false);
       router.refresh();
-    }  else if (state.error && type === "create") {
-      toast.error("Failed to create subject. A subject with this name may already exist.");
-    } else if (state.error && type === "update") {
-      toast.error("Failed to update subject.");
     }
   }, [state, router, type, setOpen]);
 

@@ -28,7 +28,7 @@ import {
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 
-type CurrentState = { success: boolean; error: boolean };
+type CurrentState = { success: boolean; error: boolean; message?: string };
 
 export const createSubject = async (
   currentState: CurrentState,
@@ -37,7 +37,7 @@ export const createSubject = async (
   try {
     // Validate data against schema
     const validatedData = subjectSchema.parse(data);
-    
+
     await prisma.subject.create({
       data: {
         name: validatedData.name,
@@ -48,10 +48,10 @@ export const createSubject = async (
     });
 
     revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Subject created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create subject!" };
   }
 };
 
@@ -61,9 +61,9 @@ export const updateSubject = async (
 ) => {
   try {
     const validatedData = subjectSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Subject ID is required for update!" };
     }
 
     await prisma.subject.update({
@@ -79,10 +79,10 @@ export const updateSubject = async (
     });
 
     revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Subject updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update subject!" };
   }
 };
 
@@ -99,7 +99,7 @@ export const deleteSubject = async (
 
     if (lessonsCount > 0) {
       console.log(`Cannot delete subject: ${lessonsCount} lessons are associated with this subject`);
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Cannot delete subject with associated lessons!" };
     }
 
     await prisma.subject.delete({
@@ -109,10 +109,10 @@ export const deleteSubject = async (
     });
 
     revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Subject deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete subject!" };
   }
 };
 
@@ -122,7 +122,7 @@ export const createClass = async (
 ) => {
   try {
     const validatedData = classSchema.parse(data);
-    
+
     await prisma.class.create({
       data: {
         name: validatedData.name,
@@ -133,10 +133,10 @@ export const createClass = async (
     });
 
     revalidatePath("/list/classes");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Class created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create class!" };
   }
 };
 
@@ -146,9 +146,9 @@ export const updateClass = async (
 ) => {
   try {
     const validatedData = classSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Class ID is required for update!" };
     }
 
     await prisma.class.update({
@@ -164,10 +164,10 @@ export const updateClass = async (
     });
 
     revalidatePath("/list/classes");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Class updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update class!" };
   }
 };
 
@@ -184,10 +184,10 @@ export const deleteClass = async (
     });
 
     revalidatePath("/list/classes");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Class deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete class!" };
   }
 };
 
@@ -197,7 +197,7 @@ export const createTeacher = async (
 ) => {
   try {
     const validatedData = teacherSchema.parse(data);
-    
+
     const clerk = await clerkClient();
     const user = await clerk.users.createUser({
       username: validatedData.username,
@@ -228,10 +228,10 @@ export const createTeacher = async (
     });
 
     revalidatePath("/list/teachers");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Teacher created successfully!" };
   } catch (err) {
     console.error("Create Teacher Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create teacher!" };
   }
 };
 
@@ -241,9 +241,9 @@ export const updateTeacher = async (
 ) => {
   try {
     const validatedData = teacherSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Teacher ID is required for update!" };
     }
 
     const clerk = await clerkClient();
@@ -275,12 +275,12 @@ export const updateTeacher = async (
         },
       },
     });
-    
+
     revalidatePath("/list/teachers");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Teacher updated successfully!" };
   } catch (err) {
     console.error("Update Teacher Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update teacher!" };
   }
 };
 
@@ -299,10 +299,10 @@ export const deleteTeacher = async (
     });
 
     revalidatePath("/list/teachers");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Teacher deleted successfully!" };
   } catch (err) {
     console.error("Delete Teacher Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete teacher!" };
   }
 };
 
@@ -312,14 +312,14 @@ export const createStudent = async (
 ) => {
   try {
     const validatedData = studentSchema.parse(data);
-    
+
     const classItem = await prisma.class.findUnique({
-      where: { id: validatedData.classId },
+      where: { id: validatedData.classIds[0] },
       include: { _count: { select: { students: true } } },
     });
 
     if (classItem && classItem.capacity === classItem._count.students) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Class capacity reached!" };
     }
 
     const clerk = await clerkClient();
@@ -344,16 +344,16 @@ export const createStudent = async (
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
-        classId: validatedData.classId,
+        classId: validatedData.classIds[0],
         parentId: validatedData.parentId || null,
       },
     });
 
     revalidatePath("/list/students");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Student created successfully!" };
   } catch (err) {
     console.error("Create Student Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create student!" };
   }
 };
 
@@ -363,9 +363,9 @@ export const updateStudent = async (
 ) => {
   try {
     const validatedData = studentSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Student ID is required for update!" };
     }
 
     const clerk = await clerkClient();
@@ -391,16 +391,16 @@ export const updateStudent = async (
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
-        classId: validatedData.classId,
+        classId: validatedData.classIds,
         parentId: validatedData.parentId || null,
       },
     });
 
     revalidatePath("/list/students");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Student updated successfully!" };
   } catch (err) {
     console.error("Update Student Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update student!" };
   }
 };
 
@@ -419,10 +419,10 @@ export const deleteStudent = async (
     });
 
     revalidatePath("/list/students");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Student deleted successfully!" };
   } catch (err) {
     console.error("Delete Student Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete student!" };
   }
 };
 
@@ -432,7 +432,7 @@ export const createExam = async (
 ) => {
   try {
     const validatedData = examSchema.parse(data);
-    
+
     await prisma.exam.create({
       data: {
         title: validatedData.title,
@@ -443,10 +443,10 @@ export const createExam = async (
     });
 
     revalidatePath("/list/exams");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Exam created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create exam!" };
   }
 };
 
@@ -456,9 +456,9 @@ export const updateExam = async (
 ) => {
   try {
     const validatedData = examSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Exam ID is required for update!" };
     }
 
     await prisma.exam.update({
@@ -474,10 +474,10 @@ export const updateExam = async (
     });
 
     revalidatePath("/list/exams");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Exam updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update exam!" };
   }
 };
 
@@ -494,10 +494,10 @@ export const deleteExam = async (
     });
 
     revalidatePath("/list/exams");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Exam deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete exam!" };
   }
 };
 
@@ -507,7 +507,7 @@ export const createLesson = async (
 ) => {
   try {
     const validatedData = lessonSchema.parse(data);
-    
+
     await prisma.lesson.create({
       data: {
         name: validatedData.name,
@@ -521,10 +521,10 @@ export const createLesson = async (
     });
 
     revalidatePath("/list/lessons");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Lesson created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create lesson!" };
   }
 };
 
@@ -534,9 +534,9 @@ export const updateLesson = async (
 ) => {
   try {
     const validatedData = lessonSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Lesson ID is required for update!" };
     }
 
     await prisma.lesson.update({
@@ -555,10 +555,10 @@ export const updateLesson = async (
     });
 
     revalidatePath("/list/lessons");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Lesson updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update lesson!" };
   }
 };
 
@@ -575,10 +575,10 @@ export const deleteLesson = async (
     });
 
     revalidatePath("/list/lessons");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Lesson deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete lesson!" };
   }
 };
 
@@ -588,13 +588,13 @@ export const createParent = async (
 ) => {
   try {
     const validatedData = parentSchema.parse(data);
-    
+
     // Check if password is provided for creation
     if (!validatedData.password) {
       console.error("Password is required for creating a new parent");
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Password is required for creating a new parent" };
     }
-    
+
     const clerk = await clerkClient();
     const user = await clerk.users.createUser({
       username: validatedData.username,
@@ -631,13 +631,13 @@ export const createParent = async (
     }
 
     revalidatePath("/list/parents");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Parent created successfully!" };
   } catch (err) {
     console.error("Create Parent Error:", err);
     if (err && typeof err === 'object' && 'errors' in err) {
       console.error("Clerk validation errors:", err.errors);
     }
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create parent!" };
   }
 };
 
@@ -647,9 +647,9 @@ export const updateParent = async (
 ) => {
   try {
     const validatedData = parentSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Parent ID is required for update!" };
     }
 
     const clerk = await clerkClient();
@@ -700,13 +700,13 @@ export const updateParent = async (
     }
 
     revalidatePath("/list/parents");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Parent updated successfully!" };
   } catch (err) {
     console.error("Update Parent Error:", err);
     if (err && typeof err === 'object' && 'errors' in err) {
       console.error("Clerk validation errors:", err.errors);
     }
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update parent!" };
   }
 };
 
@@ -725,10 +725,10 @@ export const deleteParent = async (
     });
 
     revalidatePath("/list/parents");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Parent deleted successfully!" };
   } catch (err) {
     console.error("Delete Parent Error:", err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete parent!" };
   }
 };
 
@@ -738,7 +738,7 @@ export const createAssignment = async (
 ) => {
   try {
     const validatedData = assignmentSchema.parse(data);
-    
+
     await prisma.assignment.create({
       data: {
         title: validatedData.title,
@@ -749,10 +749,10 @@ export const createAssignment = async (
     });
 
     revalidatePath("/list/assignments");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Assignment created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create assignment!" };
   }
 };
 
@@ -762,9 +762,9 @@ export const updateAssignment = async (
 ) => {
   try {
     const validatedData = assignmentSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Assignment ID is required for update!" };
     }
 
     await prisma.assignment.update({
@@ -780,10 +780,10 @@ export const updateAssignment = async (
     });
 
     revalidatePath("/list/assignments");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Assignment updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update assignment!" };
   }
 };
 
@@ -800,10 +800,10 @@ export const deleteAssignment = async (
     });
 
     revalidatePath("/list/assignments");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Assignment deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete assignment!" };
   }
 };
 
@@ -813,7 +813,7 @@ export const createResult = async (
 ) => {
   try {
     const validatedData = resultSchema.parse(data);
-    
+
     await prisma.result.create({
       data: {
         title: validatedData.title,
@@ -825,10 +825,10 @@ export const createResult = async (
     });
 
     revalidatePath("/list/results");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Result created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create result!" };
   }
 };
 
@@ -838,9 +838,9 @@ export const updateResult = async (
 ) => {
   try {
     const validatedData = resultSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Result ID is required for update!" };
     }
 
     await prisma.result.update({
@@ -857,10 +857,10 @@ export const updateResult = async (
     });
 
     revalidatePath("/list/results");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Result updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update result!" };
   }
 };
 
@@ -877,10 +877,10 @@ export const deleteResult = async (
     });
 
     revalidatePath("/list/results");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Result deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete result!" };
   }
 };
 
@@ -890,7 +890,7 @@ export const createEvent = async (
 ) => {
   try {
     const validatedData = eventSchema.parse(data);
-    
+
     await prisma.event.create({
       data: {
         title: validatedData.title,
@@ -902,10 +902,10 @@ export const createEvent = async (
     });
 
     revalidatePath("/list/events");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Event created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create event!" };
   }
 };
 
@@ -915,9 +915,9 @@ export const updateEvent = async (
 ) => {
   try {
     const validatedData = eventSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Event ID is required for update!" };
     }
 
     await prisma.event.update({
@@ -934,10 +934,10 @@ export const updateEvent = async (
     });
 
     revalidatePath("/list/events");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Event updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update event!" };
   }
 };
 
@@ -954,10 +954,10 @@ export const deleteEvent = async (
     });
 
     revalidatePath("/list/events");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Event deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete event!" };
   }
 };
 
@@ -967,7 +967,7 @@ export const createAnnouncement = async (
 ) => {
   try {
     const validatedData = announcementSchema.parse(data);
-    
+
     await prisma.announcement.create({
       data: {
         title: validatedData.title,
@@ -978,10 +978,10 @@ export const createAnnouncement = async (
     });
 
     revalidatePath("/list/announcements");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Announcement created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to create announcement!" };
   }
 };
 
@@ -991,9 +991,9 @@ export const updateAnnouncement = async (
 ) => {
   try {
     const validatedData = announcementSchema.parse(data);
-    
+
     if (!validatedData.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Announcement ID is required for update!" };
     }
 
     await prisma.announcement.update({
@@ -1009,10 +1009,10 @@ export const updateAnnouncement = async (
     });
 
     revalidatePath("/list/announcements");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Announcement updated successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to update announcement!" };
   }
 };
 
@@ -1029,9 +1029,9 @@ export const deleteAnnouncement = async (
     });
 
     revalidatePath("/list/announcements");
-    return { success: true, error: false };
+    return { success: true, error: false, message: "Announcement deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true };
+    return { success: false, error: true, message: "Failed to delete announcement!" };
   }
 };

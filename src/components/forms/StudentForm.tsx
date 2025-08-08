@@ -27,12 +27,20 @@ const StudentForm = ({
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = useForm<StudentSchema>({
     resolver: zodResolver(studentSchema),
+    defaultValues: {
+      classIds: data?.classes?.map((c: any) => c.classId) || [],
+    }
   });
 
   const [img, setImg] = useState<any>();
   const [isPending, startTransition] = useTransition();
+  const [selectedClasses, setSelectedClasses] = useState<number[]>(
+    data?.classes?.map((c: any) => c.classId) || []
+  );
 
   const [state, formAction] = useActionState(
     type === "create" ? createStudent : updateStudent,
@@ -46,30 +54,46 @@ const StudentForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Student has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Student has been ${type}d successfully!`);
       setOpen(false);
       router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} student!`);
     }
   }, [state, router, type, setOpen]);
 
   const { classes, parents, grades } = relatedData;
 
-  const onSubmit = handleSubmit((data) => {
-    console.log("Form data before submission:", data); // Debug log
+  // Filter classes based on selected grade
+  const selectedGrade = watch("gradeId");
+  const filteredClasses = classes?.filter((c: any) => 
+    !selectedGrade || c.gradeId === Number(selectedGrade)
+  );
+
+  const handleClassToggle = (classId: number) => {
+    const newClasses = selectedClasses.includes(classId)
+      ? selectedClasses.filter(id => id !== classId)
+      : [...selectedClasses, classId];
     
-    // Ensure proper data formatting
+    setSelectedClasses(newClasses);
+    setValue("classIds", newClasses);
+  };
+
+  const onSubmit = handleSubmit((data) => {
+    console.log("Form data before submission:", data);
+    
     const formattedData = {
       ...data,
       img: img?.secure_url || undefined,
-      classId: Number(data.classId),
+      classIds: selectedClasses, // Array of class IDs
       gradeId: Number(data.gradeId),
       parentId: data.parentId || undefined,
-      // Convert empty strings to undefined for optional fields
       email: data.email || undefined,
       phone: data.phone || undefined,
     };
     
-    console.log("Formatted data:", formattedData); // Debug log
+    console.log("Formatted data:", formattedData);
     
     startTransition(() => {
       formAction(formattedData);
@@ -170,18 +194,53 @@ const StudentForm = ({
             label: grade.level.toString(),
           })) || []}
         />
-        <InputField
-          label="Class"
-          name="classId"
-          defaultValue={data?.classId}
-          register={register}
-          error={errors?.classId}
-          type="select"
-          options={classes?.map((classItem: { id: number; name: string }) => ({
-            value: classItem.id,
-            label: classItem.name,
-          })) || []}
-        />
+        
+        {/* Multiple Class Selection */}
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-xs text-gray-500">
+            Classes (Select multiple)
+            <span className="text-red-500 ml-1">*</span>
+          </label>
+          <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+            {filteredClasses?.length > 0 ? (
+              filteredClasses.map((classItem: any) => (
+                <div key={classItem.id} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    id={`class-${classItem.id}`}
+                    checked={selectedClasses.includes(classItem.id)}
+                    onChange={() => handleClassToggle(classItem.id)}
+                    className="w-4 h-4"
+                  />
+                  <label 
+                    htmlFor={`class-${classItem.id}`} 
+                    className="text-sm cursor-pointer flex-1"
+                  >
+                    {classItem.name} 
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({classItem._count.students}/{classItem.capacity} students)
+                    </span>
+                  </label>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-gray-500">
+                {selectedGrade ? "No classes available for this grade" : "Select a grade first"}
+              </p>
+            )}
+          </div>
+          {errors.classIds && (
+            <p className="text-xs text-red-400">
+              {errors.classIds.message}
+            </p>
+          )}
+          {selectedClasses.length > 0 && (
+            <p className="text-xs text-gray-600">
+              Selected: {selectedClasses.length} class(es)
+            </p>
+          )}
+        </div>
+
         <InputField
           label="Parent (Optional)"
           name="parentId"
