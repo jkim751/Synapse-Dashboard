@@ -2,12 +2,13 @@
   "name": "synapse_dashboard",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
+    "scripts": {
+      "dev": "next dev",
+      "build": "prisma generate && next build",
+      "start": "next start",
+      "lint": "next lint",
+      "postinstall": "prisma generate"
+    },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5",
     "@clerk/elements": "^0.23.49",
@@ -44,6 +45,7 @@
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
+  
   "overrides": {
     "@clerk/shared": "^3.17.0"
   }
