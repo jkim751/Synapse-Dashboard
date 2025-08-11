@@ -37,6 +37,7 @@ const SubjectForm = ({
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
     }
   );
 
@@ -85,7 +86,7 @@ const SubjectForm = ({
           <label className="text-xs text-gray-500">Teachers</label>
           <select
             multiple
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
             {...register("teachers")}
             defaultValue={data?.teachers}
           >
@@ -107,7 +108,7 @@ const SubjectForm = ({
       )}
        <button 
         type="submit" 
-        className="bg-orange-400 text-white p-2 rounded-md"
+        className="bg-orange-400 text-white p-2 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

@@ -96,6 +96,8 @@
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
 }
 
 .rbc-date-cell {
@@ -110,12 +112,15 @@
   flex-direction: column !important;
   overflow: hidden !important;
   position: relative !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;  
 }
 
 .rbc-date-cell > a {
   margin-bottom: 4px !important;
   align-self: flex-start !important;
   flex-shrink: 0 !important;
+  
 }
 
 .rbc-date-cell .rbc-events-container {
@@ -125,18 +130,26 @@
   flex-direction: column !important;
   gap: 1px !important;
   min-height: 0 !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  padding-top: 2px !important;
+  position: relative !important;
 }
 
 .rbc-date-cell .rbc-row-content {
   overflow: visible !important;
   height: auto !important;
   min-height: 0 !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
 }
 
 .rbc-date-cell .rbc-row-segment {
   overflow: visible !important;
   position: relative !important;
   z-index: auto !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
 }
 
 /* Month view events */
@@ -159,6 +172,8 @@
   z-index: 2 !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
 }
 
 .rbc-month-view .rbc-event:hover {
@@ -207,6 +222,33 @@
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 1px !important;
+  justify-content: flex-start !important;
+}
+
+/* Force events to start from top by targeting the row content directly */
+.rbc-month-view .rbc-row-content-scroll-container {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  height: 100% !important;
+}
+
+/* Target the actual event wrapper and position it at top */
+.rbc-month-view .rbc-addons-dnd-row-body {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  height: 100% !important;
+}
+
+/* Force the event segments to align to top */
+.rbc-month-view .rbc-event-content {
+  position: relative !important;
+  top: 0 !important;
+  margin-top: 0 !important;
+  align-self: flex-start !important;
 }
 .rbc-show-more {
   background-color: #f3f4f6 !important;

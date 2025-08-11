@@ -118,13 +118,13 @@ const EventListPage = async ({
 
   if (role !== "admin") {
     const roleConditions = {
-      teacher: { lessons: { some: { teacherId: currentUserId! } } },
-      student: { students: { some: { id: currentUserId! } } },
-      parent: { students: { some: { parentId: currentUserId! } } },
+      teacher: { lessons: { some: { teacherId: userId! } } },
+      student: { students: { some: { student: { id: userId! } } } }, // Note: through StudentClass
+      parent: { students: { some: { student: { parentId: userId! } } } },
     };
-
+    
     query.OR = [
-      { classId: null },
+      { classId: null }, // This stays the same for Event/Announcement (they still have direct classId)
       {
         class: roleConditions[role as keyof typeof roleConditions] || {},
       },
@@ -144,7 +144,7 @@ const EventListPage = async ({
   ]);
 
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+    <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">Events</h1>

@@ -37,6 +37,8 @@ const EventForm = ({
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
+
     }
   );
 
@@ -123,7 +125,7 @@ const EventForm = ({
         <span className="text-red-500">Something went wrong!</span>
       )}
       <button
-        className="bg-orange-400 text-white p-4 rounded-md"
+        className="bg-orange-400 text-white p-4 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

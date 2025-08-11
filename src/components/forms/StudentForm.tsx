@@ -47,6 +47,7 @@ const StudentForm = ({
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
     }
   );
 
@@ -201,7 +202,7 @@ const StudentForm = ({
             Classes (Select multiple)
             <span className="text-red-500 ml-1">*</span>
           </label>
-          <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+          <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
             {filteredClasses?.length > 0 ? (
               filteredClasses.map((classItem: any) => (
                 <div key={classItem.id} className="flex items-center gap-2 mb-2">
@@ -269,7 +270,7 @@ const StudentForm = ({
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Sex</label>
           <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
             {...register("sex")}
             defaultValue={data?.sex}
           >
@@ -308,7 +309,7 @@ const StudentForm = ({
       )}
       <button 
         type="submit" 
-        className="bg-orange-400 text-white p-2 rounded-md"
+        className="bg-orange-400 text-white p-2 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

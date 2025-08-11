@@ -25,12 +25,15 @@ const LoginPage = () => {
   if (!isLoaded) {
     return (
       <div className="h-screen flex items-center justify-start pl-10 bg-cover bg-center bg-no-repeat" style={{backgroundImage: "url('/study_hub.png')"}}>
-        <div className="bg-white p-12 rounded-md shadow-2xl text-center">
+        <div className="bg-white p-12 rounded-xl shadow-2xl text-center">
           <div className="mb-6">
             <Image
               src="/logo.png" 
               alt="Synapse Logo" 
               className="w-16 h-16 mx-auto animate-spin"
+              width={64}
+              height={64}
+              
             />
           </div>
           <div className="animate-pulse">
@@ -49,12 +52,14 @@ const LoginPage = () => {
   if (isSignedIn) {
     return (
       <div className="h-screen flex items-center justify-center bg-orange-60">
-        <div className="bg-white p-12 rounded-md shadow-2xl text-center">
+        <div className="bg-white p-12 rounded-xl shadow-2xl text-center">
           <div className="mb-6">  
             <Image
               src="/logo.png" 
               alt="Synapse Logo" 
               className="w-16 h-16 mx-auto animate-spin"
+              width={64}
+              height={64}
             />
           </div>
           <p className="text-gray-600 font-medium">Redirecting to your dashboard...</p>
@@ -68,7 +73,7 @@ const LoginPage = () => {
       <SignIn.Root>
         <SignIn.Step
           name="start"
-          className="bg-white p-12 rounded-md shadow-2xl flex flex-col gap-2"
+          className="bg-white p-12 rounded-xl shadow-2xl flex flex-col gap-2"
         >
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Image 
@@ -90,7 +95,7 @@ const LoginPage = () => {
             <Clerk.Input
               type="text"
               required
-              className="p-2 rounded-md ring-1 ring-gray-300 focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all"
+              className="p-2 rounded-xl ring-1 ring-gray-300 focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all"
             />
             <Clerk.FieldError className="text-xs text-red-400" />
           </Clerk.Field>
@@ -101,16 +106,28 @@ const LoginPage = () => {
             <Clerk.Input
               type="password"
               required
-              className="p-2 rounded-md ring-1 ring-gray-300 focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all"
+              className="p-2 rounded-xl ring-1 ring-gray-300 focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all"
             />
             <Clerk.FieldError className="text-xs text-red-400" />
           </Clerk.Field>
           <SignIn.Action
             submit
-            className="bg-orange-500 hover:bg-orange-600 text-white my-1 rounded-md text-sm p-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-orange-500 hover:bg-orange-600 text-white my-1 rounded-xl text-sm p-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Sign In
           </SignIn.Action>
+          <div className="text-center justify-items-center mt-4">
+          <a href="https://synapseeducation.com.au/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <span className="text-sm text-black">Visit Us</span>
+              <Image
+                src="/logo.png"
+                alt="logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 mx-auto"
+              />
+            </a>
+          </div>
         </SignIn.Step>
       </SignIn.Root>
     </div>

@@ -11,7 +11,7 @@ import { auth } from "@clerk/nextjs/server";
 type AssignmentList = Assignment & {
   lesson: {
     subject: Subject;
-    classes: Class;
+    class: Class;
     teacher: Teacher;
   };
 };
@@ -63,7 +63,7 @@ const AssignmentListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">{item.lesson.subject.name}</td>
-      <td>{item.lesson.classes.name}</td>
+      <td>{item.lesson.class.name}</td>
       <td className="hidden md:table-cell">
         {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
       </td>
@@ -120,29 +120,20 @@ const AssignmentListPage = async ({
   switch (role) {
     case "admin":
       break;
-    case "teacher":
-      query.lesson.teacherId = currentUserId!;
+      case "teacher":
+        query.lesson = { teacherId: currentUserId! };
+        break;
+      case "student":
+        query.lesson = {
+          class: { students: { some: { studentId: currentUserId! } } },
+        };
+        break;
+      case "parent":
+        query.lesson = {
+          class: { students: { some: { student: { parentId: currentUserId! } } } },
+    };
       break;
-    case "student":
-      query.lesson.class = {
-        students: {
-          some: {
-            id: parseInt(currentUserId!),
-          },
-        },
-      };
-      break;
-    case "parent":
-      query.lesson.class = {
-        students: {
-          some: {
-            parent: {
-              id: currentUserId!,
-            },
-          },
-        },
-      };
-      break;
+
     default:
       break;
   }
@@ -165,7 +156,7 @@ const AssignmentListPage = async ({
     prisma.assignment.count({ where: query }),
   ]);
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+    <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">

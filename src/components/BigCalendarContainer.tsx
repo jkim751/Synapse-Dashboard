@@ -95,8 +95,8 @@ const BigCalendarContainer = async ({
   // Build the where clause for events based on role
   const roleConditions = {
     teacher: { lessons: { some: { teacherId: userId! } } },
-    student: { students: { some: { id: userId! } } },
-    parent: { students: { some: { parentId: userId! } } },
+    student: { students: { some: { studentId: userId! } } },
+    parent: { students: { some: {student: { parentId: userId! } } }},
   };
 
   let eventsWhereClause = {};

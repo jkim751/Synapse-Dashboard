@@ -37,12 +37,12 @@ const ParentInvoicesPage = async () => {
         <h1 className="text-2xl font-bold">School Invoices</h1>
       </div>
       
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="bg-white p-6 rounded-xl shadow">
         <h2 className="text-l font-semibold mb-4">Outstanding Invoices</h2>
         <InvoicesList students={parent.students} />
       </div>
       
-      <div className="bg-white p-6 rounded-lg shadow">
+      <div className="bg-white p-6 rounded-xl shadow">
         <h2 className="text-l font-semibold mb-4">Payment History</h2>
         <div className="text-gray-500">Your payment history will appear here.</div>
       </div>

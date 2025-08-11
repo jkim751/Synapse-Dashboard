@@ -3,13 +3,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useActionState } from "react";
 import InputField from "../InputField";
 import { assignmentSchema, AssignmentSchema } from "@/lib/formValidationSchemas";
 import { createAssignment, updateAssignment } from "@/lib/actions";
+import FileUpload from "../FileUpload";
 
 const AssignmentForm = ({
   type,
@@ -22,6 +23,7 @@ const AssignmentForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  const [documents, setDocuments] = useState<string[]>(data?.documents || []);
   const {
     register,
     handleSubmit,
@@ -37,6 +39,7 @@ const AssignmentForm = ({
     {
       success: false,
       error: false,
+      message: "",
     }
   );
 
@@ -54,7 +57,7 @@ const AssignmentForm = ({
 
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {
-      formAction(data);
+      formAction({ ...data, documents });
     });
   });
 
@@ -100,6 +103,12 @@ const AssignmentForm = ({
             label: lesson.name,
           }))}
         />
+        <FileUpload
+          label="Assignment Documents"
+          name="assignments"
+          existingFiles={documents}
+          onFilesChange={setDocuments}
+        />
         {data && (
           <InputField
             label="Id"
@@ -116,7 +125,7 @@ const AssignmentForm = ({
         <span className="text-red-500">Something went wrong!</span>
       )}
       <button
-        className="bg-orange-400 text-white p-4 rounded-md"
+        className="bg-orange-400 text-white p-4 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

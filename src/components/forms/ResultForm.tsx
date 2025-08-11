@@ -10,6 +10,7 @@ import { useActionState } from "react";
 import InputField from "../InputField";
 import { resultSchema, ResultSchema } from "@/lib/formValidationSchemas";
 import { createResult, updateResult } from "@/lib/actions";
+import FileUpload from "../FileUpload";
 
 
 const ResultForm = ({
@@ -26,6 +27,7 @@ const ResultForm = ({
   const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>("");
   const [selectedTitle, setSelectedTitle] = useState<string>("Result");
+  const [documents, setDocuments] = useState<string[]>(data?.documents || []);
   const form = useForm<ResultSchema>({
     resolver: zodResolver(resultSchema),
   });
@@ -44,6 +46,7 @@ const ResultForm = ({
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
     }
   );
 
@@ -104,7 +107,7 @@ const ResultForm = ({
 
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {
-      formAction(data);
+      formAction({ ...data, documents });
     });
   });
 
@@ -166,6 +169,12 @@ const ResultForm = ({
             label: assignment.title,
           }))}
         />
+           <FileUpload
+          label="Result Documents"
+          name="results"
+          existingFiles={documents}
+          onFilesChange={setDocuments}
+        />
         {data && (
           <InputField
             label="Id"
@@ -182,7 +191,7 @@ const ResultForm = ({
         <span className="text-red-500">Something went wrong!</span>
       )}
       <button
-        className="bg-orange-400 text-white p-4 rounded-md"
+        className="bg-orange-400 text-white p-4 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

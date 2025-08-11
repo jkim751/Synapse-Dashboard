@@ -37,6 +37,7 @@ const ParentForm = ({
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
     }
   );
 
@@ -147,7 +148,7 @@ const ParentForm = ({
         <div className="flex flex-col gap-2 w-full md:w-1/2">
           <label className="text-xs text-gray-500">Students (Optional)</label>
           <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full h-32"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full h-32"
             multiple
             {...register("students")}
             defaultValue={data?.students?.map((student: any) => student.id) || []}
@@ -185,7 +186,7 @@ const ParentForm = ({
       )}
       <button
         type="submit"
-        className="bg-orange-400 text-white p-2 rounded-md"
+        className="bg-orange-400 text-white p-2 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}

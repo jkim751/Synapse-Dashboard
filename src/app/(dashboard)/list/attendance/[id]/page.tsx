@@ -184,7 +184,7 @@ type ClassWithRelations = Class & {
   };
 
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+    <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -215,7 +215,7 @@ type ClassWithRelations = Class & {
 
       {/* LESSONS INFO */}
       {dayLessons.length > 0 ? (
-        <div className="mb-4 p-3 bg-gray-50 rounded-md">
+        <div className="mb-4 p-3 bg-gray-50 rounded-xl">
           <h3 className="font-semibold mb-2">Lessons for {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}:</h3>
           <div className="flex flex-wrap gap-2">
             {dayLessons.map((lesson) => (

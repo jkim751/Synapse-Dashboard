@@ -164,7 +164,7 @@ const AttendanceHistoryPage = async ({
   );
 
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+    <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold">Attendance History</h1>
@@ -176,17 +176,17 @@ const AttendanceHistoryPage = async ({
 
       {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-gray-50 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-gray-700">Total Records</h3>
           <p className="text-2xl font-bold text-orange-600">{count}</p>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-gray-50 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-gray-700">Present</h3>
           <p className="text-2xl font-bold text-green-600">
             {attendanceRecords.filter(r => r.present).length}
           </p>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-gray-50 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-gray-700">Absent</h3>
           <p className="text-2xl font-bold text-red-600">
             {attendanceRecords.filter(r => !r.present).length}

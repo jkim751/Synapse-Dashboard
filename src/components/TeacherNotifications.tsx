@@ -60,7 +60,7 @@ const TeacherNotifications = () => {
   const recentNotifications = notifications.slice(0, 5);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
+    <div className="bg-white p-4 rounded-xl shadow">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Recent Notifications</h2>
         {unreadNotifications.length > 0 && (
@@ -77,7 +77,7 @@ const TeacherNotifications = () => {
           {recentNotifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+              className={`p-3 border rounded-xl cursor-pointer transition-colors ${
                 !notification.isRead
                   ? "bg-blue-50 border-blue-200"
                   : "bg-gray-50 border-gray-200"

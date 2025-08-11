@@ -128,7 +128,7 @@ export const createClass = async (
         name: validatedData.name,
         capacity: validatedData.capacity,
         gradeId: validatedData.gradeId,
-        supervisorId: validatedData.supervisorId || null,
+        supervisorId: validatedData.supervisorId || undefined,
       },
     });
 
@@ -159,7 +159,7 @@ export const updateClass = async (
         name: validatedData.name,
         capacity: validatedData.capacity,
         gradeId: validatedData.gradeId,
-        supervisorId: validatedData.supervisorId || null,
+        supervisorId: validatedData.supervisorId || undefined,
       },
     });
 
@@ -213,10 +213,10 @@ export const createTeacher = async (
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
-        phone: validatedData.phone || null,
+        email: validatedData.email || undefined,
+        phone: validatedData.phone || undefined,
         address: validatedData.address,
-        img: validatedData.img || null,
+        img: validatedData.img || undefined,
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         subjects: {
@@ -262,10 +262,10 @@ export const updateTeacher = async (
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
-        phone: validatedData.phone || null,
+        email: validatedData.email || undefined,
+        phone: validatedData.phone || undefined,
         address: validatedData.address,
-        img: validatedData.img || null,
+        img: validatedData.img || undefined,
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         subjects: {
@@ -331,22 +331,30 @@ export const createStudent = async (
       publicMetadata: { role: "student" }
     });
 
-    await prisma.student.create({
+    const student = await prisma.student.create({
       data: {
         id: user.id,
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
-        phone: validatedData.phone || null,
+        email: validatedData.email || undefined,
+        phone: validatedData.phone || undefined,
         address: validatedData.address,
-        img: validatedData.img || null,
+        img: validatedData.img || undefined,
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
-        classId: validatedData.classIds[0],
-        parentId: validatedData.parentId || null,
+        parentId: validatedData.parentId || undefined,
       },
+    });
+
+    // Create StudentClass entries for all selected classes
+    await prisma.studentClass.createMany({
+      data: validatedData.classIds.map((classId, index) => ({
+        studentId: student.id,
+        classId: classId,
+        isPrimary: index === 0, // First class is primary
+      })),
     });
 
     revalidatePath("/list/students");
@@ -384,16 +392,30 @@ export const updateStudent = async (
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
-        phone: validatedData.phone || null,
+        email: validatedData.email || undefined,
+        phone: validatedData.phone || undefined,
         address: validatedData.address,
-        img: validatedData.img || null,
+        img: validatedData.img || undefined,
         sex: validatedData.sex,
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
-        classId: validatedData.classIds,
-        parentId: validatedData.parentId || null,
+        parentId: validatedData.parentId || undefined,
       },
+    });
+
+    // Update StudentClass entries
+    // First, remove existing class associations
+    await prisma.studentClass.deleteMany({
+      where: { studentId: validatedData.id },
+    });
+
+    // Then create new associations
+    await prisma.studentClass.createMany({
+      data: validatedData.classIds.map((classId, index) => ({
+        studentId: validatedData.id!,
+        classId: classId,
+        isPrimary: index === 0, // First class is primary
+      })),
     });
 
     revalidatePath("/list/students");
@@ -457,10 +479,6 @@ export const updateExam = async (
   try {
     const validatedData = examSchema.parse(data);
 
-    if (!validatedData.id) {
-      return { success: false, error: true, message: "Exam ID is required for update!" };
-    }
-
     await prisma.exam.update({
       where: {
         id: validatedData.id,
@@ -470,6 +488,7 @@ export const updateExam = async (
         startTime: validatedData.startTime,
         endTime: validatedData.endTime,
         lessonId: validatedData.lessonId,
+        documents: validatedData.documents || []
       },
     });
 
@@ -610,7 +629,7 @@ export const createParent = async (
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
+        email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
       },
@@ -668,7 +687,7 @@ export const updateParent = async (
         username: validatedData.username,
         name: validatedData.name,
         surname: validatedData.surname,
-        email: validatedData.email || null,
+        email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
       },
@@ -682,7 +701,7 @@ export const updateParent = async (
           parentId: validatedData.id,
         },
         data: {
-          parentId: null,
+          parentId: undefined,
         },
       });
 
@@ -763,10 +782,6 @@ export const updateAssignment = async (
   try {
     const validatedData = assignmentSchema.parse(data);
 
-    if (!validatedData.id) {
-      return { success: false, error: true, message: "Assignment ID is required for update!" };
-    }
-
     await prisma.assignment.update({
       where: {
         id: validatedData.id,
@@ -776,6 +791,7 @@ export const updateAssignment = async (
         startDate: validatedData.startDate,
         dueDate: validatedData.dueDate,
         lessonId: validatedData.lessonId,
+        documents: validatedData.documents || []
       },
     });
 
@@ -818,8 +834,8 @@ export const createResult = async (
       data: {
         title: validatedData.title,
         score: validatedData.score,
-        examId: validatedData.examId || null,
-        assignmentId: validatedData.assignmentId || null,
+        examId: validatedData.examId || undefined,
+        assignmentId: validatedData.assignmentId || undefined,
         studentId: validatedData.studentId,
       },
     });
@@ -850,8 +866,8 @@ export const updateResult = async (
       data: {
         title: validatedData.title,
         score: validatedData.score,
-        examId: validatedData.examId || null,
-        assignmentId: validatedData.assignmentId || null,
+        examId: validatedData.examId || undefined,
+        assignmentId: validatedData.assignmentId || undefined,
         studentId: validatedData.studentId,
       },
     });
@@ -897,7 +913,7 @@ export const createEvent = async (
         description: validatedData.description,
         startTime: validatedData.startTime,
         endTime: validatedData.endTime,
-        classId: validatedData.classId || null,
+        classId: validatedData.classId || undefined,
       },
     });
 
@@ -929,7 +945,7 @@ export const updateEvent = async (
         description: validatedData.description,
         startTime: validatedData.startTime,
         endTime: validatedData.endTime,
-        classId: validatedData.classId || null,
+        classId: validatedData.classId || undefined,
       },
     });
 
@@ -973,7 +989,7 @@ export const createAnnouncement = async (
         title: validatedData.title,
         description: validatedData.description,
         date: validatedData.date,
-        classId: validatedData.classId || null,
+        classId: validatedData.classId || undefined,
       },
     });
 
@@ -1004,7 +1020,7 @@ export const updateAnnouncement = async (
         title: validatedData.title,
         description: validatedData.description,
         date: validatedData.date,
-        classId: validatedData.classId || null,
+        classId: validatedData.classId || undefined,
       },
     });
 

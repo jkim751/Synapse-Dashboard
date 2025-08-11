@@ -13,25 +13,25 @@ model Admin {
 }
 
 model Student {
-  id          String       @id
-  username    String       @unique
-  name        String
-  surname     String
-  email       String?      @unique
-  phone       String?      @unique
-  address     String
-  img         String?
-  sex         UserSex
-  createdAt   DateTime     @default(now())
-  parentId    String
-  parent      Parent       @relation(fields: [parentId], references: [id])
-  gradeId     Int
-  grade       Grade        @relation(fields: [gradeId], references: [id])
-  attendances Attendance[]
-  results     Result[]
-  birthday    DateTime
+  id            String         @id
+  username      String         @unique
+  name          String
+  surname       String
+  email         String?        @unique
+  phone         String?        @unique
+  address       String
+  img           String?
+  sex           UserSex
+  createdAt     DateTime       @default(now())
+  parentId      String?
+  parent        Parent?         @relation(fields: [parentId], references: [id])
+  gradeId       Int
+  grade         Grade          @relation(fields: [gradeId], references: [id])
+  attendances   Attendance[]
+  results       Result[]
+  birthday      DateTime
   xeroContactId String? // Xero contact ID for financial operations
-  classes     StudentClass[]
+  classes       StudentClass[]
 }
 
 model Teacher {
@@ -117,6 +117,7 @@ model Exam {
   title     String
   startTime DateTime
   endTime   DateTime
+  documents String[] @default([])
 
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
@@ -128,6 +129,7 @@ model Assignment {
   title     String
   startDate DateTime
   dueDate   DateTime
+  documents String[] @default([])
 
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
@@ -135,7 +137,7 @@ model Assignment {
 }
 
 model Result {
-  id    Int @id @default(autoincrement())
+  id    Int    @id @default(autoincrement())
   score Int
   title String
 
@@ -178,6 +180,7 @@ model Announcement {
   classId Int?
   class   Class? @relation(fields: [classId], references: [id])
 }
+
 model XeroTokens {
   id           String   @id @default(cuid())
   accessToken  String
@@ -191,7 +194,7 @@ model XeroTokens {
 }
 
 model Notification {
-   id            String   @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   message       String
   type          String   @default("general")
@@ -202,13 +205,14 @@ model Notification {
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  lesson Lesson? @relation(fields: [lessonId], references: [id]) 
+  lesson        Lesson?  @relation(fields: [lessonId], references: [id])
 
   @@index([recipientId])
   @@index([isRead])
   @@index([createdAt])
   @@map("notifications")
 }
+
 model StudentClass {
   id        Int      @id @default(autoincrement())
   studentId String

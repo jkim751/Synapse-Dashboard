@@ -34,20 +34,12 @@ const TeacherForm = ({
   const [img, setImg] = useState<any>();
   const [isPending, startTransition] = useTransition();
 
-  // Create wrapper functions that match the expected signature
-  const createTeacherWrapper = async (prevState: any, formData: TeacherSchema) => {
-    return await createTeacher(prevState, formData);
-  };
-
-  const updateTeacherWrapper = async (prevState: any, formData: TeacherSchema) => {
-    return await updateTeacher(prevState, formData);
-  };
-
   const [state, formAction] = useActionState(
-    type === "create" ? createTeacherWrapper : updateTeacherWrapper,
+    type === "create" ? createTeacher : updateTeacher,
     {
       success: false,
       error: false,
+      message: "Successfully processed the request.",
     }
   );
 
@@ -185,7 +177,7 @@ const TeacherForm = ({
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Sex</label>
           <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
             {...register("sex")}
             defaultValue={data?.sex}
           >
@@ -203,7 +195,7 @@ const TeacherForm = ({
           <label className="text-xs text-gray-500">Subjects</label>
           <select
             multiple
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full h-32"
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full h-32"
             {...register("subjects")}
             defaultValue={data?.subjects?.map((subject: any) => subject.id.toString()) || []}
           >
@@ -247,7 +239,7 @@ const TeacherForm = ({
       )}
       <button 
         type="submit" 
-        className="bg-orange-400 text-white p-2 rounded-md"
+        className="bg-orange-400 text-white p-2 rounded-xl"
         disabled={isPending}
       >
         {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
