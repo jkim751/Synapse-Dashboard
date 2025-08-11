@@ -3,11 +3,11 @@ version: '3.8'
 services:
   postgress:
     image: postgres:15
-    container_name: postgres_db
+    container_name: postgresql
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: jkim
+      POSTGRES_PASSWORD: Tkfkdgo3@
+      POSTGRES_DB: Dashboard
     ports:
       - '5432:5432'
     volumes:
@@ -19,7 +19,7 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL: postgresql://myuser:mypassword@[YOUR_SERVER_IP]:5432/mydb
+      - DATABASE_URL: postgresql://jkim:Tkfkdgo3@@localhost:5432/Dashboard
     depends_on:
       - postgres
 
