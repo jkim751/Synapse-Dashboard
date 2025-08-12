@@ -1,27 +1,11 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15
-    container_name: postgresql
-    environment:
-      POSTGRES_USER: jkim
-      POSTGRES_PASSWORD: Tkfkdgo3%40
-      POSTGRES_DB: Dashboard
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    
+
   app:
     build: .
     container_name: nextjs_app
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL: postgresql://jkim:Tkfkdgo3%40@localhost:5432/postgres
-    depends_on:
-      - postgres
-
-volumes:
-  postgres_data:
+      - DATABASE_URL: "postgres://331b345d24cfcf942861529d3fdf01b54fafb22bf435296d9fb1d2887eb0399d:sk_IdKDq9UP00rxLCf76FrHq@db.prisma.io:5432/?sslmode=require"
