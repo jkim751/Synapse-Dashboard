@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  postgress:
+  postgres:
     image: postgres:15
     container_name: postgresql
     environment:
@@ -19,7 +19,7 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_URL: postgresql://jkim:Tkfkdgo3%40@localhost:5432/Dashboard
+      - DATABASE_URL: postgresql://jkim:Tkfkdgo3%40@postgres:5432/Dashboard
     depends_on:
       - postgres
 
