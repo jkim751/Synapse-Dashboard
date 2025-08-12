@@ -1,10 +1,13 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
+// Define database connection via the `DATABASE_URL` env var
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Define custom output path for generated Prisma Client
+generator client {
+  provider = "prisma-client-js"
+  output   = "app/generated/prisma-client"
 }
 
 model Admin {
