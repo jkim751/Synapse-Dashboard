@@ -6,7 +6,7 @@ services:
     container_name: postgresql
     environment:
       POSTGRES_USER: jkim
-      POSTGRES_PASSWORD: Tkfkdgo3@
+      POSTGRES_PASSWORD: Tkfkdgo3%40
       POSTGRES_DB: Dashboard
     ports:
       - '5432:5432'
