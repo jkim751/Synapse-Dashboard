@@ -7,6 +7,7 @@ const matchers = Object.keys(routeAccessMap).map((route) =>
 );
 
 export default clerkMiddleware(async (auth, req) => {
+  // Check if any of the matchers match the current route
   const matchedRouteIndex = matchers.findIndex((matcher) => matcher(req));
 
   if (matchedRouteIndex !== -1) {
@@ -19,18 +20,14 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.redirect(new URL("/sign-in", req.url));
     }
 
-    // --- THIS IS THE CRUCIAL CHANGE ---
-    // 1. Get the array of roles from metadata
-    const userRoles = (sessionClaims?.metadata as { roles?: string[] })?.roles || [];
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    // 2. Check if at least ONE of the user's roles is in the allowed list
-    const hasAccess = userRoles.some(role => allowedRoles.includes(role));
-
-    if (!hasAccess) {
+    if (!allowedRoles.includes(role!)) {
       return NextResponse.redirect(new URL("/", req.url));
     }
   }
 
+  // Add pathname to headers for menu highlighting
   const response = NextResponse.next();
   response.headers.set('x-pathname', req.nextUrl.pathname);
   return response;
