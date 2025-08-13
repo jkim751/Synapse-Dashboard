@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Synapse Education Portal",
-  description: "Synapse Education Dashboard",
+  description: "Synapse Education Portal",
   icons: {icon: '/favicon.ico',},
 };
 
