@@ -1,29 +1,45 @@
 import { Day, PrismaClient, UserSex } from "@prisma/client";
 const prisma = new PrismaClient();
 
-async function main() {
+// --- Part 1: Essential Data for Production ---
+async function seedProductionData() {
+  console.log("Seeding essential production data...");
+  
   // ADMIN
-  await prisma.admin.create({
-    data: {
-      id: "admin1",
-      username: "admin1",
-    },
-  });
-  await prisma.admin.create({
-    data: {
-      id: "admin2",
-      username: "admin2",
-    },
+  await prisma.admin.createMany({
+    data: [{ id: "admin1", username: "admin1" }, { id: "admin2", username: "admin2" }],
+    skipDuplicates: true, // Prevent errors if they already exist
   });
 
   // GRADE
+  const grades = [];
   for (let i = 9; i <= 12; i++) {
-    await prisma.grade.create({
-      data: {
-        level: i,
-      },
-    });
+    grades.push({ level: i });
   }
+  await prisma.grade.createMany({
+    data: grades,
+    skipDuplicates: true,
+  });
+
+  // SUBJECT
+  const subjectData = [
+    { name: "Math Prelim" }, { name: "Math Adv" }, { name: "Math Ext 1" },
+    { name: "Math Ext 2" }, { name: "Math" }, { name: "English" },
+    { name: "English Prelim" }, { name: "English Adv" }, { name: "English Ext 1" },
+    { name: "English Ext 2" }, { name: "Physics" }, { name: "Chemistry" },
+    { name: "Biology" }, { name: "Economics" },
+  ];
+  await prisma.subject.createMany({
+    data: subjectData,
+    skipDuplicates: true,
+  });
+
+  console.log("Production data seeded.");
+}
+
+// --- Part 2: Fake Data for Development Only ---
+async function seedDevelopmentData() {
+  console.log("Seeding development-only data...");
 
   // CLASS
   for (let i = 1; i <= 4; i++) {
@@ -47,29 +63,7 @@ async function main() {
     });
   }
 
-  // SUBJECT
-  const subjectData = [
-    { name: "Math Prelim" },
-    { name: "Math Adv" },
-    { name: "Math Ext 1" },
-    { name: "Math Ext 2" },
-    { name: "Math" },
-    { name: "English" },
-    { name: "English Prelim" },
-    { name: "English Adv" },
-    { name: "English Ext 1" },
-    { name: "English Ext 2" },
-    { name: "Physics" },
-    { name: "Chemistry" },
-    { name: "Biology" },
-    { name: "Economics" },
-  ];
-
-  for (const subject of subjectData) {
-    await prisma.subject.create({ data: subject });
-  }
-
-  // TEACHER
+  // TEACHER 
   for (let i = 1; i <= 15; i++) {
     await prisma.teacher.create({
       data: {
@@ -264,7 +258,18 @@ async function main() {
     });
   }
 
-  console.log("Seeding completed successfully.");
+  console.log("Development data seeded.");
+}
+
+// --- Main Seeding Logic ---
+async function main() {
+  // Always seed the essential data
+  await seedProductionData();
+
+  // Only seed the fake data if we are NOT in a production environment
+  if (process.env.NODE_ENV !== 'production') {
+    await seedDevelopmentData();
+  }
 }
 
 main()
