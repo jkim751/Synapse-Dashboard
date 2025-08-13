@@ -1,7 +1,10 @@
 import { UserButton } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
 import NotificationButton from "./NotificationButton";
+
+ const { userId, sessionClaims } = await auth();
+  const userName = (sessionClaims?.firstName as string) || (sessionClaims?.name as string);
 
 const Navbar = async () => {
   const user = await currentUser();
@@ -22,7 +25,7 @@ const Navbar = async () => {
           <NotificationButton />
         </div>
         <div className="flex flex-col">
-          <span className="text-xs leading-3 font-medium">John Doe</span>
+          <span className="text-xs leading-3 font-medium">{userName}!</span>
           <span className="text-[10px] text-gray-500 text-right">
             {user?.publicMetadata?.role as string}
           </span>
