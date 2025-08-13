@@ -1,13 +1,17 @@
 import { UserButton } from "@clerk/nextjs";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server"; // Use currentUser for simplicity
 import Image from "next/image";
 import NotificationButton from "./NotificationButton";
 
- const { userId, sessionClaims } = await auth();
-  const userName = (sessionClaims?.firstName as string) || (sessionClaims?.name as string);
-
+// Make the component async to use await inside it
 const Navbar = async () => {
+  // 1. Fetch the user data INSIDE the component
   const user = await currentUser();
+
+  // 2. Safely get the user's name and role. Provide fallbacks for when the user is not logged in.
+  const userName = user?.firstName || "User";
+  const userRole = (user?.publicMetadata?.role as string) || "Role";
+
   return (
     <div className="flex items-center justify-between p-4">
       {/* SEARCH BAR */}
@@ -25,12 +29,12 @@ const Navbar = async () => {
           <NotificationButton />
         </div>
         <div className="flex flex-col">
-          <span className="text-xs leading-3 font-medium">{userName}!</span>
+          {/* 3. Use the derived variables */}
+          <span className="text-xs leading-3 font-medium">{userName}</span>
           <span className="text-[10px] text-gray-500 text-right">
-            {user?.publicMetadata?.role as string}
+            {userRole}
           </span>
         </div>
-        {/* <Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full"/> */}
         <UserButton />
       </div>
     </div>
