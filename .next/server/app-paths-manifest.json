@@ -1,8 +1,5 @@
 {
-  "/api/attendance/notifications/route": "app/api/attendance/notifications/route.js",
-  "/api/xero/reports/route": "app/api/xero/reports/route.js",
-  "/api/xero/callback/route": "app/api/xero/callback/route.js",
   "/[[...sign-in]]/page": "app/[[...sign-in]]/page.js",
-  "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js",
-  "/(dashboard)/list/xero/page": "app/(dashboard)/list/xero/page.js"
+  "/(dashboard)/list/xero/page": "app/(dashboard)/list/xero/page.js",
+  "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js"
 }

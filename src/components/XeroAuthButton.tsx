@@ -1,20 +1,28 @@
 "use client";
-
 import { useState } from "react";
 
-const XeroAuthButton = () => {
+// Accept the initial state as a prop
+const XeroAuthButton = ({ initialIsAuthenticated }: { initialIsAuthenticated: boolean }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-
-  const handleXeroAuth = () => { // No need for async here anymore
+  
+  // A "disconnect" function would call another API route to delete the tokens
+  const handleDisconnect = () => { alert("Disconnect logic not implemented yet."); }
+  
+  const handleXeroAuth = () => {
     setIsAuthenticating(true);
-    try {
-      // THIS IS THE FIX: Point to the correct API route path
-      window.location.href = "/api/xero/callback"; 
-    } catch (error) {
-      console.error("Error initiating Xero auth:", error);
-      setIsAuthenticating(false);
-    }
+    window.location.href = "/api/xero/callback";
   };
+
+  if (initialIsAuthenticated) {
+    return (
+      <button 
+        onClick={handleDisconnect} 
+        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+      >
+        Disconnect from Xero
+      </button>
+    );
+  }
 
   return (
     <button
