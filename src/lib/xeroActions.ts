@@ -4,7 +4,10 @@ import { getXeroClient } from "./xero";
 export const getXeroReports = async () => {
     try {
       const { userId } = await auth();
-      const xero = await getXeroClient(userId || undefined);
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      const xero = await getXeroClient(userId);
       
       // Get Profit & Loss report
       const profitLoss = await xero.accountingApi.getReportProfitAndLoss('');
