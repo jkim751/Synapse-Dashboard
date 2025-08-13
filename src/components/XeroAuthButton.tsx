@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -6,10 +5,11 @@ import { useState } from "react";
 const XeroAuthButton = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  const handleXeroAuth = async () => {
+  const handleXeroAuth = () => { // No need for async here anymore
     setIsAuthenticating(true);
     try {
-      window.location.href = "/api/xero/auth";
+      // THIS IS THE FIX: Point to the correct API route path
+      window.location.href = "/api/xero/callback"; 
     } catch (error) {
       console.error("Error initiating Xero auth:", error);
       setIsAuthenticating(false);

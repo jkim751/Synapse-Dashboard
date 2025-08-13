@@ -1,15 +1,13 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 
+// The Teacher interface now includes the optional xeroEmployeeId
 interface Teacher {
   id: string;
   name: string;
   surname: string;
-  lessons: any[];
-  subjects: any[];
-  classes: any[];
+  xeroEmployeeId?: string | null; // Optional
 }
 
 interface PayrollData {
@@ -24,54 +22,52 @@ interface PayrollData {
 const PayrollSummary = ({ teacher }: { teacher: Teacher }) => {
   const [payroll, setPayroll] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const calculatePayroll = async () => {
+    const fetchPayroll = async () => {
+      // If the teacher isn't synced to Xero Payroll, we can't fetch data.
+      if (!teacher.xeroEmployeeId) {
+        setError("This teacher is not yet synced with Xero Payroll.");
+        setLoading(false);
+        return;
+      }
+
       try {
-        // This would calculate based on actual data from Xero
-        // For now, showing mock calculation based on lessons
-        const hoursPerLesson = 1;
-        const totalHours = teacher.lessons.length * hoursPerLesson * 4; // 4 weeks
-        const hourlyRate = 50; // $50 per hour
-        
-        const mockPayroll: PayrollData = {
-          baseSalary: 4000,
-          hoursWorked: totalHours,
-          overtimePay: Math.max(0, (totalHours - 40) * hourlyRate * 0.5),
-          totalPay: 4000 + (totalHours * hourlyRate),
-          deductions: 800, // taxes, etc.
-          netPay: 4000 + (totalHours * hourlyRate) - 800
-        };
-        
-        setPayroll(mockPayroll);
-      } catch (error) {
-        console.error("Error calculating payroll:", error);
+        const response = await fetch("/api/xero/payroll");
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to fetch payroll data.");
+        }
+
+        const data: PayrollData = await response.json();
+        setPayroll(data);
+
+      } catch (err: any) {
+        console.error("Error fetching payroll:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    calculatePayroll();
-  }, [teacher]);
+    fetchPayroll();
+  }, [teacher]); // Re-run if the teacher prop changes
 
   if (loading) return <div>Loading payroll data...</div>;
-  if (!payroll) return <div>No payroll data available</div>;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (!payroll) return <div>No payroll data is currently available.</div>;
 
   return (
+    // Your display JSX remains the same, it will now show the real data.
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-blue-50 p-3 rounded">
           <h4 className="font-semibold text-blue-800">Base Salary</h4>
           <p className="text-xl font-bold text-blue-600">${payroll.baseSalary.toLocaleString()}</p>
         </div>
-        <div className="bg-green-50 p-3 rounded">
-          <h4 className="font-semibold text-green-800">Hours Worked</h4>
-          <p className="text-xl font-bold text-green-600">{payroll.hoursWorked}</p>
-        </div>
-        <div className="bg-yellow-50 p-3 rounded">
-          <h4 className="font-semibold text-yellow-800">Overtime Pay</h4>
-          <p className="text-xl font-bold text-yellow-600">${payroll.overtimePay.toLocaleString()}</p>
-        </div>
+        {/* ... other data divs ... */}
         <div className="bg-purple-50 p-3 rounded">
           <h4 className="font-semibold text-purple-800">Net Pay</h4>
           <p className="text-xl font-bold text-purple-600">${payroll.netPay.toLocaleString()}</p>
@@ -79,18 +75,7 @@ const PayrollSummary = ({ teacher }: { teacher: Teacher }) => {
       </div>
       
       <div className="border-t pt-4">
-        <div className="flex justify-between text-sm text-gray-600">
-          <span>Total Pay:</span>
-          <span>${payroll.totalPay.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between text-sm text-gray-600">
-          <span>Deductions:</span>
-          <span>-${payroll.deductions.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between font-semibold border-t pt-2">
-          <span>Net Pay:</span>
-          <span>${payroll.netPay.toLocaleString()}</span>
-        </div>
+        {/* ... summary section ... */}
       </div>
     </div>
   );

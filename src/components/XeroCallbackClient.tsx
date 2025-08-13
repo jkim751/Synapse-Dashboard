@@ -28,7 +28,7 @@ const XeroCallbackClient = () => {
       .then(data => {
         if (data.success) {
           setMessage('Authentication successful! Redirecting...');
-          router.push('/admin/xero');
+          router.replace('/admin/xero');
         } else {
           setMessage(`Error: ${data.error || 'Authentication failed.'}. Redirecting...`);
           setTimeout(() => router.replace('/admin/xero'), 3000);

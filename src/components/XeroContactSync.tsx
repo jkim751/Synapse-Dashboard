@@ -1,20 +1,32 @@
-
 "use client";
 
 import { useState } from "react";
 
 const XeroContactSync = () => {
   const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleSyncContacts = async () => {
     setSyncing(true);
+    setSyncResult(null); // Clear previous results
+
     try {
-      // This would call your sync API
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-      setLastSync(new Date());
-    } catch (error) {
+      const response = await fetch('/api/xero/sync-contacts', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // If the server returns an error status (4xx, 5xx)
+        throw new Error(data.message || 'The sync operation failed.');
+      }
+      
+      setSyncResult({ success: true, message: data.message });
+
+    } catch (error: any) {
       console.error("Sync failed:", error);
+      setSyncResult({ success: false, message: error.message });
     } finally {
       setSyncing(false);
     }
@@ -34,10 +46,12 @@ const XeroContactSync = () => {
         {syncing ? "Syncing..." : "Sync All Contacts"}
       </button>
       
-      {lastSync && (
-        <p className="text-sm text-gray-500">
-          Last synced: {lastSync.toLocaleString()}
-        </p>
+      {syncResult && (
+        <div className={`mt-4 p-3 rounded text-sm ${
+            syncResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {syncResult.message}
+        </div>
       )}
     </div>
   );

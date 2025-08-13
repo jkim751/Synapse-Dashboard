@@ -50,6 +50,7 @@ model Teacher {
   lessons   Lesson[]
   classes   Class[]
   birthday  DateTime
+  xeroEmployeeId String? // Xero employee ID for financial operations
 }
 
 model Parent {
@@ -62,6 +63,7 @@ model Parent {
   address   String
   createdAt DateTime  @default(now())
   students  Student[]
+  xeroContactId String? // Xero contact ID for financial operations
 }
 
 model Grade {

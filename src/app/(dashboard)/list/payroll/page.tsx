@@ -25,7 +25,7 @@ const TeacherPayrollPage = async () => {
       subjects: true,
       classes: true,
     }
-  });
+  }); 
 
   if (!teacher) {
     redirect("/");
