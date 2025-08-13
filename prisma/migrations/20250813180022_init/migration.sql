@@ -2,7 +2,7 @@
 CREATE TYPE "UserSex" AS ENUM ('MALE', 'FEMALE');
 
 -- CreateEnum
-CREATE TYPE "Day" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY');
+CREATE TYPE "Day" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');
 
 -- CreateTable
 CREATE TABLE "Admin" (
@@ -22,12 +22,12 @@ CREATE TABLE "Student" (
     "phone" TEXT,
     "address" TEXT NOT NULL,
     "img" TEXT,
-    "bloodType" TEXT NOT NULL,
     "sex" "UserSex" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "parentId" TEXT NOT NULL,
-    "classId" INTEGER NOT NULL,
+    "parentId" TEXT,
     "gradeId" INTEGER NOT NULL,
+    "birthday" TIMESTAMP(3) NOT NULL,
+    "xeroContactId" TEXT,
 
     CONSTRAINT "Student_pkey" PRIMARY KEY ("id")
 );
@@ -42,9 +42,9 @@ CREATE TABLE "Teacher" (
     "phone" TEXT,
     "address" TEXT NOT NULL,
     "img" TEXT,
-    "bloodType" TEXT NOT NULL,
     "sex" "UserSex" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "birthday" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Teacher_pkey" PRIMARY KEY ("id")
 );
@@ -76,7 +76,7 @@ CREATE TABLE "Class" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "capacity" INTEGER NOT NULL,
-    "supervisorId" TEXT NOT NULL,
+    "supervisorId" TEXT,
     "gradeId" INTEGER NOT NULL,
 
     CONSTRAINT "Class_pkey" PRIMARY KEY ("id")
@@ -110,6 +110,7 @@ CREATE TABLE "Exam" (
     "title" TEXT NOT NULL,
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3) NOT NULL,
+    "documents" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "lessonId" INTEGER NOT NULL,
 
     CONSTRAINT "Exam_pkey" PRIMARY KEY ("id")
@@ -121,6 +122,7 @@ CREATE TABLE "Assignment" (
     "title" TEXT NOT NULL,
     "startDate" TIMESTAMP(3) NOT NULL,
     "dueDate" TIMESTAMP(3) NOT NULL,
+    "documents" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "lessonId" INTEGER NOT NULL,
 
     CONSTRAINT "Assignment_pkey" PRIMARY KEY ("id")
@@ -130,6 +132,7 @@ CREATE TABLE "Assignment" (
 CREATE TABLE "Result" (
     "id" SERIAL NOT NULL,
     "score" INTEGER NOT NULL,
+    "title" TEXT NOT NULL,
     "examId" INTEGER,
     "assignmentId" INTEGER,
     "studentId" TEXT NOT NULL,
@@ -169,6 +172,48 @@ CREATE TABLE "Announcement" (
     "classId" INTEGER,
 
     CONSTRAINT "Announcement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "xero_tokens" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accessToken" TEXT NOT NULL,
+    "refreshToken" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "xero_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "notifications" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'general',
+    "recipientId" TEXT NOT NULL,
+    "recipientType" TEXT NOT NULL DEFAULT 'STUDENT',
+    "senderId" TEXT,
+    "lessonId" INTEGER,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StudentClass" (
+    "id" SERIAL NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "classId" INTEGER NOT NULL,
+    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StudentClass_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -217,22 +262,40 @@ CREATE UNIQUE INDEX "Class_name_key" ON "Class"("name");
 CREATE UNIQUE INDEX "Subject_name_key" ON "Subject"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "xero_tokens_userId_key" ON "xero_tokens"("userId");
+
+-- CreateIndex
+CREATE INDEX "notifications_recipientId_idx" ON "notifications"("recipientId");
+
+-- CreateIndex
+CREATE INDEX "notifications_isRead_idx" ON "notifications"("isRead");
+
+-- CreateIndex
+CREATE INDEX "notifications_createdAt_idx" ON "notifications"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "StudentClass_studentId_idx" ON "StudentClass"("studentId");
+
+-- CreateIndex
+CREATE INDEX "StudentClass_classId_idx" ON "StudentClass"("classId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StudentClass_studentId_classId_key" ON "StudentClass"("studentId", "classId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "_SubjectToTeacher_AB_unique" ON "_SubjectToTeacher"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_SubjectToTeacher_B_index" ON "_SubjectToTeacher"("B");
 
 -- AddForeignKey
-ALTER TABLE "Student" ADD CONSTRAINT "Student_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Student" ADD CONSTRAINT "Student_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Student" ADD CONSTRAINT "Student_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Parent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Student" ADD CONSTRAINT "Student_gradeId_fkey" FOREIGN KEY ("gradeId") REFERENCES "Grade"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Class" ADD CONSTRAINT "Class_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "Teacher"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Class" ADD CONSTRAINT "Class_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "Teacher"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Class" ADD CONSTRAINT "Class_gradeId_fkey" FOREIGN KEY ("gradeId") REFERENCES "Grade"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -272,6 +335,15 @@ ALTER TABLE "Event" ADD CONSTRAINT "Event_classId_fkey" FOREIGN KEY ("classId") 
 
 -- AddForeignKey
 ALTER TABLE "Announcement" ADD CONSTRAINT "Announcement_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_lessonId_fkey" FOREIGN KEY ("lessonId") REFERENCES "Lesson"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StudentClass" ADD CONSTRAINT "StudentClass_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StudentClass" ADD CONSTRAINT "StudentClass_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_SubjectToTeacher" ADD CONSTRAINT "_SubjectToTeacher_A_fkey" FOREIGN KEY ("A") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE;

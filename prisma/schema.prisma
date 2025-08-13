@@ -184,6 +184,7 @@ model Announcement {
 
 model XeroTokens {
   id           String   @id @default(cuid())
+  userId       String   @unique // <-- ADD THIS LINE
   accessToken  String
   refreshToken String
   tenantId     String
