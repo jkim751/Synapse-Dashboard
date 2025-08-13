@@ -1,3 +1,5 @@
+// middleware.ts
+
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { routeAccessMap } from "./lib/settings";
@@ -6,7 +8,12 @@ const matchers = Object.keys(routeAccessMap).map((route) =>
   createRouteMatcher([route])
 );
 
+const isPublicRoute = createRouteMatcher(["/api/xero/callback"]);
+
+// Your custom logic remains unchanged inside this function
 export default clerkMiddleware(async (auth, req) => {
+  if (isPublicRoute(req)) return;
+
   // Check if any of the matchers match the current route
   const matchedRouteIndex = matchers.findIndex((matcher) => matcher(req));
 
