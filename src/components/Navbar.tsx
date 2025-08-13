@@ -9,8 +9,8 @@ const Navbar = async () => {
   const user = await currentUser();
 
   // 2. Safely get the user's name and role. Provide fallbacks for when the user is not logged in.
-  const userName = user?.firstName || "User";
-  const userRole = (user?.publicMetadata?.role as string) || "Role";
+  const userName = user?.firstName;
+  const userRole = (user?.publicMetadata?.role as string);
 
   return (
     <div className="flex items-center justify-between p-4">
