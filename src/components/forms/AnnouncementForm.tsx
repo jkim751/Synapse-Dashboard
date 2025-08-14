@@ -1,9 +1,8 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useActionState } from "react";
@@ -22,12 +21,27 @@ const AnnouncementForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  // --- NEW: State to manage the target audience ---
+  const [sendTo, setSendTo] = useState<'everyone' | 'class'>(
+    // If updating an existing item that has a classId, default to 'class'
+    data?.classId ? 'class' : 'everyone'
+  );
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<AnnouncementSchema>({
     resolver: zodResolver(announcementSchema),
+    // Set default values from existing data
+    defaultValues: {
+      id: data?.id,
+      title: data?.title || '',
+      description: data?.description || '',
+      date: data?.date ? new Date(data.date) : undefined,
+      classId: data?.classId || null,
+    }
   });
 
   const [isPending, startTransition] = useTransition();
@@ -38,7 +52,6 @@ const AnnouncementForm = ({
       success: false,
       error: false,
       message: "Successfully processed the request.",
-
     }
   );
 
@@ -54,9 +67,17 @@ const AnnouncementForm = ({
 
   const { classes } = relatedData || {};
 
-  const onSubmit = handleSubmit((data) => {
+  const onSubmit = handleSubmit((formData) => {
+    // --- NEW: Adjust data before submitting ---
+    const dataToSubmit = { ...formData };
+    
+    // If 'everyone' is selected, ensure classId is null
+    if (sendTo === 'everyone') {
+      dataToSubmit.classId = null;
+    }
+    
     startTransition(() => {
-      formAction(data);
+      formAction(dataToSubmit);
     });
   });
 
@@ -67,49 +88,56 @@ const AnnouncementForm = ({
       </h1>
 
       <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Title"
-          name="title"
-          defaultValue={data?.title}
-          register={register}
-          error={errors?.title}
-        />
-        <InputField
-          label="Description"
-          name="description"
-          defaultValue={data?.description}
-          register={register}
-          error={errors?.description}
-        />
-        <InputField
-          label="Date"
-          name="date"
-          defaultValue={data?.date}
-          register={register}
-          error={errors?.date}
-          type="date"
-        />
-        <InputField
-          label="Class"
-          name="classId"
-          defaultValue={data?.classId}
-          register={register}
-          error={errors?.classId}
-          type="select"
-          options={classes?.map((classItem: { id: number; name: string }) => ({
-            value: classItem.id,
-            label: classItem.name,
-          }))}
-        />
-        {data && (
+        <InputField label="Title" name="title" register={register} error={errors?.title} />
+        <InputField label="Description" name="description" register={register} error={errors?.description} />
+        <InputField label="Date" name="date" register={register} error={errors?.date} type="date" />
+        
+        {/* --- NEW: Radio buttons for audience selection --- */}
+        <div className="w-full">
+          <label className="text-sm font-medium">Send To</label>
+          <div className="flex gap-4 mt-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="sendTo"
+                value="everyone"
+                checked={sendTo === 'everyone'}
+                onChange={() => setSendTo('everyone')}
+                className="form-radio"
+              />
+              Everyone
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="sendTo"
+                value="class"
+                checked={sendTo === 'class'}
+                onChange={() => setSendTo('class')}
+                className="form-radio"
+              />
+              Specific Class
+            </label>
+          </div>
+        </div>
+
+        {/* --- NEW: Conditionally render the class dropdown --- */}
+        {sendTo === 'class' && (
           <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
+            label="Class"
+            name="classId"
             register={register}
-            error={errors?.id}
-            hidden
+            error={errors?.classId}
+            type="select"
+            options={classes?.map((classItem: { id: number; name: string }) => ({
+              value: classItem.id,
+              label: classItem.name,
+            }))}
           />
+        )}
+        
+        {data && (
+          <InputField label="Id" name="id" register={register} hidden />
         )}
       </div>
 

@@ -3,7 +3,7 @@
 import { Calendar, momentLocalizer, View, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const localizer = momentLocalizer(moment);
 
@@ -70,41 +70,68 @@ interface CalendarEvent {
 }
 
 const BigCalendar = ({
-  data,
-  events = [],
+  lessonsData,
   showNotifications = false,
 }: {
-  data: CalendarEvent[];
+  lessonsData: CalendarEvent[];
   events?: CalendarEvent[];
   showNotifications?: boolean;
 }) => {
+  // --- NEW: State to hold the events fetched from our API ---
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- NEW: useEffect to fetch event data when the component mounts ---
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch('/api/calendar-events'); // Calling the route we created
+        if (!response.ok) {
+          throw new Error('Failed to fetch events from the server.');
+        }
+
+        const fetchedData = await response.json();
+        
+        // IMPORTANT: Convert date strings from JSON back into Date objects
+        const formattedEvents = fetchedData.map((event: any) => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end),
+        }));
+
+        setEvents(formattedEvents);
+      } catch (err: any) {
+        console.error("Error fetching calendar events:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []); // The empty array [] ensures this runs only once
+
+  // The rest of your state and handlers remain the same
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
 
-  // Combine lessons and events
-  const allCalendarData = [...data, ...events];
+  // Combine the lessons from props with the events fetched from the API
+  const allCalendarData = [...lessonsData, ...events];
 
-  const handleOnChangeView = (selectedView: View) => {
-    setView(selectedView);
-  };
-
-  const handleNavigate = (newDate: Date) => {
-    setDate(newDate);
-  };
-
+  const handleOnChangeView = (selectedView: View) => setView(selectedView);
+  const handleNavigate = (newDate: Date) => setDate(newDate);
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setIsModalOpen(true);
   };
-
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
   };
-
   const handleNotifyTeacher = async () => {
     if (!selectedEvent || !selectedEvent.lessonId) return;
 
