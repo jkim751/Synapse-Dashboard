@@ -1,9 +1,0 @@
-{
-  "/api/calendar-lessons/route": "app/api/calendar-lessons/route.js",
-  "/api/calendar-events/route": "app/api/calendar-events/route.js",
-  "/api/attendance/notifications/route": "app/api/attendance/notifications/route.js",
-  "/[[...sign-in]]/page": "app/[[...sign-in]]/page.js",
-  "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js",
-  "/(dashboard)/list/classes/page": "app/(dashboard)/list/classes/page.js",
-  "/(dashboard)/list/lessons/page": "app/(dashboard)/list/lessons/page.js"
-}

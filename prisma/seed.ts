@@ -93,6 +93,7 @@ async function seedDevelopmentData() {
        // A specific date and time
        startTime: new Date("2025-10-15T13:00:00.000Z"),
        endTime: new Date("2025-10-15T14:30:00.000Z"),
+       day: "TUESDAY", // Add the required day property
        subjectId: 11, // Physics
        classId: 3,    // 3A
        teacherId: "teacher5",
@@ -143,7 +144,12 @@ async function seedDevelopmentData() {
    });
  
    // Let's create an EXCEPTION: Cancel one of the recurring math lessons
-   const firstMondayInOctober = new Date(today.getFullYear(), 9, 6); // Example: Oct 6th
+   const firstMondayInOctober = new Date(today.getFullYear(), 9, 1); // October 1st
+   // Find the first Monday in October
+   while (firstMondayInOctober.getDay() !== 1) {
+     firstMondayInOctober.setDate(firstMondayInOctober.getDate() + 1);
+   }
+   
    await prisma.lesson.create({
        data: {
            recurringLessonId: 1, // Link to the first recurring lesson
@@ -152,8 +158,10 @@ async function seedDevelopmentData() {
            // The start/end time must match the specific occurrence we are cancelling
            startTime: new Date(firstMondayInOctober.setUTCHours(9, 0, 0, 0)),
            endTime: new Date(firstMondayInOctober.setUTCHours(10, 0, 0, 0)),
+           day: "MONDAY", // Add the required day property
        }
    });
+   };
 
   // PARENT
   for (let i = 1; i <= 25; i++) {
@@ -313,7 +321,7 @@ async function seedDevelopmentData() {
   }
 
   console.log("Development data seeded.");
-}
+
 
 // --- Main Seeding Logic ---
 async function main() {
