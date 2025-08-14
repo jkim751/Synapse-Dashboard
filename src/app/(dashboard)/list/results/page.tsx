@@ -198,10 +198,10 @@ const renderRow = (item: ResultList) => (
       title: assessment.title,
       studentName: item.student.name,
       studentSurname: item.student.surname,
-      teacherName: assessment.lesson.teacher.name,
-      teacherSurname: assessment.lesson.teacher.surname,
+      teacherName: assessment.lesson.teacher?.name || "",
+      teacherSurname: assessment.lesson.teacher?.surname || "",
       score: item.score,
-      className: assessment.lesson.class.name,
+      className: assessment.lesson.class?.name || "",
       startTime: isExam ? assessment.startTime : assessment.startDate,
     };
   });

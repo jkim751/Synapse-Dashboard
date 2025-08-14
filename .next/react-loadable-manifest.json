@@ -1,95 +1,80 @@
 {
   "../node_modules/@clerk/nextjs/dist/esm/app-router/client/ClerkProvider.js -> ./keyless-creator-reader.js": {
-    "id": 22642,
+    "id": "../node_modules/@clerk/nextjs/dist/esm/app-router/client/ClerkProvider.js -> ./keyless-creator-reader.js",
     "files": [
-      "static/chunks/2642.186d553cf553147c.js"
+      "static/chunks/_app-pages-browser_node_modules_clerk_nextjs_dist_esm_app-router_client_keyless-creator-reader_js.js"
     ]
   },
   "../node_modules/@clerk/nextjs/dist/esm/app-router/client/keyless-cookie-sync.js -> ../keyless-actions.js": {
-    "id": 85944,
+    "id": "../node_modules/@clerk/nextjs/dist/esm/app-router/client/keyless-cookie-sync.js -> ../keyless-actions.js",
     "files": [
-      "static/chunks/5944.04ac440f16679cce.js"
+      "static/chunks/_app-pages-browser_node_modules_clerk_nextjs_dist_esm_app-router_keyless-actions_js.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/AnnouncementForm": {
-    "id": 26055,
+    "id": "components/FormModal.tsx -> ./forms/AnnouncementForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/6055.7409d9392b5defc8.js"
+      "static/chunks/_app-pages-browser_src_components_forms_AnnouncementForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/AssignmentForm": {
-    "id": 14267,
+    "id": "components/FormModal.tsx -> ./forms/AssignmentForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/4267.8e141e74a6881c91.js"
+      "static/chunks/_app-pages-browser_src_components_forms_AssignmentForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/ClassForm": {
-    "id": 3124,
+    "id": "components/FormModal.tsx -> ./forms/ClassForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/3124.1cef5b4b0a4ec2f8.js"
+      "static/chunks/_app-pages-browser_src_components_forms_ClassForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/EventForm": {
-    "id": 48508,
+    "id": "components/FormModal.tsx -> ./forms/EventForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/8508.449f89ca4bf98182.js"
+      "static/chunks/_app-pages-browser_src_components_forms_EventForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/ExamForm": {
-    "id": 39592,
+    "id": "components/FormModal.tsx -> ./forms/ExamForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/9592.c570813fdba26f50.js"
+      "static/chunks/_app-pages-browser_src_components_forms_ExamForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/LessonForm": {
-    "id": 90051,
+    "id": "components/FormModal.tsx -> ./forms/LessonForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/51.9db4ac3fc62c0d33.js"
+      "static/chunks/_app-pages-browser_src_components_forms_LessonForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/ParentForm": {
-    "id": 97613,
+    "id": "components/FormModal.tsx -> ./forms/ParentForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/7613.7f49db10ff79d38f.js"
+      "static/chunks/_app-pages-browser_src_components_forms_ParentForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/ResultForm": {
-    "id": 78940,
+    "id": "components/FormModal.tsx -> ./forms/ResultForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/8940.f544a6e5b0da2bd7.js"
+      "static/chunks/_app-pages-browser_src_components_forms_ResultForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/StudentForm": {
-    "id": 68627,
+    "id": "components/FormModal.tsx -> ./forms/StudentForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/8117-ae45f8a559b7590b.js",
-      "static/chunks/5166.16277a098a7a3290.js",
-      "static/chunks/8627.65cab7518f97160d.js"
+      "static/chunks/_app-pages-browser_src_components_forms_StudentForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/SubjectForm": {
-    "id": 9681,
+    "id": "components/FormModal.tsx -> ./forms/SubjectForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/9681.d272df5c91783088.js"
+      "static/chunks/_app-pages-browser_src_components_forms_SubjectForm_tsx.js"
     ]
   },
   "components/FormModal.tsx -> ./forms/TeacherForm": {
-    "id": 35418,
+    "id": "components/FormModal.tsx -> ./forms/TeacherForm",
     "files": [
-      "static/chunks/9683.a9a76b928eec6cbb.js",
-      "static/chunks/8117-ae45f8a559b7590b.js",
-      "static/chunks/5166.16277a098a7a3290.js",
-      "static/chunks/5418.e115566def320240.js"
+      "static/chunks/_app-pages-browser_src_components_forms_TeacherForm_tsx.js"
     ]
   }
 }

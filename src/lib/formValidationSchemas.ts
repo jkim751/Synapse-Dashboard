@@ -92,15 +92,26 @@ export type ExamSchema = z.infer<typeof examSchema>;
 
 
 export const lessonSchema = z.object({
-  id: z.coerce.number().optional(),
+  id: z.coerce.number().optional(), // Can be a RecurringLesson ID or a Lesson ID
   name: z.string().min(1, { message: "Lesson name is required!" }),
-  day: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"], { message: "Day is required!" }),
+  
+  day: z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]).optional(),
 
   startTime: z.coerce.date({ message: "Start time is required!" }),
   endTime: z.coerce.date({ message: "End time is required!" }),
   subjectId: z.coerce.number({ message: "Subject is required!" }),
   classId: z.coerce.number({ message: "Class is required!" }),
   teacherId: z.string().min(1, { message: "Teacher is required!" }),
+
+  // --- Recurrence fields ---
+  repeats: z.enum(["never", "weekly"]),
+  endDate: z.coerce.date().optional(),
+
+  // --- NEW: Fields for managing updates ---
+  // The original start date of the instance being edited.
+  originalDate: z.coerce.date().optional(),
+  // Specifies how to apply the update.
+  updateScope: z.enum(["single", "all", "future"]).optional(),
 });
 export type LessonSchema = z.infer<typeof lessonSchema>;
 

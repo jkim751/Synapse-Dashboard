@@ -3,7 +3,7 @@
 import { Calendar, momentLocalizer, View, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const localizer = momentLocalizer(moment);
 
@@ -69,65 +69,71 @@ interface CalendarEvent {
   subjectColor?: string;
 }
 
-const BigCalendar = ({
-  lessonsData,
-  showNotifications = false,
-}: {
-  lessonsData: CalendarEvent[];
-  events?: CalendarEvent[];
-  showNotifications?: boolean;
-}) => {
-  // --- NEW: State to hold the events fetched from our API ---
+const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolean; }) => {
+  // State for calendar data
+  const [lessons, setLessons] = useState<CalendarEvent[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- NEW: useEffect to fetch event data when the component mounts ---
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch('/api/calendar-events'); // Calling the route we created
-        if (!response.ok) {
-          throw new Error('Failed to fetch events from the server.');
-        }
-
-        const fetchedData = await response.json();
-        
-        // IMPORTANT: Convert date strings from JSON back into Date objects
-        const formattedEvents = fetchedData.map((event: any) => ({
-          ...event,
-          start: new Date(event.start),
-          end: new Date(event.end),
-        }));
-
-        setEvents(formattedEvents);
-      } catch (err: any) {
-        console.error("Error fetching calendar events:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []); // The empty array [] ensures this runs only once
-
-  // The rest of your state and handlers remain the same
+  // State for calendar UI control
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
+
+  // State for the modal
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
 
-  // Combine the lessons from props with the events fetched from the API
-  const allCalendarData = [...lessonsData, ...events];
+  // --- Data Fetching Logic ---
+  const fetchAllCalendarData = useCallback(async (currentDate: Date, currentView: View) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Map react-big-calendar view types to moment.js StartOf types
+      const momentView = currentView === 'month' ? 'month' : currentView === 'week' || currentView === 'work_week' ? 'week' : 'day';
+      const start = moment(currentDate).startOf(momentView as moment.unitOfTime.StartOf).toISOString();
+      const end = moment(currentDate).endOf(momentView as moment.unitOfTime.StartOf).toISOString();
+      const params = new URLSearchParams({ start, end });
 
-  const handleOnChangeView = (selectedView: View) => setView(selectedView);
+      const [lessonsRes, eventsRes] = await Promise.all([
+        fetch(`/api/calendar-lessons?${params.toString()}`),
+        fetch(`/api/calendar-events?${params.toString()}`)
+      ]);
+
+      if (!lessonsRes.ok || !eventsRes.ok) {
+        throw new Error('Failed to fetch calendar data.');
+      }
+
+      const lessonsData = await lessonsRes.json();
+      const eventsData = await eventsRes.json();
+
+      const formatData = (data: any[]) => data.map(d => ({ ...d, start: new Date(d.start), end: new Date(d.end) }));
+      
+      setLessons(formatData(lessonsData));
+      setEvents(formatData(eventsData));
+
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // useCallback memoizes this function
+
+  // Initial data fetch and re-fetch on navigation/view change
+  useEffect(() => {
+    fetchAllCalendarData(date, view);
+  }, [date, view, fetchAllCalendarData]);
+
+  // --- Handlers ---
+  const handleView = (newView: View) => setView(newView);
   const handleNavigate = (newDate: Date) => setDate(newDate);
+
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setIsModalOpen(true);
   };
+
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
@@ -195,6 +201,14 @@ const BigCalendar = ({
     timeslots: 2,
   };
 
+  function handleOnChangeView(view: View): void {
+    throw new Error("Function not implemented.");
+  }
+
+  function onNavigate(handleNavigate: (newDate: Date) => void) {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Custom Navigation Bar */}
@@ -212,7 +226,7 @@ const BigCalendar = ({
                 } else {
                   newDate.setDate(newDate.getDate() - 1);
                 }
-                handleNavigate(newDate);
+                onNavigate(handleNavigate);
               }}
               className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
             >
@@ -296,7 +310,7 @@ const BigCalendar = ({
       <div className="flex-1 min-h-0 overflow-hidden">
         <Calendar
           localizer={localizer}
-          events={allCalendarData}
+          events={[...lessons, ...events]}
           startAccessor="start"
           endAccessor="end"
           views={["month", "week", "day"]}

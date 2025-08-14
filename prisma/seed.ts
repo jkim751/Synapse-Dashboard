@@ -1,4 +1,5 @@
-import { Day, PrismaClient, UserSex } from "@prisma/client";
+import { PrismaClient, UserSex } from "@prisma/client";
+import { RRule } from "rrule";
 const prisma = new PrismaClient();
 
 // --- Part 1: Essential Data for Production ---
@@ -82,24 +83,77 @@ async function seedDevelopmentData() {
     });
   }
 
-  // LESSON
-  for (let i = 1; i <= 30; i++) {
-    await prisma.lesson.create({
-      data: {
-        name: `Lesson${i}`, 
-        day: Day[
-          Object.keys(Day)[
-            Math.floor(Math.random() * Object.keys(Day).length)
-          ] as keyof typeof Day
-        ], 
-        startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
-        endTime: new Date(new Date().setHours(new Date().getHours() + 3)), 
-        subjectId: (i % 14) + 1, 
-        classId: (i % 8) + 1, // Updated to work with 8 classes
-        teacherId: `teacher${(i % 15) + 1}`, 
-      },
-    });
-  }
+   // --- REPLACED LESSON SEEDING LOGIC ---
+   console.log("Seeding single and recurring lessons...");
+
+   // Let's create a few one-off, single lessons (e.g., a special guest lecture)
+   await prisma.lesson.create({
+     data: {
+       name: "Special Guest Lecture: Quantum Physics",
+       // A specific date and time
+       startTime: new Date("2025-10-15T13:00:00.000Z"),
+       endTime: new Date("2025-10-15T14:30:00.000Z"),
+       subjectId: 11, // Physics
+       classId: 3,    // 3A
+       teacherId: "teacher5",
+     },
+   });
+ 
+   // Now, let's create RECURRING lesson rules for a semester
+   const today = new Date();
+   const semesterStart = new Date(today.getFullYear(), 8, 1); // Start of Sept
+   const semesterEnd = new Date(today.getFullYear(), 11, 20); // End of Dec
+ 
+   // Recurring Lesson 1: Weekly Math for class 1A
+   const mathRule = new RRule({
+     freq: RRule.WEEKLY,
+     byweekday: [RRule.MO], // Every Monday
+     dtstart: semesterStart,
+     until: semesterEnd,
+   });
+   await prisma.recurringLesson.create({
+     data: {
+       name: "Year 9 Advanced Maths",
+       rrule: mathRule.toString(),
+       startTime: new Date("1970-01-01T09:00:00.000Z"), // 9 AM
+       endTime: new Date("1970-01-01T10:00:00.000Z"),   // 10 AM
+       subjectId: 2, // Math Adv
+       classId: 1,   // 1A
+       teacherId: "teacher1",
+     },
+   });
+ 
+   // Recurring Lesson 2: Weekly English for class 2A
+   const englishRule = new RRule({
+     freq: RRule.WEEKLY,
+     byweekday: [RRule.TU, RRule.TH], // Every Tuesday and Thursday
+     dtstart: semesterStart,
+     until: semesterEnd,
+   });
+   await prisma.recurringLesson.create({
+     data: {
+       name: "Year 10 English Literature",
+       rrule: englishRule.toString(),
+       startTime: new Date("1970-01-01T11:00:00.000Z"), // 11 AM
+       endTime: new Date("1970-01-01T12:00:00.000Z"),   // 12 PM
+       subjectId: 8, // English Adv
+       classId: 2,   // 2A
+       teacherId: "teacher2",
+     },
+   });
+ 
+   // Let's create an EXCEPTION: Cancel one of the recurring math lessons
+   const firstMondayInOctober = new Date(today.getFullYear(), 9, 6); // Example: Oct 6th
+   await prisma.lesson.create({
+       data: {
+           recurringLessonId: 1, // Link to the first recurring lesson
+           isCancelled: true,    // Mark it as cancelled
+           name: "Year 9 Advanced Maths (Cancelled)",
+           // The start/end time must match the specific occurrence we are cancelling
+           startTime: new Date(firstMondayInOctober.setUTCHours(9, 0, 0, 0)),
+           endTime: new Date(firstMondayInOctober.setUTCHours(10, 0, 0, 0)),
+       }
+   });
 
   // PARENT
   for (let i = 1; i <= 25; i++) {

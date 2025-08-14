@@ -172,12 +172,22 @@ type ClassWithRelations = Class & {
       const attendanceMap = new Map(
         student.attendances.map((att) => [att.lessonId, att.present])
       );
+      
+      // Filter and transform lessons to match expected type
+      const validLessons = dayLessons
+        .filter(lesson => lesson.subject && lesson.teacher)
+        .map(lesson => ({
+          ...lesson,
+          subject: { name: lesson.subject!.name },
+          teacher: { name: lesson.teacher!.name, surname: lesson.teacher!.surname }
+        }));
+        
     return (
       <AttendanceRow
         key={student.id}
         student={student}
         attendanceMap={attendanceMap || new Map()}
-        todayLessons={dayLessons}
+        todayLessons={validLessons}
         date={selectedDate}
       />
     );
@@ -223,7 +233,7 @@ type ClassWithRelations = Class & {
                 key={lesson.id}
                 className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
               >
-                {lesson.subject.name} ({lesson.startTime.toLocaleTimeString('en-US', {
+                {lesson.subject?.name || 'Unknown Subject'} ({lesson.startTime.toLocaleTimeString('en-US', {
                   hour: '2-digit',
                   minute: '2-digit'
                 })})

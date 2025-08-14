@@ -520,26 +520,46 @@ export const deleteExam = async (
   }
 };
 
+// The form now passes an extra 'rrule' property
+interface LessonFormData extends LessonSchema {
+  rrule: string | null;
+}
+
 export const createLesson = async (
   currentState: CurrentState,
-  data: LessonSchema
+  data: LessonFormData
 ) => {
   try {
     const validatedData = lessonSchema.parse(data);
 
-    await prisma.lesson.create({
-      data: {
-        name: validatedData.name,
-        day: validatedData.day,
-        startTime: validatedData.startTime,
-        endTime: validatedData.endTime,
-        subjectId: validatedData.subjectId,
-        classId: validatedData.classId,
-        teacherId: validatedData.teacherId,
-      },
-    });
+    // If there is no recurrence rule, create a single lesson instance
+    if (!data.rrule) {
+      await prisma.lesson.create({
+        data: {
+          name: validatedData.name,
+          startTime: validatedData.startTime,
+          endTime: validatedData.endTime,
+          subjectId: validatedData.subjectId,
+          classId: validatedData.classId,
+          teacherId: validatedData.teacherId,
+        },
+      });
+    } else {
+      // If there IS a rule, create a RecurringLesson master record
+      await prisma.recurringLesson.create({
+        data: {
+          name: validatedData.name,
+          rrule: data.rrule, // The generated RRULE string
+          startTime: validatedData.startTime, // Store the time part for reference
+          endTime: validatedData.endTime,
+          subjectId: validatedData.subjectId,
+          classId: validatedData.classId,
+          teacherId: validatedData.teacherId,
+        },
+      });
+    }
 
-    revalidatePath("/list/lessons");
+    revalidatePath("/path/to/your/calendar");
     return { success: true, error: false, message: "Lesson created successfully!" };
   } catch (err) {
     console.log(err);
@@ -548,32 +568,76 @@ export const createLesson = async (
 };
 
 export const updateLesson = async (
-  currentState: CurrentState,
-  data: LessonSchema
+  currentState: any,
+  data: LessonFormData,
 ) => {
   try {
     const validatedData = lessonSchema.parse(data);
+    const { id, updateScope, originalDate } = validatedData;
 
-    if (!validatedData.id) {
-      return { success: false, error: true, message: "Lesson ID is required for update!" };
+    if (!id) throw new Error("Lesson ID is required for update.");
+
+    // --- SCENARIO 1: Updating a single, non-recurring lesson ---
+    if (!updateScope) {
+      await prisma.lesson.update({
+        where: { id: id },
+        data: {
+          name: validatedData.name,
+          startTime: validatedData.startTime,
+          endTime: validatedData.endTime,
+          subjectId: validatedData.subjectId,
+          classId: validatedData.classId,
+          teacherId: validatedData.teacherId,
+        },
+      });
     }
 
-    await prisma.lesson.update({
-      where: {
-        id: validatedData.id,
-      },
-      data: {
-        name: validatedData.name,
-        day: validatedData.day,
-        startTime: validatedData.startTime,
-        endTime: validatedData.endTime,
-        subjectId: validatedData.subjectId,
-        classId: validatedData.classId,
-        teacherId: validatedData.teacherId,
-      },
-    });
+    // --- SCENARIO 2: Updating just ONE instance of a recurring series ---
+    if (updateScope === "single" && originalDate) {
+      // Create an "exception" record for this one occurrence.
+      // The `id` here is the recurringLessonId.
+      await prisma.lesson.create({
+        data: {
+          recurringLessonId: id,
+          name: validatedData.name,
+          startTime: validatedData.startTime, // The new, overridden time
+          endTime: validatedData.endTime,
+          // Store the original date this exception is for, to prevent duplicates
+          // You might need a more robust way to handle this, e.g., storing the full original start time.
+          // For simplicity, we assume one exception per day.
+          // A more advanced system would use the full original startTime.
+          
+          // Override fields
+          subjectId: validatedData.subjectId,
+          classId: validatedData.classId,
+          teacherId: validatedData.teacherId,
+        },
+      });
+    }
 
-    revalidatePath("/list/lessons");
+    // --- SCENARIO 3: Updating the entire recurring series ---
+    if (updateScope === "all") {
+      // Here, the 'id' refers to the recurringLessonId
+      await prisma.recurringLesson.update({
+        where: { id: id },
+        data: {
+          name: validatedData.name,
+          rrule: data.rrule!, // Get the newly generated rrule string
+          startTime: validatedData.startTime,
+          endTime: validatedData.endTime,
+          subjectId: validatedData.subjectId,
+          classId: validatedData.classId,
+          teacherId: validatedData.teacherId,
+        },
+      });
+      // Also delete all previous exceptions for this series
+      await prisma.lesson.deleteMany({ where: { recurringLessonId: id } });
+    }
+    
+    // (Scenario for "future" events is more complex and omitted for clarity, but would involve
+    // truncating the old rule and creating a new one)
+
+    revalidatePath("/calendar");
     return { success: true, error: false, message: "Lesson updated successfully!" };
   } catch (err) {
     console.log(err);
@@ -581,19 +645,59 @@ export const updateLesson = async (
   }
 };
 
+
+// --- NEW: ADVANCED DELETE LOGIC ---
 export const deleteLesson = async (
-  currentState: CurrentState,
+  currentState: any,
   data: FormData
 ) => {
-  const id = data.get("id") as string;
-  try {
-    await prisma.lesson.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
+  const id = parseInt(data.get("id") as string);
+  const scope = data.get("scope") as "single" | "all";
+  const originalDateStr = data.get("originalDate") as string;
 
-    revalidatePath("/list/lessons");
+  try {
+    // --- SCENARIO 1: Deleting the entire recurring series ---
+    if (scope === "all") {
+      // The ID here is the recurringLessonId.
+      // `onDelete: Cascade` will automatically delete all linked exception `Lesson` records.
+      await prisma.recurringLesson.delete({
+        where: { id: id },
+      });
+    }
+    
+    // --- SCENARIO 2: Deleting (canceling) just ONE instance ---
+    if (scope === "single") {
+      // The ID here is the recurringLessonId. We create an exception.
+      const originalDate = new Date(originalDateStr);
+      
+      const parentRule = await prisma.recurringLesson.findUnique({ where: { id: id } });
+      if (!parentRule) throw new Error("Parent rule not found for deletion.");
+
+      // Combine the date of the instance with the time from the rule
+      const startTime = new Date(originalDate);
+      startTime.setHours(parentRule.startTime.getUTCHours(), parentRule.startTime.getUTCMinutes());
+      const endTime = new Date(originalDate);
+      endTime.setHours(parentRule.endTime.getUTCHours(), parentRule.endTime.getUTCMinutes());
+
+      // Create a "cancellation" record.
+      await prisma.lesson.create({
+        data: {
+          recurringLessonId: id,
+          isCancelled: true,
+          name: parentRule.name + " (Cancelled)",
+          startTime: startTime,
+          endTime: endTime,
+        },
+      });
+    }
+
+    // --- SCENARIO 3: Deleting a simple, non-recurring lesson ---
+    if (!scope) {
+        // The ID here is a normal Lesson ID.
+        await prisma.lesson.delete({ where: { id: id } });
+    }
+
+    revalidatePath("/calendar");
     return { success: true, error: false, message: "Lesson deleted successfully!" };
   } catch (err) {
     console.log(err);
