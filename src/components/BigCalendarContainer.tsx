@@ -150,7 +150,7 @@ const BigCalendarContainer = async ({
   return (
     <div className="h-full overflow-hidden">
       <BigCalendar 
-        data={adjustedLessons} 
+        lessonsData={adjustedLessons} 
         events={adjustedEvents}
         showNotifications={showNotifications} 
       />
