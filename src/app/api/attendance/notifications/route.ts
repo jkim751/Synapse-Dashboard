@@ -70,11 +70,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
 
+    if (!lesson.teacherId) {
+      return NextResponse.json({ error: "No teacher assigned to this lesson" }, { status: 400 });
+    }
+
     // Create notification for the teacher
     const notification = await prisma.notification.create({
       data: {
         title: "Student Running Late",
-        message: `A student will be late for ${lesson.subject.name} (${lesson.class.name}) - ${message}`,
+        message: `A student will be late for ${lesson.subject?.name || 'Unknown Subject'} (${lesson.class?.name || 'Unknown Class'}) - ${message}`,
         type,
         recipientId: lesson.teacherId,
         senderId: userId,

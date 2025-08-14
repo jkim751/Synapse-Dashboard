@@ -119,13 +119,13 @@ const BigCalendarContainer = async ({
 
   // Transform lessons data with proper date handling
   const lessonsData = lessonsRes.map((lesson) => ({
-    title: `${lesson.subject.name} - ${lesson.name}`,
+    title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
     start: new Date(lesson.startTime), // Ensure proper Date object
     end: new Date(lesson.endTime),     // Ensure proper Date object
-    subject: lesson.subject.name,
-    teacher: `${lesson.teacher.name} ${lesson.teacher.surname}`,
-    classroom: lesson.class.name,
-    description: `${lesson.subject.name} lesson with ${lesson.teacher.name} ${lesson.teacher.surname}`,
+    subject: lesson.subject?.name,
+    teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
+    classroom: lesson.class?.name || 'Unknown Classroom',
+    description: `${lesson.subject?.name || 'Unknown Subject'} lesson with ${lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher'}`,
     lessonId: lesson.id,
     type: 'lesson' as const,
   }));
@@ -150,8 +150,6 @@ const BigCalendarContainer = async ({
   return (
     <div className="h-full overflow-hidden">
       <BigCalendar 
-        lessonsData={adjustedLessons} 
-        events={adjustedEvents}
         showNotifications={showNotifications} 
       />
     </div>

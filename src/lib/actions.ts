@@ -534,9 +534,14 @@ export const createLesson = async (
 
     // If there is no recurrence rule, create a single lesson instance
     if (!data.rrule) {
+      // Convert getDay() number to enum string
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+      const dayEnum = dayNames[validatedData.startTime.getDay()];
+      
       await prisma.lesson.create({
         data: {
           name: validatedData.name,
+          day: dayEnum as "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY",
           startTime: validatedData.startTime,
           endTime: validatedData.endTime,
           subjectId: validatedData.subjectId,
@@ -596,10 +601,16 @@ export const updateLesson = async (
     if (updateScope === "single" && originalDate) {
       // Create an "exception" record for this one occurrence.
       // The `id` here is the recurringLessonId.
+      
+      // Convert getDay() number to enum string
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+      const dayEnum = dayNames[validatedData.startTime.getDay()];
+      
       await prisma.lesson.create({
         data: {
           recurringLessonId: id,
           name: validatedData.name,
+          day: dayEnum as "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY",
           startTime: validatedData.startTime, // The new, overridden time
           endTime: validatedData.endTime,
           // Store the original date this exception is for, to prevent duplicates
@@ -680,11 +691,16 @@ export const deleteLesson = async (
       endTime.setHours(parentRule.endTime.getUTCHours(), parentRule.endTime.getUTCMinutes());
 
       // Create a "cancellation" record.
+      // Convert getDay() number to enum string
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+      const dayEnum = dayNames[startTime.getDay()];
+      
       await prisma.lesson.create({
         data: {
           recurringLessonId: id,
           isCancelled: true,
           name: parentRule.name + " (Cancelled)",
+          day: dayEnum as "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY",
           startTime: startTime,
           endTime: endTime,
         },
