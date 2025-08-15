@@ -20,7 +20,15 @@ export async function GET(req: NextRequest) {
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
-    console.log("Callback parameters:", { code: code?.substring(0, 10) + '...', state, error });
+    console.log("Full URL:", req.url);
+    console.log("URL pathname:", url.pathname);
+    console.log("URL search params:", url.search);
+    console.log("All search params:", Array.from(url.searchParams.entries()));
+    console.log("Callback parameters:", { 
+      code: code ? code.substring(0, 10) + '...' : 'null/undefined', 
+      state, 
+      error 
+    });
 
     if (error) {
       console.error("Xero returned error:", error);
