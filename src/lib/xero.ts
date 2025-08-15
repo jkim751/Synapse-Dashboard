@@ -2,7 +2,6 @@ import { XeroClient, TokenSet } from 'xero-node';
 import prisma from './prisma';
 
 // This custom interface represents the PLAIN OBJECT we will use.
-// It matches the data structure of the TokenSet interface.
 interface TokenSetData {
   access_token: string;
   refresh_token: string;
@@ -22,7 +21,6 @@ const xero = new XeroClient({
 export default xero;
 
 export const storeTokens = async (userId: string, tokenSet: TokenSet) => {
-  // The connections array is the reliable source for the tenant ID.
   const tenantId = (tokenSet as any).connections?.[0]?.tenantId;
 
   if (!tokenSet.access_token || !tokenSet.refresh_token || !tokenSet.expires_at || !tenantId) {
@@ -48,7 +46,6 @@ export const storeTokens = async (userId: string, tokenSet: TokenSet) => {
   });
 };
 
-// --- CORRECTED FUNCTION ---
 export const getStoredTokens = async (userId: string): Promise<TokenSetData | null> => {
   const tokenRecord = await prisma.xeroTokens.findUnique({
     where: { userId: userId },
@@ -56,8 +53,6 @@ export const getStoredTokens = async (userId: string): Promise<TokenSetData | nu
 
   if (!tokenRecord) return null;
 
-  // Create a PLAIN JavaScript object that matches our TokenSetData interface.
-  // We are no longer calling `new TokenSet()`.
   const tokenSetData: TokenSetData = {
     access_token: tokenRecord.accessToken,
     refresh_token: tokenRecord.refreshToken,
@@ -70,7 +65,7 @@ export const getStoredTokens = async (userId: string): Promise<TokenSetData | nu
   return tokenSetData;
 };
 
-// --- CORRECTED FUNCTION ---
+// --- THIS IS THE CORRECTED FUNCTION ---
 export const getXeroClient = async (userId: string) => {
   let tokenData = await getStoredTokens(userId);
 
@@ -78,26 +73,19 @@ export const getXeroClient = async (userId: string) => {
     throw new Error('No Xero tokens found. Please authenticate first.');
   }
 
-  // 1. Manually check if the token is expired. This avoids using the .expired() method.
-  const isExpired = tokenData.expires_at - Math.floor(Date.now() / 1000) < 300; // 5 minute buffer
+  const isExpired = tokenData.expires_at - Math.floor(Date.now() / 1000) < 300;
 
   if (isExpired) {
     console.log('Xero token is expiring soon, refreshing...');
     try {
-      // 2. Set the token set first, then call refreshToken with no arguments.
       await xero.setTokenSet(tokenData as TokenSet);
       const newTokenSet = await xero.refreshToken();
-      
-      // 3. Save the newly acquired tokens.
       await storeTokens(userId, newTokenSet);
       
-      // 4. Update our local variable with the new, full token set.
       const tenantId = (newTokenSet as any).connections?.[0]?.tenantId;
-      
       if (!newTokenSet.access_token || !newTokenSet.refresh_token || !newTokenSet.expires_at) {
         throw new Error("Refreshed token set is missing required fields");
       }
-      
       tokenData = {
         access_token: newTokenSet.access_token,
         refresh_token: newTokenSet.refresh_token,
@@ -113,12 +101,19 @@ export const getXeroClient = async (userId: string) => {
     }
   }
   
-  // 5. Apply the valid token set to the client instance.
   await xero.setTokenSet(tokenData as TokenSet);
   
-  // 6. Ensure we have a tenant ID for API calls.
-  if (!tokenData.tenant_id) {
-    throw new Error("Could not determine active tenant ID.");
+  if (tokenData.tenant_id) {
+
+    (xero as any).activeTenantId = tokenData.tenant_id;
+  } else {
+    const connections = await xero.updateTenants();
+    const activeTenantId = connections?.[0]?.tenantId;
+    if (activeTenantId) {
+      (xero as any).activeTenantId = activeTenantId;
+    } else {
+      throw new Error("Could not determine active tenant ID. Please re-authenticate.");
+    }
   }
 
   return xero;
