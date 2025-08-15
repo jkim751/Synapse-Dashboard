@@ -9,7 +9,10 @@ export async function GET() {
       return NextResponse.json({ isAuthenticated: false });
     }
     const token = await getStoredTokens(userId);
-    return NextResponse.json({ isAuthenticated: !!token });
+    if (token && token.expires_at > Math.floor(Date.now() / 1000)) {
+      return NextResponse.json({ isAuthenticated: true });
+    }
+    return NextResponse.json({ isAuthenticated: false });
   } catch (error) {
     return NextResponse.json({ isAuthenticated: false });
   }

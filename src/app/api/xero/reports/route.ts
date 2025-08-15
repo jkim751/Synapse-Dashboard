@@ -17,7 +17,7 @@ function findReportValue(reportWithRows: ReportWithRows | undefined, sectionTitl
   const summaryRow = section.rows.find(row => row.rowType === RowType.SummaryRow || row.title === rowTitle);
   const value = summaryRow?.cells?.[1]?.value;
   
-  return typeof value === 'number' ? value : 0;
+  return typeof value === 'string' ? parseFloat(value) || 0 : 0;
 }
 
 export async function GET() {

@@ -178,18 +178,11 @@ export const getXeroClient = async (userId: string) => {
   }
   
   await xero.setTokenSet(tokenData as TokenSet);
-  
-  if (tokenData.tenant_id) {
-    (xero as any).activeTenantId = tokenData.tenant_id;
-  } else {
-    const connections = await xero.updateTenants();
-    const activeTenantId = connections?.[0]?.tenantId;
-    if (activeTenantId) {
-      (xero as any).activeTenantId = activeTenantId;
-    } else {
-      throw new Error("Could not determine active tenant ID. Please re-authenticate.");
-    }
+  const connections = await xero.updateTenants();
+  if (connections.length === 0) {
+    throw new Error("No active tenants found. Please re-authenticate.");
   }
+  (xero as any).activeTenantId = connections[0].tenantId;
 
   return xero;
 };

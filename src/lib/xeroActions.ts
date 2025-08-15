@@ -9,11 +9,13 @@ export const getXeroReports = async () => {
       }
       const xero = await getXeroClient(userId);
       
+      const tenantId = xero.tenants[0].tenantId;
+      
       // Get Profit & Loss report
-      const profitLoss = await xero.accountingApi.getReportProfitAndLoss('');
+      const profitLoss = await xero.accountingApi.getReportProfitAndLoss(tenantId);
       
       // Get Balance Sheet
-      const balanceSheet = await xero.accountingApi.getReportBalanceSheet('');
+      const balanceSheet = await xero.accountingApi.getReportBalanceSheet(tenantId);
       
       return {
         profitLoss: profitLoss.body,

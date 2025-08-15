@@ -18,7 +18,11 @@ export async function POST(request: Request) {
     const xero = await getXeroClient(userId);
     const activeTenantId = xero.tenants[0].tenantId;
 
-    const response = await xero.accountingApi.getInvoices(activeTenantId, undefined, undefined, undefined, undefined, contactIDs);
+    const response = await xero.accountingApi.getInvoices(
+      activeTenantId,
+      undefined,
+      `Contact.ContactID IN (${contactIDs.map(id => `"${id}"`).join(",")})`
+    );
     
     // Map the complex Xero response to the simple Invoice interface our component needs
     const invoices = response.body.invoices?.map(inv => ({

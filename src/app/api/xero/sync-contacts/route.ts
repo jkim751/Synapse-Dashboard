@@ -38,6 +38,11 @@ export async function POST() {
         phones: person.phone ? [{ phoneType: Phone.PhoneTypeEnum.DEFAULT, phoneNumber: person.phone }] : undefined,
       };
 
+      if (!contactPayload.name || !contactPayload.firstName || !contactPayload.lastName) {
+        console.error("Invalid contact payload:", contactPayload);
+        continue;
+      }
+
       if ('xeroContactId' in person && person.xeroContactId) {
         // This contact already exists in Xero, so we'll update it
         contactPayload.contactID = person.xeroContactId;
