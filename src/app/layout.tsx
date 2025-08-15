@@ -10,7 +10,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Synapse Portal",
   description: "Synapse Education Portal, the portal of Sydney's leading HSC specialist centre used to delivering a holistic education to maximise student potential.",
-  icons: {icon: '/favicon.ico',},
 };
 
 export default function RootLayout({

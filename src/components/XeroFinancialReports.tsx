@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,18 +18,17 @@ const XeroFinancialReports = () => {
       try {
         const response = await fetch("/api/xero/reports");
         if (!response.ok) {
-          throw new Error("Failed to fetch reports");
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to fetch reports");
         }
-        const data = await response.json();
         
-        // Process the data - this is a simplified example
-        setSummary({
-          totalIncome: 50000,
-          totalExpenses: 30000,
-          netProfit: 20000
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        // --- THIS IS THE FIX ---
+        // We now use the real data from the API response
+        const data = await response.json();
+        setSummary(data.summary);
+
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -42,6 +40,7 @@ const XeroFinancialReports = () => {
   if (loading) return <div>Loading financial data...</div>;
   if (error) return <div className="text-red-500">Error: {error}</div>;
   if (!summary) return <div>No data available</div>;
+
 
   return (
     <div className="space-y-4">

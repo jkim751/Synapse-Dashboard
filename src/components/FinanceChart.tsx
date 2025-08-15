@@ -1,18 +1,11 @@
 
 "use client";
 
-import Image from "next/image";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface FinanceData {
   name: string;
@@ -23,28 +16,24 @@ interface FinanceData {
 const FinanceChart = () => {
   const [data, setData] = useState<FinanceData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFinanceData = async () => {
       try {
         const response = await fetch('/api/xero/reports');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch chart data');
+        }
+
+        // --- THIS IS THE FIX ---
+        // We now use the real chartData from the API response
         const xeroData = await response.json();
-        
-        // Transform Xero data into chart format
-        // This is a simplified transformation - you'll need to adapt based on your Xero data structure
-        const chartData = transformXeroData(xeroData);
-        setData(chartData);
-      } catch (error) {
-        console.error('Error fetching finance data:', error);
-        // Fallback to mock data
-        setData([
-          { name: "Jan", income: 4000, expense: 2400 },
-          { name: "Feb", income: 3000, expense: 1398 },
-          { name: "Mar", income: 2000, expense: 9800 },
-          { name: "Apr", income: 2780, expense: 3908 },
-          { name: "May", income: 1890, expense: 4800 },
-          { name: "Jun", income: 2390, expense: 3800 },
-        ]);
+        setData(xeroData.chartData);
+
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -53,23 +42,20 @@ const FinanceChart = () => {
     fetchFinanceData();
   }, []);
 
-  const transformXeroData = (xeroData: any): FinanceData[] => {
-    // Transform Xero report data into your chart format
-    // This is a placeholder - implement based on your Xero report structure
-    return [
-      { name: "Jan", income: 4000, expense: 2400 },
-      { name: "Feb", income: 3000, expense: 1398 },
-      // ... transform actual Xero data here
-    ];
-  };
+  // We no longer need the local `transformXeroData` function.
 
   if (loading) {
     return (
       <div className="bg-white rounded-xl w-full h-full p-4 flex items-center justify-center">
-        <div>Loading financial data...</div>
+        <div>Loading financial chart...</div>
       </div>
     );
   }
+
+  if (error) {
+    return <div className="text-red-500 p-4">Error loading chart: {error}</div>;
+  }
+  
 
   return (
     <div className="bg-white rounded-xl w-full h-full p-4">
