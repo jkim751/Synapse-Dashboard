@@ -2,44 +2,41 @@ import { NextRequest, NextResponse } from 'next/server';
 import xero, { storeTokens } from '@/lib/xero';
 import { auth } from '@clerk/nextjs/server';
 
-// Initiate OAuth flow
-export async function GET() {
-  try {
-    const consentUrl = await xero.buildConsentUrl();
-    return NextResponse.redirect(consentUrl);
-  } catch (error) {
-    console.error('Error building consent URL:', error);
-    return NextResponse.json({ error: 'Failed to initiate OAuth' }, { status: 500 });
-  }
-}
-
-// Handle OAuth callback from our frontend page
-
-export async function POST(request: NextRequest) {
+// Handle GET OAuth callback from Xero
+export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'User is not authenticated' }, { status: 401 });
+      // Redirect to login instead of returning JSON for better UX
+      return NextResponse.redirect(new URL('/sign-in', req.url));
     }
 
-    // 1. Read the full callback URL from the request body
-    const { callbackUrl } = await request.json(); 
+    console.log("Xero callback URL received:", req.url);
 
-    if (!callbackUrl) {
-      return NextResponse.json({ error: 'No callback URL provided' }, { status: 400 });
+    // Exchange code for tokens directly from Xero
+    const tokenSet = await xero.apiCallback(req.url);
+
+    console.log("Token set from Xero:", tokenSet);
+
+    // Check if we have the required fields before storing
+    if (!tokenSet.access_token || !tokenSet.refresh_token || !tokenSet.expires_at) {
+      console.error("Invalid token set from Xero - missing required fields:", {
+        has_access_token: !!tokenSet.access_token,
+        has_refresh_token: !!tokenSet.refresh_token,
+        has_expires_at: !!tokenSet.expires_at,
+        full_tokenset: tokenSet
+      });
+      return NextResponse.redirect(new URL('/admin/xero?error=invalid_token', req.url));
     }
 
-    // 2. Pass the entire URL directly to the apiCallback function
-    const tokenSet = await xero.apiCallback(callbackUrl);
-    
-    // 3. Store the tokens against the logged-in user
+    // Save tokens in database
     await storeTokens(userId, tokenSet);
 
-    return NextResponse.json({ success: true });
+    // Redirect to success page
+    return NextResponse.redirect(new URL('/admin/xero?success=true', req.url));
 
   } catch (error: any) {
     console.error('Error in OAuth callback:', error);
-    // This is where your log is coming from. Now it will show the real underlying error.
-    return NextResponse.json({ error: 'OAuth callback failed', details: error.message }, { status: 500 });
+    return NextResponse.redirect(new URL('/admin/xero?error=callback_failed', req.url));
   }
 }

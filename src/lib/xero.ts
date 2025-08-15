@@ -24,23 +24,24 @@ export const storeTokens = async (userId: string, tokenSet: TokenSet) => {
   const tenantId = (tokenSet as any).connections?.[0]?.tenantId;
 
   if (!tokenSet.access_token || !tokenSet.refresh_token || !tokenSet.expires_at || !tenantId) {
+    console.error("Full token set from Xero:", tokenSet);
     throw new Error("Invalid token set from Xero. Missing essential fields.");
   }
 
   await prisma.xeroTokens.upsert({
-    where: { userId: userId },
+    where: { userId },
     create: {
-      userId: userId,
+      userId,
       accessToken: tokenSet.access_token,
       refreshToken: tokenSet.refresh_token,
       expiresAt: new Date(tokenSet.expires_at * 1000),
-      tenantId: tenantId,
+      tenantId,
     },
     update: {
       accessToken: tokenSet.access_token,
       refreshToken: tokenSet.refresh_token,
       expiresAt: new Date(tokenSet.expires_at * 1000),
-      tenantId: tenantId,
+      tenantId,
       updatedAt: new Date(),
     },
   });
