@@ -5,6 +5,8 @@ import { auth } from '@clerk/nextjs/server';
 // Handle GET OAuth callback from Xero
 export async function GET(req: NextRequest) {
   try {
+    console.log("=== XERO CALLBACK DEBUG START ===");
+    
     const { userId } = await auth();
     if (!userId) {
       console.log("No authenticated user found");
@@ -13,6 +15,9 @@ export async function GET(req: NextRequest) {
 
     console.log("Xero callback URL received:", req.url);
     console.log("User ID:", userId);
+
+    // Log all headers for debugging
+    console.log("Request headers:", Object.fromEntries(req.headers.entries()));
 
     // Extract the URL search parameters for debugging
     const url = new URL(req.url);
@@ -29,6 +34,14 @@ export async function GET(req: NextRequest) {
       state, 
       error 
     });
+
+    // Check if this is actually a callback with parameters
+    if (url.search === '') {
+      console.error("No query parameters in callback URL - this suggests the OAuth flow wasn't started properly");
+      console.log("Expected URL format: https://yoursite.com/api/xero/callback?code=...&state=...");
+      console.log("Actual URL:", req.url);
+      return NextResponse.redirect(new URL('/admin/xero?error=no_params', req.url));
+    }
 
     if (error) {
       console.error("Xero returned error:", error);
@@ -77,6 +90,7 @@ export async function GET(req: NextRequest) {
     await storeTokens(userId, tokenSet);
 
     console.log("Tokens stored successfully, redirecting to success page");
+    console.log("=== XERO CALLBACK DEBUG END ===");
 
     // Redirect to success page
     return NextResponse.redirect(new URL('/admin/xero?success=true', req.url));
@@ -87,6 +101,7 @@ export async function GET(req: NextRequest) {
       stack: error.stack,
       name: error.name
     });
+    console.log("=== XERO CALLBACK DEBUG END (ERROR) ===");
     return NextResponse.redirect(new URL('/admin/xero?error=callback_failed', req.url));
   }
 }
