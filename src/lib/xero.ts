@@ -8,6 +8,7 @@ interface TokenSetData {
   token_type: 'Bearer';
   scope: string;
   tenant_id?: string;
+  [key: string]: any;
 }
 
 // Debug environment variables
@@ -149,40 +150,30 @@ export const getStoredTokens = async (userId: string): Promise<TokenSetData | nu
   return tokenSetData;
 };
 
-export const getXeroClient = async (userId: string) => {
-  let tokenData = await getStoredTokens(userId);
+export async function getXeroClient(userId: string) {
+  try {
+    const tokenData = await getStoredTokens(userId);
+    if (!tokenData) {
+      throw new Error('No Xero token found for the user.');
+    }
 
-  if (!tokenData) {
-    throw new Error('No Xero tokens found. Please authenticate first.');
-  }
+    const xero = new XeroClient({
+      clientId: process.env.XERO_CLIENT_ID!,
+      clientSecret: process.env.XERO_CLIENT_SECRET!,
+      redirectUris: [process.env.XERO_REDIRECT_URI!],
+    });
 
-  const isExpired = tokenData.expires_at - Math.floor(Date.now() / 1000) < 300;
+    xero.setTokenSet(tokenData);
 
-  if (isExpired) {
-    console.log('Xero token is expiring soon, refreshing...');
-    try {
-      await xero.setTokenSet(tokenData as TokenSet);
+    if (xero.readTokenSet().expired()) {
+      console.log('Xero token is expiring soon, refreshing...');
       const newTokenSet = await xero.refreshToken();
       await storeTokens(userId, newTokenSet);
-      
-      const refreshedTokenData = await getStoredTokens(userId);
-      if (!refreshedTokenData) {
-        throw new Error("Failed to retrieve refreshed token data");
-      }
-      tokenData = refreshedTokenData;
-
-    } catch (err) {
-      console.error("Failed to refresh Xero token", err);
-      throw new Error("Could not refresh Xero token. Please try re-authenticating.");
     }
-  }
-  
-  await xero.setTokenSet(tokenData as TokenSet);
-  const connections = await xero.updateTenants();
-  if (connections.length === 0) {
-    throw new Error("No active tenants found. Please re-authenticate.");
-  }
-  (xero as any).activeTenantId = connections[0].tenantId;
 
-  return xero;
-};
+    return xero;
+  } catch (error: any) {
+    console.error('Error initializing Xero client:', error);
+    throw new Error('Failed to initialize Xero client. Please re-authenticate.');
+  }
+}

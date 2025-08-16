@@ -28,10 +28,13 @@ export async function GET() {
     }
 
     const xero = await getXeroClient(userId);
-    // The active tenant ID is the first one in the tenants array.
+    if (!xero) {
+      return NextResponse.json({ error: 'Failed to initialize Xero client. Please re-authenticate.' }, { status: 500 });
+    }
+
     const activeTenantId = xero.tenants[0]?.tenantId;
     if (!activeTenantId) {
-      throw new Error("No active Xero tenant found.");
+      return NextResponse.json({ error: 'No active Xero tenant found. Please re-authenticate.' }, { status: 500 });
     }
 
     const profitAndLossResponse = await xero.accountingApi.getReportProfitAndLoss(activeTenantId);
@@ -80,6 +83,10 @@ export async function GET() {
     });
 
   } catch (error: any) {
+    if (error.message.includes('refresh')) {
+      console.error('Xero token refresh failed. Prompting re-authentication:', error);
+      return NextResponse.json({ error: 'Xero token refresh failed. Please re-authenticate.' }, { status: 401 });
+    }
     console.error('Error fetching Xero reports:', error.response?.body || error.message);
     return NextResponse.json({ error: 'Failed to fetch Xero reports', details: error.message }, { status: 500 });
   }

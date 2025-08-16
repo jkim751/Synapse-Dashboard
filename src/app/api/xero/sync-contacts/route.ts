@@ -12,8 +12,18 @@ export async function POST() {
     }
 
     // Get an authenticated Xero client
-    const xero = await getXeroClient(userId);
-    const activeTenantId = xero.tenants[0].tenantId;
+    let xero;
+    try {
+      xero = await getXeroClient(userId);
+    } catch (error) {
+      console.error('Failed to initialize Xero client:', error);
+      return NextResponse.json({ error: 'Failed to initialize Xero client. Please re-authenticate.' }, { status: 500 });
+    }
+
+    const activeTenantId = xero.tenants[0]?.tenantId;
+    if (!activeTenantId) {
+      return NextResponse.json({ error: 'No active Xero tenant found. Please re-authenticate.' }, { status: 500 });
+    }
 
     // 1. Fetch all local records that need syncing
     const studentsToSync = await prisma.student.findMany();
@@ -94,6 +104,10 @@ export async function POST() {
     });
 
   } catch (error: any) {
+    if (error.message.includes('refresh')) {
+      console.error('Xero token refresh failed. Prompting re-authentication:', error);
+      return NextResponse.json({ error: 'Xero token refresh failed. Please re-authenticate.' }, { status: 401 });
+    }
     console.error('Xero contact sync failed:', error);
     return NextResponse.json({ error: 'Failed to sync contacts with Xero.', details: error.message }, { status: 500 });
   }
