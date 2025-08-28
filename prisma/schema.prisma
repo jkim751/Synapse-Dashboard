@@ -34,6 +34,7 @@ model Student {
   createdAt     DateTime       @default(now())
   parentId      String?
   parent        Parent?        @relation(fields: [parentId], references: [id])
+  school        String?
   gradeId       Int
   grade         Grade          @relation(fields: [gradeId], references: [id])
   attendances   Attendance[]
@@ -41,6 +42,7 @@ model Student {
   birthday      DateTime
   xeroContactId String? // Xero contact ID for financial operations
   classes       StudentClass[]
+  updatedAt     DateTime       @updatedAt
 }
 
 model Teacher {

@@ -33,6 +33,7 @@ const StudentForm = ({
     resolver: zodResolver(studentSchema),
     defaultValues: {
       classIds: data?.classes?.map((c: any) => c.classId) || [],
+      school: data?.school || "",
     }
   });
 
@@ -92,6 +93,7 @@ const StudentForm = ({
       parentId: data.parentId || undefined,
       email: data.email || undefined,
       phone: data.phone || undefined,
+      school: data.school || undefined,
     };
     
     console.log("Formatted data:", formattedData);
@@ -182,6 +184,13 @@ const StudentForm = ({
           register={register}
           error={errors.birthday}
           type="date"
+        />
+        <InputField
+          label="School (Optional)"
+          name="school"
+          defaultValue={data?.school}
+          register={register}
+          error={errors?.school}
         />
         <InputField
           label="Grade"

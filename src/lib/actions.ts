@@ -463,6 +463,7 @@ export const createStudent = async (
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
+        school: validatedData.school || undefined,
       },
     });
 
@@ -518,6 +519,7 @@ export const updateStudent = async (
         birthday: validatedData.birthday,
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
+        school: validatedData.school || undefined,
       },
     });
 

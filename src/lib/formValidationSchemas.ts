@@ -105,6 +105,7 @@ export const studentSchema = z.object({
   gradeId: z.coerce.number().min(1, { message: "Grade is required!" }),
   classIds: z.array(z.coerce.number()).min(1, { message: "At least one class is required!" }), // Changed from classId to classIds array
   parentId: z.string().optional(),
+  school: z.string().optional(),
 });
 export type StudentSchema = z.infer<typeof studentSchema>;
 

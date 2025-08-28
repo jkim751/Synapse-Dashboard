@@ -19,6 +19,7 @@ type StudentList = Student & {
     class: Class;
   }>;
   grade: Grade;
+  school: string | null;
 };
 
 const StudentListPage = async ({
@@ -44,6 +45,11 @@ const StudentListPage = async ({
       header: "Grade",
       accessor: "grade",
       className: "hidden md:table-cell",
+    },
+    {
+      header: "School",
+      accessor: "school",
+      className: "hidden lg:table-cell",
     },
     {
       header: "Phone",
@@ -99,6 +105,7 @@ const StudentListPage = async ({
         </td>
         <td className="hidden md:table-cell">{item.username}</td>
         <td className="hidden md:table-cell">{item.grade.level}</td>
+        <td className="hidden lg:table-cell">{item.school || "-"}</td>
         <td className="hidden md:table-cell">{item.phone}</td>
         <td className="hidden md:table-cell">{item.address}</td>
         <td>
