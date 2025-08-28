@@ -9,8 +9,16 @@ datasource db {
 }
 
 model Admin {
-  id       String @id
-  username String @unique
+  id        String   @id
+  username  String   @unique
+  name      String
+  surname   String
+  email     String?  @unique
+  phone     String?  @unique
+  address   String
+  img       String?
+  sex       UserSex
+  birthday  DateTime
 }
 
 model Student {

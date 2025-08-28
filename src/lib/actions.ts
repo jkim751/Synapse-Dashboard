@@ -13,6 +13,7 @@ import {
   StudentSchema,
   SubjectSchema,
   TeacherSchema,
+  AdminSchema,
   parentSchema,
   studentSchema,
   teacherSchema,
@@ -24,6 +25,7 @@ import {
   resultSchema,
   eventSchema,
   announcementSchema,
+  adminSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
@@ -316,6 +318,109 @@ export const deleteTeacher = async (
   } catch (err) {
     console.error("Delete Teacher Error:", err);
     return { success: false, error: true, message: "Failed to delete teacher!" };
+  }
+};
+
+export const createAdmin = async (
+  currentState: CurrentState,
+  data: AdminSchema
+) => {
+  try {
+    const validatedData = adminSchema.parse(data);
+
+    const clerk = await clerkClient();
+    const user = await clerk.users.createUser({
+      username: validatedData.username,
+      password: validatedData.password!,
+      firstName: validatedData.name,
+      lastName: validatedData.surname,
+      publicMetadata: { role: "admin" }
+    });
+
+    await prisma.admin.create({
+      data: {
+        id: user.id,
+        username: validatedData.username,
+        name: validatedData.name,
+        surname: validatedData.surname,
+        email: validatedData.email || undefined,
+        phone: validatedData.phone || undefined,
+        address: validatedData.address,
+        img: validatedData.img || undefined,
+        sex: validatedData.sex,
+        birthday: validatedData.birthday,
+      },
+    });
+
+    revalidatePath("/list/admins");
+    return { success: true, error: false, message: "Admin created successfully!" };
+  } catch (err) {
+    console.error("Create Admin Error:", err);
+    return { success: false, error: true, message: "Failed to create admin!" };
+  }
+};
+
+export const updateAdmin = async (
+  currentState: CurrentState,
+  data: AdminSchema
+) => {
+  try {
+    const validatedData = adminSchema.parse(data);
+
+    if (!validatedData.id) {
+      return { success: false, error: true, message: "Admin ID is required for update!" };
+    }
+
+    const clerk = await clerkClient();
+    
+    await clerk.users.updateUser(validatedData.id, {
+      username: validatedData.username,
+      ...(validatedData.password && { password: validatedData.password }),
+      firstName: validatedData.name,
+      lastName: validatedData.surname,
+    });
+
+    await prisma.admin.update({
+      where: { id: validatedData.id },
+      data: {
+        username: validatedData.username,
+        name: validatedData.name,
+        surname: validatedData.surname,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        sex: validatedData.sex,
+        birthday: validatedData.birthday,
+      },
+    });
+
+    revalidatePath("/list/admins");
+    return { success: true, error: false, message: "Admin updated successfully!" };
+  } catch (err) {
+    console.log("Update Admin Error:", err);
+    return { success: false, error: true, message: "Failed to update admin!" };
+  }
+};
+
+export const deleteAdmin = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const clerk = await clerkClient();
+    await clerk.users.deleteUser(id);
+    await prisma.admin.delete({
+      where: {
+        id: id,
+      },
+    });
+
+    revalidatePath("/list/admins");
+    return { success: true, error: false, message: "Admin deleted successfully!" };
+  } catch (err) {
+    console.error("Delete Admin Error:", err);
+    return { success: false, error: true, message: "Failed to delete admin!" };
   }
 };
 

@@ -6,11 +6,6 @@ const prisma = new PrismaClient();
 async function seedProductionData() {
   console.log("Seeding essential production data...");
   
-  // ADMIN
-  await prisma.admin.createMany({
-    data: [{ id: "admin1", username: "admin1" }, { id: "admin2", username: "admin2" }],
-    skipDuplicates: true, // Prevent errors if they already exist
-  });
 
   // GRADE
   const grades = [];

@@ -15,7 +15,8 @@ export type FormContainerProps = {
   | "assignment"
   | "result"
   | "event"
-  | "announcement";
+  | "announcement"
+  | "admin";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
@@ -53,6 +54,10 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           select: { id: true, name: true },
         });
         relatedData = { subjects: teacherSubjects };
+        break;
+
+      case "admin":
+        // No related data needed for admin form
         break;
 
       case "student":

@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -14,6 +13,7 @@ import {
   deleteRecurringLesson,
   deleteParent,
   deleteResult,
+  deleteAdmin,
 } from "@/lib/actions";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -48,6 +48,8 @@ const deleteActionMap = {
   events: deleteEvent,
   announcement: deleteAnnouncement,
   announcements: deleteAnnouncement,
+  admin: deleteAdmin,
+  admins: deleteAdmin,
 };
 
 const TeacherForm = dynamic(() => import("./forms/TeacherForm"), {
@@ -81,6 +83,9 @@ const EventForm = dynamic(() => import("./forms/EventForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const AnnouncementForm = dynamic(() => import("./forms/AnnouncementForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const AdminForm = dynamic(() => import("./forms/AdminForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 
@@ -280,6 +285,20 @@ const forms: {
       data={data}
       setOpen={setOpen}
       relatedData={relatedData}
+    />
+  ),
+  admin: (setOpen, type, data, relatedData) => (
+    <AdminForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+    />
+  ),
+  admins: (setOpen, type, data, relatedData) => (
+    <AdminForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
     />
   ),
 };
