@@ -75,18 +75,34 @@ const LessonForm = ({
   });
 
   useEffect(() => {
-    if (data) reset(defaults as any);
-  }, [data]); // keep form in sync when opening modal for another row
+    if (data) {
+      const defaults = {
+        name: data.name ?? "",
+        subjectId: data.subjectId ?? data.subject?.id,
+        classId: data.classId ?? data.class?.id,
+        teacherId: data.teacherId ?? data.teacher?.id,
+        startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
+        endTime: data.endTime ? new Date(data.endTime).toISOString().slice(0, 16) : undefined,
+        repeats: "never" as const,
+        updateScope: isRecurring ? ("instance" as const) : undefined,
+        originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
+      };
+      reset(defaults as any);
+    }
+    // --- FIX: Add missing dependencies ---
+  }, [data, reset]); // Assuming 'reset' is from useForm and 'data' is the prop. Adjust if needed.
 
   useEffect(() => {
     if (state.success) {
       toast.success(state.message || (type === "update" ? "Lesson updated!" : "Lesson created!"));
       setOpen(false);
       router.refresh();
-    } else if (state.error) {
+    }
+    if (state.error) {
       toast.error(state.message || "Something went wrong!");
     }
-  }, [state]);
+    // --- FIX: Add missing dependencies ---
+  }, [state, router, setOpen]);
 
   const repeatsValue = watch("repeats");
   const { subjects, classes, teachers, variant } = relatedData || {};

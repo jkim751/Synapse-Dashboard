@@ -347,6 +347,7 @@ const FormModal = ({
       if (state.error && !state.success) {
         toast.error(state.message || `Failed to delete ${table}!`);
       }
+      // --- FIX: Follow linter advice for this specific hook ---
     }, [state, router]);
 
     return type === "delete" && id ? (
