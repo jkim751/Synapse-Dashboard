@@ -1,7 +1,5 @@
-
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,25 +11,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file received" }, { status: 400 });
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
-    await mkdir(uploadDir, { recursive: true });
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${file.name}`;
-    const filepath = path.join(uploadDir, filename);
-
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
-
-    // Return the relative path for database storage
-    const relativePath = `/uploads/${folder}/${filename}`;
+    const blob = await put(`uploads/${folder}/${file.name}`, file, {
+      access: "public",
+    });
 
     return NextResponse.json({ 
-      filePath: relativePath,
+      url: blob.url,
       message: "File uploaded successfully" 
     });
   } catch (error) {

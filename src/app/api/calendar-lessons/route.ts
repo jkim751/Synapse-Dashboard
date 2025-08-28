@@ -114,7 +114,15 @@ export async function GET(request: Request) {
     const finalEvents = [...Array.from(allCalendarEvents.values()), ...formattedSingleLessons];
 
     return NextResponse.json(finalEvents);
-  } catch (err) {
-    // ... error handling ...
+  } catch (error: any) {
+    console.error('Error fetching calendar lessons:', error.message);
+    
+    // --- THIS IS THE FIX ---
+    // We now explicitly return a NextResponse object with a 500
+    // Internal Server Error status.
+    return NextResponse.json(
+      { error: 'Failed to fetch calendar lessons' }, 
+      { status: 500 }
+    );
   }
 }

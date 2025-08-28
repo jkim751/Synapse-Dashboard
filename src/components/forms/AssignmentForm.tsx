@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,41 +22,73 @@ const AssignmentForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  console.log("[AssignmentForm] Received Related Data Prop:", relatedData);
   const [documents, setDocuments] = useState<string[]>(data?.documents || []);
+  
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<AssignmentSchema>({
     resolver: zodResolver(assignmentSchema),
+    // --- FIX: Set default values directly here ---
+    defaultValues: {
+      id: data?.id,
+      title: data?.title || '',
+      startDate: data?.startDate ? new Date(data.startDate) : undefined,
+      dueDate: data?.dueDate ? new Date(data.dueDate) : undefined,
+      lessonId: data?.lessonId || null,
+      recurringLessonId: data?.recurringLessonId || null,
+    },
   });
 
-  const [isPending, startTransition] = useTransition();
+  // --- FIX: This is the only destructuring you need ---
+  const { singleLessons, recurringLessons } = relatedData || {};
 
+  console.log("[AssignmentForm] Destructured Lessons:", { singleLessons, recurringLessons });
+
+  const handleLessonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (!value) {
+        setValue('lessonId', null);
+        setValue('recurringLessonId', null);
+        return;
+    }
+    const [type, id] = value.split('-');
+
+    if (type === 'single') {
+      setValue('lessonId', parseInt(id));
+      setValue('recurringLessonId', null);
+    } else if (type === 'recurring') {
+      setValue('recurringLessonId', parseInt(id));
+      setValue('lessonId', null);
+    }
+  };
+
+  const [isPending, startTransition] = useTransition();
   const [state, formAction] = useActionState(
     type === "create" ? createAssignment : updateAssignment,
-    {
-      success: false,
-      error: false,
-      message: "",
-    }
+    { success: false, error: false, message: "" }
   );
-
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast(`Assignment has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Assignment has been ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
     }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} assignment.`);
+    }
   }, [state, router, type, setOpen]);
+  
+  // --- REMOVED the old, incorrect `lessons` variable ---
 
-  const { lessons } = relatedData || {};
-
-  const onSubmit = handleSubmit((data) => {
+  const onSubmit = handleSubmit((formData) => {
     startTransition(() => {
-      formAction({ ...data, documents });
+      formAction({ ...formData, documents });
     });
   });
 
@@ -68,61 +99,62 @@ const AssignmentForm = ({
       </h1>
 
       <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Title"
-          name="title"
-          defaultValue={data?.title}
-          register={register}
-          error={errors?.title}
-        />
-        <InputField
-          label="Start Date"
-          name="startDate"
-          defaultValue={data?.startDate}
-          register={register}
-          error={errors?.startDate}
-          type="datetime-local"
-        />
-        <InputField
-          label="Due Date"
-          name="dueDate"
-          defaultValue={data?.dueDate}
-          register={register}
-          error={errors?.dueDate}
-          type="datetime-local"
-        />
-        <InputField
-          label="Lesson"
-          name="lessonId"
-          defaultValue={data?.lessonId}
-          register={register}
-          error={errors?.lessonId}
-          type="select"
-          options={lessons?.map((lesson: { id: number; name: string }) => ({
-            value: lesson.id,
-            label: lesson.name,
-          }))}
-        />
+        {/* InputFields now correctly use defaultValues from useForm */}
+        <InputField label="Title" name="title" register={register} error={errors?.title} />
+        <InputField label="Start Date" name="startDate" type="datetime-local" register={register} error={errors?.startDate} />
+        <InputField label="Due Date" name="dueDate" type="datetime-local" register={register} error={errors?.dueDate} />
+        
+        {data && <InputField label="Id" name="id" register={register} hidden />}
+       
+        <div className="flex flex-col gap-2 w-full md:w-1/4">
+          <label className="text-xs text-gray-500">Link To</label>
+          <select
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+            onChange={handleLessonChange}
+            // --- FIX: The defaultValue is now set on the <select> element ---
+            defaultValue={
+              data?.lessonId ? `single-${data.lessonId}` : 
+              data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
+            }
+          >
+            <option value="">Select a Lesson or Series</option>
+            {/* The rest of this dropdown is perfect */}
+            {singleLessons?.length > 0 && (
+              <optgroup label="Single Lessons">
+                {singleLessons.map((lesson: { id: number; name: string }) => (
+                  <option value={`single-${lesson.id}`} key={`single-${lesson.id}`}>
+                    {lesson.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {recurringLessons?.length > 0 && (
+              <optgroup label="Recurring Series">
+                {recurringLessons.map((lesson: { id: number; name: string }) => (
+                  <option value={`recurring-${lesson.id}`} key={`recurring-${lesson.id}`}>
+                    {lesson.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          {errors.lessonId?.message && (
+            <p className="text-xs text-red-400">
+              {errors.lessonId.message.toString()}
+            </p>
+          )}
+        </div>
+
         <FileUpload
           label="Assignment Documents"
           name="assignments"
           existingFiles={documents}
           onFilesChange={setDocuments}
         />
-        {data && (
-          <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
-            register={register}
-            error={errors?.id}
-            hidden
-          />
-        )}
       </div>
 
       {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+        <span className="text-red-500">{state.message || "Something went wrong!"}</span>
       )}
       <button
         className="bg-orange-400 text-white p-4 rounded-xl"

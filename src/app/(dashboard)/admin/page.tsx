@@ -1,7 +1,7 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import UserCard from "@/components/UserCard";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 
 const AdminPage = async ({
@@ -9,8 +9,13 @@ const AdminPage = async ({
 }: {
   searchParams: Promise<{ [keys: string]: string | undefined }>;
 }) => {
-  const { sessionClaims } = await auth();
-  const userName = (sessionClaims?.firstName as string) || (sessionClaims?.name as string) || "Admin";
+  // Ensure authentication and get user data
+  const { userId } = await auth();
+  const user = await currentUser();
+  
+  // More robust username fallback logic
+  const userName = user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || "Admin";
+  
   return (
     <div className="flex flex-col">
       {/* WELCOME MESSAGE */}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,9 +53,12 @@ const ResultForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Result has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Result has been ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} result.`);
     }
   }, [state, router, type, setOpen]);
 

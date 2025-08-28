@@ -29,7 +29,7 @@ const LoginPage = () => {
           <div className="mb-6">
             <Image
               src="/logo.png" 
-              alt="Synapse Logo" 
+              alt="logo" 
               className="w-16 h-16 mx-auto animate-spin"
               width={64}
               height={64}
@@ -56,7 +56,7 @@ const LoginPage = () => {
           <div className="mb-6">  
             <Image
               src="/logo.png" 
-              alt="Synapse Logo" 
+              alt="logo" 
               className="w-16 h-16 mx-auto animate-spin"
               width={64}
               height={64}

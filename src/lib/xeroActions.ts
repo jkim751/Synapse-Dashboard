@@ -9,6 +9,10 @@ export const getXeroReports = async () => {
       }
       const xero = await getXeroClient(userId);
       
+      if (!xero.tenants || xero.tenants.length === 0) {
+        throw new Error('No active Xero tenant found. Please ensure you have connected a Xero organization.');
+      }
+      
       const tenantId = xero.tenants[0].tenantId;
       
       // Get Profit & Loss report

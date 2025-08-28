@@ -4,12 +4,9 @@ import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Attendance, Lesson, Class, Teacher, Grade, Prisma, Subject, Student } from "@prisma/client";
-import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import AttendanceMarkButton from "@/components/AttendanceMarkButton";
 import AttendanceRow from "@/components/AttendanceRow";
-import { min } from "moment";
 import DateSelector from "@/components/DateSelector";
 
 type StudentWithAttendance = Student & {
@@ -34,12 +31,13 @@ type ClassWithRelations = Class & {
     searchParams: Promise<{ [key: string]: string | undefined }>;
   }) => {
     const { id } = await params;
-    const { sessionClaims } = await auth();
+    const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
+    const userRoles = role ? [role] : [];
     const resolvedSearchParams = await searchParams;
 
-    if (!role || !["admin", "teacher"].includes(role)) {
-      redirect("/");
+    if (!userRoles.includes("admin") && !userRoles.includes("teacher")) {
+      redirect("/"); // Redirect non-admins/teachers immediately
     }
 
     const classId = parseInt(id);
@@ -49,29 +47,39 @@ type ClassWithRelations = Class & {
       return <div>Invalid class ID</div>;
     }
 
-    // Get class information
     const classInfo = await prisma.class.findUnique({
       where: { id: classId },
       include: {
-          supervisor: true,
-          grade: true,
+        supervisor: true,
+        grade: true,
       },
     });
-
+  
     if (!classInfo) {
       return <div>Class not found</div>;
     }
-      // Restrict access for teachers to only their classes
-  if (role === "teacher" && classInfo.supervisor?.id !== sessionClaims?.userId) {
-    redirect("/attendance"); // Redirect to the main attendance page if not their class
-  }
+
+    if (userRoles.includes("teacher")) {
+      const isSupervisor = classInfo.supervisor?.id === userId;
+      
+      // Check if the teacher teaches any single OR recurring lesson in this class
+      const lessonCount = await prisma.lesson.count({ where: { classId: classId, teacherId: userId! } });
+      const recurringLessonCount = await prisma.recurringLesson.count({ where: { classId: classId, teacherId: userId! } });
+      
+      const teachesHere = lessonCount > 0 || recurringLessonCount > 0;
+  
+      // If the teacher is not the supervisor AND does not teach here, redirect.
+      if (!isSupervisor && !teachesHere) {
+        redirect("/attendance");
+      }
+    }
 
     const { page, ...queryParams } = resolvedSearchParams;
     const p = page ? parseInt(page) : 1;
 
    // Get selected date, default to today
    const today = new Date();
-   const selectedDateStr = queryParams.date || today.toISOString().split('T')[0];
+   const selectedDateStr = resolvedSearchParams.date || today.toISOString().split('T')[0];
    const selectedDate = new Date(selectedDateStr);
    selectedDate.setHours(0, 0, 0, 0); // Normalize to start of the day
 
@@ -82,7 +90,7 @@ type ClassWithRelations = Class & {
 
     // Build query for students
     const query: Prisma.StudentWhereInput = {
-      classes:{
+      classes: {
         some: {
           classId: classId,
         },
@@ -169,9 +177,17 @@ type ClassWithRelations = Class & {
     ];
 
     const renderRow = (student: StudentWithAttendance) => {
-      const attendanceMap = new Map(
-        student.attendances.map((att) => [att.lessonId, att.present])
+      // Create attendance map specifically for the selected date
+      const attendanceMap = new Map();
+      
+      // Get attendance records for this student on the selected date
+      const selectedDateAttendance = attendanceData.filter(
+        att => att.studentId === student.id
       );
+      
+      selectedDateAttendance.forEach(att => {
+        attendanceMap.set(att.lessonId, att.present);
+      });
       
       // Filter and transform lessons to match expected type
       const validLessons = dayLessons
@@ -186,7 +202,7 @@ type ClassWithRelations = Class & {
       <AttendanceRow
         key={student.id}
         student={student}
-        attendanceMap={attendanceMap || new Map()}
+        attendanceMap={attendanceMap}
         todayLessons={validLessons}
         date={selectedDate}
       />
@@ -205,7 +221,7 @@ type ClassWithRelations = Class & {
             {classInfo.supervisor?.name} {classInfo.supervisor?.surname} • Grade {classInfo.grade.level}
           </p>
           <p className="text-sm text-gray-500">
-          {selectedDate.toLocaleDateString('en-US', {
+          {selectedDate.toLocaleDateString('en-GB', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
@@ -216,7 +232,7 @@ type ClassWithRelations = Class & {
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
        {/* Date Picker for history */}
-       <form method="GET" action={`/attendance/${classId}`}>
+       <form method="GET" action={`/list/attendance/${classId}`}>
        <DateSelector currentDate={selectedDate} classId={classId} />
             <input type="hidden" name="date" value={selectedDate.toISOString().split('T')[0]} />
           </form>

@@ -174,7 +174,7 @@ const SingleClassPage = async ({
           <div className="text-sm text-gray-500 mt-1">
             <p>Grade: {classInfo.grade?.level}</p>
             <p>Supervisor: {classInfo.supervisor?.name} {classInfo.supervisor?.surname}</p>
-            <p>Capacity: {classInfo._count.students}</p>
+            <p>Count: {classInfo._count.students}</p>
           </div>
         </div>
         <Link 

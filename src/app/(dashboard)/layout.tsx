@@ -19,7 +19,7 @@ export default function DashboardLayout({
           className="flex items-center justify-center lg:justify-start gap-2"
         >
           <Image src="/logo.png" alt="logo" width={32} height={32} className="w-auto h-auto" />
-          <span className="hidden lg:block font-bold">Synapse Education</span>
+          <span className="hidden lg:block font-bold">Synapse Portal</span>
         </Link>
         <Menu />
       </div>

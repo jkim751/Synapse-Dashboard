@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -44,8 +43,8 @@ const FileUpload = ({
         });
 
         if (response.ok) {
-          const { filePath } = await response.json();
-          newFiles.push(filePath);
+          const { url } = await response.json();
+          newFiles.push(url);
         } else {
           toast.error(`Failed to upload ${file.name}`);
         }
@@ -62,10 +61,35 @@ const FileUpload = ({
     }
   };
 
-  const removeFile = (index: number) => {
+  const removeFile = async (index: number) => {
+    const fileToRemove = files[index];
     const updatedFiles = files.filter((_, i) => i !== index);
     setFiles(updatedFiles);
     onFilesChange(updatedFiles);
+
+    try {
+      const response = await fetch("/api/upload/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: fileToRemove }),
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to delete file from storage.");
+        // Optionally, revert state if deletion fails
+        setFiles(files);
+        onFilesChange(files);
+      } else {
+        toast.success("File removed successfully.");
+      }
+    } catch (error) {
+      toast.error("Error removing file.");
+      // Optionally, revert state if deletion fails
+      setFiles(files);
+      onFilesChange(files);
+    }
   };
 
   return (
@@ -87,7 +111,7 @@ const FileUpload = ({
           <div className="space-y-1">
             {files.map((file, index) => (
               <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs">
-                <span className="truncate">{file.split('/').pop()}</span>
+                <span className="truncate">{decodeURIComponent(file.split('/').pop() || '')}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(index)}

@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 
 interface AttendanceMarkButtonProps {
   studentId: string;
@@ -28,6 +27,10 @@ const AttendanceMarkButton = ({
 AttendanceMarkButtonProps) => {
   const [status, setStatus] = useState<boolean | undefined>(currentStatus);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setStatus(currentStatus);
+  }, [currentStatus]);
 
   const markAttendance = async (present: boolean) => {
     startTransition(async () => {

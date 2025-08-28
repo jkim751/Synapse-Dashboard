@@ -1,16 +1,16 @@
-
+// LessonForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
+import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useActionState } from "react";
 import InputField from "../InputField";
 import { lessonSchema, LessonSchema } from "@/lib/formValidationSchemas";
-import { createLesson, updateLesson } from "@/lib/actions";
-import { RRule, Weekday } from "rrule"; // <-- Import RRule and Weekday
+import { createLesson, updateLesson, updateRecurringLesson } from "@/lib/actions";
+import { RRule, Weekday } from "rrule";
 
 const LessonForm = ({
   type,
@@ -19,106 +19,178 @@ const LessonForm = ({
   relatedData,
 }: {
   type: "create" | "update";
-  data?: any; // Note: Updating recurring lessons is complex and not fully implemented here
+  data?: any;
   setOpen: Dispatch<SetStateAction<boolean>>;
-  relatedData?: any;
+  relatedData?: any; // includes subjects/classes/teachers and variant ("single"|"recurring")
 }) => {
-  // --- NEW: State to control the UI for recurrence ---
-  const [repeats, setRepeats] = useState<"never" | "weekly">("never");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  
+  const isRecurring = relatedData?.variant === "recurring";
+  // --- THIS IS THE FIX ---
+  // Correctly choose the server action based on the variant.
+  const baseActionFn =
+    type === "update"
+      ? (isRecurring ? updateRecurringLesson : updateLesson)
+      : createLesson;
+
+  // Wrapper function to match useActionState signature
+  const actionFn = async (state: any, payload: FormData) => {
+    // Convert FormData back to object for the server action
+    const formObject: any = {};
+    for (const [key, value] of payload.entries()) {
+      formObject[key] = value;
+    }
+    return await baseActionFn(formObject);
+  };
+
+  // IMPORTANT: use the right action state hook
+  const [state, formAction] = useActionState(actionFn, { success: false, error: false, message: "" });
+
+  // Default values: prefill from `data` if present
+  const defaults: Partial<LessonSchema> = data
+    ? {
+        name: data.name ?? "",
+        subjectId: data.subjectId ?? data.subject?.id,
+        classId: data.classId ?? data.class?.id,
+        teacherId: data.teacherId ?? data.teacher?.id,
+        startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
+        endTime:   data.endTime   ? new Date(data.endTime).toISOString().slice(0, 16)   : undefined,
+        repeats: "never", // you can infer weekly if data has rrule; keep "never" by default
+        // --- FIX: Add default values for recurring updates ---
+        updateScope: isRecurring ? "instance" : undefined,
+        originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
+      }
+    : { repeats: "never" };
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
+    reset,
   } = useForm<LessonSchema>({
     resolver: zodResolver(lessonSchema),
-    defaultValues: {
-      repeats: "never",
-      // ... pre-populate other fields if updating
-    }
+    defaultValues: defaults as any,
   });
 
-  // Watch the repeats field to update the UI
+  useEffect(() => {
+    if (data) reset(defaults as any);
+  }, [data]); // keep form in sync when opening modal for another row
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success(state.message || (type === "update" ? "Lesson updated!" : "Lesson created!"));
+      setOpen(false);
+      router.refresh();
+    } else if (state.error) {
+      toast.error(state.message || "Something went wrong!");
+    }
+  }, [state]);
+
   const repeatsValue = watch("repeats");
-
-  const [isPending, startTransition] = useTransition();
-  const [state, formAction] = useActionState(createLesson, { success: false, error: false, message: "" });
-  const router = useRouter();
-
-  useEffect(() => { /* ... your existing useEffect ... */ }, [state, router, type, setOpen]);
-
-  const { subjects, classes, teachers } = relatedData || {};
+  const { subjects, classes, teachers, variant } = relatedData || {};
 
   const onSubmit = handleSubmit((formData) => {
+    // build rrule if weekly
     let rruleString: string | null = null;
-    
-    // --- NEW: Build the rrule string before submitting ---
     if (formData.repeats === "weekly" && formData.day && formData.endDate) {
-      // Map day strings to weekday numbers (0=Monday, 6=Sunday)
-      const dayMap: { [key: string]: number } = {
-        'MO': 0, 'TU': 1, 'WE': 2, 'TH': 3, 'FR': 4, 'SA': 5, 'SU': 6
-      };
-      
+      const dayMap: Record<string, number> = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
       const weekday = new Weekday(dayMap[formData.day]);
-      
       const rule = new RRule({
         freq: RRule.WEEKLY,
         byweekday: [weekday],
-        dtstart: new Date(formData.startTime), // The first occurrence
-        until: new Date(formData.endDate),    // The last possible day
+        dtstart: new Date(formData.startTime),
+        until: new Date(formData.endDate),
       });
       rruleString = rule.toString();
     }
-    
-    // Combine the rruleString with the rest of the form data
-    const dataToSubmit = { ...formData, rrule: rruleString };
+
+    // IMPORTANT: include id for update
+    const payload: any = {
+      ...formData,
+      rrule: rruleString,
+      variant: variant || "single",           // lets the server know if this is a recurring record
+      ...(type === "update" && data?.id ? { id: data.id } : {}),
+    };
 
     startTransition(() => {
-      formAction(dataToSubmit);
+      const formData = new FormData();
+      Object.keys(payload).forEach(key => {
+        const value = payload[key];
+        if (value !== undefined && value !== null) {
+          formData.append(key, value instanceof Date ? value.toISOString() : String(value));
+        }
+      });
+      formAction(formData);
     });
   });
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">Create a new lesson</h1>
+      <h1 className="text-xl font-semibold">{type === "update" ? "Update lesson" : "Create a new lesson"}</h1>
+
+      {/* ensure id is present on update */}
+      {type === "update" && data?.id && <input type="hidden" name="id" value={data.id} />}
+
       <div className="flex justify-between flex-wrap gap-4">
         <InputField label="Lesson name" name="name" register={register} error={errors?.name} />
-        <InputField label="Subject" name="subjectId" type="select" options={subjects?.map((subject: any) => ({ value: subject.id, label: subject.name })) || []} register={register} error={errors?.subjectId} />
-        <InputField label="Class" name="classId" type="select" options={classes?.map((cls: any) => ({ value: cls.id, label: cls.name })) || []} register={register} error={errors?.classId} />
-        <InputField label="Teacher" name="teacherId" type="select" options={teachers?.map((teacher: any) => ({ value: teacher.id, label: teacher.name })) || []} register={register} error={errors?.teacherId} />
+        <InputField label="Subject" name="subjectId" type="select"
+          options={subjects?.map((s: any) => ({ value: s.id, label: s.name })) || []}
+          register={register} error={errors?.subjectId} />
+        <InputField label="Class" name="classId" type="select"
+          options={classes?.map((c: any) => ({ value: c.id, label: c.name })) || []}
+          register={register} error={errors?.classId} />
+        <InputField label="Teacher" name="teacherId" type="select"
+          options={teachers?.map((t: any) => ({ value: t.id, label: t.name })) || []}
+          register={register} error={errors?.teacherId} />
         <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} />
-        <InputField label="End Time" name="endTime" type="datetime-local" register={register} error={errors?.endTime} />
+        <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime} />
 
-        {/* --- NEW: Recurrence UI --- */}
-        <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats} options={[
-          { value: "never", label: "Never" },
-          { value: "weekly", label: "Weekly" },
-        ]} />
-        
-        {/* Conditionally show fields for weekly recurrence */}
+        {/* unified repeats UI */}
+        <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats}
+          options={[{ value: "never", label: "Never" }, { value: "weekly", label: "Weekly" }]} />
+
         {repeatsValue === "weekly" && (
           <>
-            <InputField label="On Day" name="day" type="select" register={register} error={errors?.day} options={[
-              { value: "MO", label: "Monday" },
-              { value: "TU", label: "Tuesday" },
-              { value: "WE", label: "Wednesday" },
-              { value: "TH", label: "Thursday" },
-              { value: "FR", label: "Friday" },
-              { value: "SA", label: "Saturday" },
-              { value: "SU", label: "Sunday" },
-            ]} />
+            <InputField label="On Day" name="day" type="select" register={register} error={errors?.day}
+              options={[
+                { value: "MO", label: "Monday" }, { value: "TU", label: "Tuesday" },
+                { value: "WE", label: "Wednesday" }, { value: "TH", label: "Thursday" },
+                { value: "FR", label: "Friday" }, { value: "SA", label: "Saturday" }, { value: "SU", label: "Sunday" },
+              ]} />
             <InputField label="Until" name="endDate" type="date" register={register} error={errors?.endDate} />
           </>
         )}
       </div>
 
+      {/* --- FIX: Add UI for selecting update scope --- */}
+      {type === 'update' && isRecurring && (
+        <div className="border-t pt-4">
+            <h3 className="font-semibold">Update recurring event</h3>
+            <div className="flex flex-col gap-2 mt-2">
+                <label className="flex items-center gap-2">
+                    <input type="radio" value="instance" {...register("updateScope")} />
+                    <span>Only this event</span>
+                </label>
+                <label className="flex items-center gap-2">
+                    <input type="radio" value="series" {...register("updateScope")} />
+                    <span>This and all events</span>
+                </label>
+            </div>
+        </div>
+      )}
+
       {state.error && <span className="text-red-500">{state.message || "Something went wrong!"}</span>}
       <button className="bg-orange-400 text-white p-4 rounded-xl" disabled={isPending}>
-        {isPending ? "Loading..." : "Create"}
+        {isPending ? "Loading..." : type === "update" ? "Update" : "Create"}
       </button>
     </form>
   );
 };
 
 export default LessonForm;
+function actionFn(state: { success: boolean; error: boolean; message: string; }): { success: boolean; error: boolean; message: string; } | Promise<{ success: boolean; error: boolean; message: string; }> {
+  throw new Error("Function not implemented.");
+}
+

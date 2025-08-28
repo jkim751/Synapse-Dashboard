@@ -67,11 +67,11 @@ const query: Prisma.ClassWhereInput = {};
 
 // If user is a teacher, only show their classes
 if (role === "teacher" && userId) {
-  query.lessons = {
-    some: {
-      teacherId: userId
-    }
-  }
+  query.OR = [
+    { supervisorId: userId },
+    { lessons: { some: { teacherId: userId } } },
+    { RecurringLesson: { some: { teacherId: userId } } }, // optional
+  ];
 }
 
 if (queryParams.search) {

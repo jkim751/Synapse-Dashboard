@@ -169,7 +169,12 @@ export async function getXeroClient(userId: string) {
       console.log('Xero token is expiring soon, refreshing...');
       const newTokenSet = await xero.refreshToken();
       await storeTokens(userId, newTokenSet);
+      // After refreshing, we must set the new token on the current client instance
+      xero.setTokenSet(newTokenSet);
     }
+
+    // This is the crucial step: load the connected Xero organization(s)
+    await xero.updateTenants();
 
     return xero;
   } catch (error: any) {

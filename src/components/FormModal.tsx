@@ -11,6 +11,7 @@ import {
   deleteAssignment,
   deleteEvent,
   deleteLesson,
+  deleteRecurringLesson,
   deleteParent,
   deleteResult,
 } from "@/lib/actions";
@@ -37,6 +38,8 @@ const deleteActionMap = {
   parents: deleteParent,
   lesson: deleteLesson,
   lessons: deleteLesson,
+  recurringLesson: deleteRecurringLesson,
+  recurringLessons: deleteRecurringLesson,
   assignment: deleteAssignment,
   assignments: deleteAssignment,
   result: deleteResult,
@@ -177,6 +180,20 @@ const forms: {
       relatedData={relatedData}
     />
   ),
+  recurringLesson: (setOpen, type, data, relatedData) => (
+    <LessonForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData} />
+  ),
+  recurringLessons: (setOpen, type, data, relatedData) => (
+    <LessonForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData} />
+  ),
   parent: (setOpen, type, data, relatedData) => (
     <ParentForm
       type={type}
@@ -280,17 +297,25 @@ const FormModal = ({
     type === "create"
       ? "bg-orange-400"
       : type === "update"
-      ? "bg-orange-200"
-      : "bg-orange-300";
+        ? "bg-orange-200"
+        : "bg-orange-300";
+
+  console.log("[FormModal] Received Related Data Prop:", relatedData);
 
   const [open, setOpen] = useState(false);
 
   const Form = () => {
-    const [state, formAction] = useActionState(deleteActionMap[table], {
-      success: false,
-      error: false,
-      message: "",
-    });
+    const deleteAction = deleteActionMap[table];
+    const [state, formAction] = useActionState(
+      async (prevState: any, formData: FormData) => {
+        return await deleteAction(prevState, formData);
+      },
+      {
+        success: false,
+        error: false,
+        message: "",
+      }
+    );
 
     const router = useRouter();
 
@@ -307,8 +332,7 @@ const FormModal = ({
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
-        <input type="text" name="id" defaultValue={id} hidden />
-        <span className="text-center font-medium">
+        <input type="hidden" name="id" value={id} />        <span className="text-center font-medium">
           All data will be lost. Are you sure you want to delete this {table}?
         </span>
         <button className="bg-red-700 text-white py-2 px-4 rounded-xl border-none w-max self-center">

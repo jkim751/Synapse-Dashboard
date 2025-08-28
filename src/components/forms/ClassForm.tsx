@@ -37,7 +37,6 @@ const ClassForm = ({
       success: false,
       error: false,
       message: "Successfully processed the request.",
-
     }
   );
 
@@ -45,9 +44,12 @@ const ClassForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Class has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Class has been ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} class.`);
     }
   }, [state, router, type, setOpen]);
 

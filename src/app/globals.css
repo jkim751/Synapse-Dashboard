@@ -1,463 +1,495 @@
+/* Tailwind base */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Base Calendar Styles */
-.react-calendar,
+/* ==========================================================================
+   React Big Calendar — Cleaned Theme
+   Goals:
+   1) Preserve your current look & feel
+   2) Month view: top-down event stacking
+   3) Day view ONLY: width restriction for events
+   ========================================================================== */
+
+/* Base calendar container */
 .rbc-calendar {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  font-family: "Inter", sans-serif !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
+  width: 100%;
+  height: 100%;
+  border: none;
+  font-family: "Inter", sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.react-calendar__navigation__label__labelText{
-  font-weight: 600;   
-}
-
-.react-calendar__title-active{
-   background-color: blanchedalmond !important;
-   color: black !important;
-}
-
-/* Hide default RBC toolbar since we're using custom navigation */
-.rbc-toolbar {
+/* Hide default RBC toolbar (you use a custom one) */
+.rbc-toolbar,
+.rbc-btn-group:first-child {
   display: none !important;
 }
 
-.rbc-btn-group:first-child{
-  display: none !important;
+/* Toolbar label (if ever shown) */
+.rbc-toolbar-label {
+  text-align: right;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 18px;
 }
 
-.rbc-toolbar-label{
-  text-align: right !important;
-  padding: 0px 20px !important;
-  font-weight: 600 !important;
-  font-size: 18px !important;
+/* Your action buttons look */
+.rbc-btn-group:last-child {
+  font-size: 13px;
+}
+.rbc-btn-group:last-child button {
+  border: none;
+  background-color: rgba(252, 113, 24, 0.7); /* fixed to rgba() */
+  margin-left: 2px;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+.rbc-toolbar button.rbc-active {
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #d1d5db;
 }
 
-.rbc-btn-group:last-child{
-  font-size: 13px !important;   
-}
+/* =========================================
+   MONTH VIEW — Top-down stacking (reliable)
+   ========================================= */
 
-.rbc-btn-group:last-child button{
-  border: none !important;
-  background-color: rgb(252,113,24,0.7) !important;
-  margin-left: 2px !important;
-  padding: 6px 12px !important;
-  border-radius: 4px !important;
-}
-
-.rbc-toolbar button.rbc-active{
-  background-color: white !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* MONTH VIEW FIXES */
+/* Keep RBC’s default block layout; no flex rewires in month view */
 .rbc-month-view {
-  flex: 1 !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
+  flex: 1;
+  display: block;
 }
-
 .rbc-month-header {
-  flex-shrink: 0 !important;
-  border-bottom: 2px solid #e0e0e0 !important;
-  background-color: #f8fafc !important;
+  border-bottom: 2px solid #e0e0e0;
+  background-color: #f8fafc;
 }
-
 .rbc-month-header .rbc-header {
-  padding: 12px 8px !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
-  text-align: center !important;
-  border-right: 1px solid #e0e0e0 !important;
-  background-color: #f8fafc !important;
+  padding: 12px 8px;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  border-right: 1px solid #e0e0e0;
+  background-color: #f8fafc;
 }
 
-.rbc-month-row {
-  flex: 1 !important;
-  min-height: 120px !important;
-  max-height: none !important;
-  border-bottom: 1px solid #e0e0e0 !important;
-  display: flex !important;
-  overflow: visible !important;
+/* Day cell layout: grid ensures date label is row 1, events row 2 */
+.rbc-month-view .rbc-date-cell {
+  display: grid;
+  grid-auto-rows: min-content;
+  align-content: start;   /* hug top */
+  justify-items: start;   /* left-align content */
+  padding: 4px 2px;
+  border-right: 1px solid #e0e0e0;
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+}
+.rbc-month-view .rbc-date-cell > a {
+  grid-row: 1;
+  margin-bottom: 4px;
 }
 
-.rbc-month-row .rbc-row-content {
-  height: 100% !important;
-  overflow: visible !important;
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
+/* Events block flows from top in row 2 */
+.rbc-month-view .rbc-date-cell .rbc-events-container,
+.rbc-month-view .rbc-date-cell .rbc-row-content,
+.rbc-month-view .rbc-date-cell .rbc-row-segment {
+  grid-row: 2;
+  display: block;
+  height: auto;
+  min-height: 0;
 }
 
-.rbc-date-cell {
-  flex: 1 !important;
-  min-height: 120px !important;
-  max-height: none !important;
-  padding: 4px 2px !important;
-  border-right: 1px solid #e0e0e0 !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  position: relative !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;  
-}
-
-.rbc-date-cell > a {
-  margin-bottom: 4px !important;
-  align-self: flex-start !important;
-  flex-shrink: 0 !important;
-  
-}
-
-.rbc-date-cell .rbc-events-container {
-  flex: 1 !important;
-  overflow: visible !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1px !important;
-  min-height: 0 !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-  padding-top: 2px !important;
-  position: relative !important;
-}
-
-.rbc-date-cell .rbc-row-content {
-  overflow: visible !important;
-  height: auto !important;
-  min-height: 0 !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-}
-
-.rbc-date-cell .rbc-row-segment {
-  overflow: visible !important;
-  position: relative !important;
-  z-index: auto !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-}
-
-/* Month view events */
+/* Events: compact chips */
 .rbc-month-view .rbc-event {
-  font-size: 10px !important;
-  padding: 1px 3px !important;
-  margin: 0 1px 1px 0 !important;
-  border-radius: 3px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  color: white !important;
-  cursor: pointer !important;
-  min-height: 16px !important;
-  max-height: 16px !important;
-  line-height: 14px !important;
-  display: block !important;
-  width: calc(100% - 1px) !important;
-  position: relative !important;
-  z-index: 2 !important;
-  flex-shrink: 0 !important;
-  box-sizing: border-box !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
+  font-size: 10px;
+  padding: 1px 3px;
+  margin: 0 1px 1px 0;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  cursor: pointer;
+  min-height: 16px;
+  max-height: 16px;
+  line-height: 14px;
+  display: block;
+  position: relative;
+  box-sizing: border-box;
 }
-
 .rbc-month-view .rbc-event:hover {
-  transform: scale(1.02) !important;
-  z-index: 10 !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  transform: scale(1.02);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-
-.rbc-month-view .rbc-row-segment {
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: visible !important;
-  position: relative !important;
-  width: 100% !important;
-}
-
 .rbc-month-view .rbc-event-content {
-  font-size: 10px !important;
-  line-height: 1.2 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Additional month view improvements */
-.rbc-month-view .rbc-row {
-  overflow: visible !important;
-  position: relative !important;
-}
-
-.rbc-month-view .rbc-row-bg {
-  overflow: visible !important;
-}
-
-.rbc-month-view .rbc-day-bg {
-  overflow: visible !important;
-}
-
-/* Ensure events stack properly from top */
-.rbc-month-view .rbc-events-container {
-  position: relative !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 1px !important;
-  justify-content: flex-start !important;
-}
-
-/* Force events to start from top by targeting the row content directly */
-.rbc-month-view .rbc-row-content-scroll-container {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-  height: 100% !important;
-}
-
-/* Target the actual event wrapper and position it at top */
-.rbc-month-view .rbc-addons-dnd-row-body {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-  height: 100% !important;
-}
-
-/* Force the event segments to align to top */
-.rbc-month-view .rbc-event-content {
-  position: relative !important;
-  top: 0 !important;
-  margin-top: 0 !important;
-  align-self: flex-start !important;
-}
+/* Show-more chip */
 .rbc-show-more {
-  background-color: #f3f4f6 !important;
-  color: #374151 !important;
-  font-size: 10px !important;
-  padding: 1px 4px !important;
-  border-radius: 2px !important;
-  margin: 1px 0 !important;
-  cursor: pointer !important;
-  border: 1px solid #d1d5db !important;
-  flex-shrink: 0 !important;
-  text-align: center !important;
+  background-color: #f3f4f6;
+  color: #374151;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin: 1px 0;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  display: inline-block;
 }
-
 .rbc-show-more:hover {
-  background-color: #e5e7eb !important;
+  background-color: #e5e7eb;
 }
 
-/* WEEK AND DAY VIEW FIXES */
+/* =========================================
+   WEEK & DAY (Time views) — Styling only
+   ========================================= */
+
 .rbc-time-view {
-  flex: 1 !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  border-color: #e0e0e0 !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-color: #e0e0e0;
 }
-
 .rbc-time-header {
-  flex-shrink: 0 !important;
-  border-color: #e0e0e0 !important;
-  border-bottom: 1px solid #e0e0e0 !important;
-  width: 100% !important;
+  border-bottom: 1px solid #e0e0e0;
+  width: 100%;
 }
-
 .rbc-time-header-content {
-  flex-shrink: 0 !important;
-  border-left: 1px solid #e0e0e0 !important;
+  border-left: 1px solid #e0e0e0;
 }
-
 .rbc-time-header-cell {
-  border-right: 1px solid #e0e0e0 !important;
-  padding: 8px 4px !important;
-  text-align: center !important;
-  font-weight: 600 !important;
-  background-color: #f8fafc !important;
-  min-width: 0 !important;
+  border-right: 1px solid #e0e0e0;
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  background-color: #f8fafc;
+  min-width: 0;
 }
-
-/* Hide all day row */
-.rbc-allday-cell {
-  display: none !important;
-}
-
 .rbc-time-content {
-  flex: 1 !important;
-  overflow: hidden !important;
-  border-color: #e0e0e0 !important;
-  border-left: 1px solid #e0e0e0 !important;
-  display: flex !important;
+  flex: 1;
+  overflow: hidden;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
 }
-
 .rbc-time-gutter.rbc-time-column {
-  border-color: #e0e0e0 !important;
-  font-size: 12px !important;
-  min-width: 70px !important;
-  max-width: 70px !important;
-  width: 70px !important;
-  flex-shrink: 0 !important;
-  border-right: 1px solid #e0e0e0 !important;
+  font-size: 12px;
+  min-width: 70px;
+  max-width: 70px;
+  width: 70px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
 }
-
 .rbc-time-gutter.rbc-time-column .rbc-timeslot-group {
-  padding: 4px 6px !important;
-  border-color: #e0e0e0 !important;
-  font-size: 10px !important;
-  width: 100% !important;
-  min-height: 45px !important;
-  border-bottom: 1px solid #f0f0f0 !important;
-  text-align: right !important;
+  padding: 4px 6px;
+  font-size: 10px;
+  width: 100%;
+  min-height: 45px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: right;
 }
 
 .rbc-day-slot {
-  font-size: 13px !important;
-  border-left: 1px solid #e0e0e0 !important;
-  border-right: 1px solid #e0e0e0 !important;
-  min-width: 0 !important;
-  flex: 1 !important;
-  padding: 2px !important;
-  position: relative !important;
+  font-size: 13px;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  min-width: 0;
+  flex: 1;
+  padding: 0 2px;
+  position: relative;
 }
 
-/* Better event overlap handling in day view */
-.rbc-day-slot .rbc-event {
-  position: absolute !important;
-  margin: 1px !important;
-  border-radius: 4px !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 1.2 !important;
-  padding: 3px 6px !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  min-width: 80px !important;
-}
-
-/* Improved timeslot styling */
 .rbc-timeslot-group {
-  background-color: #fefefe !important;
-  border-color: #e0e0e0 !important;
-  width: 100% !important;
-  min-height: 50px !important;
+  background-color: #fefefe;
+  width: 100%;
+  min-height: 50px;
 }
-
 .rbc-label {
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  color: #374151 !important;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+}
+.rbc-time-slot {
+  min-height: 50px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.rbc-time-slot:last-child {
+  border-bottom: none;
 }
 
+/* Time-view events */
+.rbc-day-slot .rbc-event {
+  position: absolute;   /* RBC positions these */
+  margin: 0;            /* let RBC place them */
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 3px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.rbc-event {
+  border: none;
+  color: #fff;
+  padding: 4px 6px;
+  margin: 1px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.rbc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.rbc-event-label {
+  color: #fff;
+  margin-bottom: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* =========================================
+   DAY VIEW ONLY — Max width cap for events
+   (Uses :has() to detect Day (single day-slot) vs Week)
+   ========================================= */
+
+/* Set your desired cap once */
+:root { --rbc-day-event-max-width: 92%; }
+
+/* Apply ONLY when the time-content has a single .rbc-day-slot (Day view) */
+.rbc-time-view .rbc-time-content:not(:has(.rbc-day-slot + .rbc-day-slot)) .rbc-day-slot .rbc-event {
+  max-width: var(--rbc-day-event-max-width);
+  box-sizing: border-box;
+}
+
+/* Optional: small right gutter for neat edges in Day view */
+.rbc-time-view .rbc-time-content:not(:has(.rbc-day-slot + .rbc-day-slot)) .rbc-day-slot {
+  padding-right: 6px;
+}
+
+/* =========================================
+   Responsiveness
+   ========================================= */
+@media (max-width: 768px) {
+  .rbc-toolbar-label {
+    font-size: 16px;
+    padding: 0 10px;
+  }
+  .rbc-month-view .rbc-event {
+    font-size: 9px;
+    min-height: 14px;
+    max-height: 14px;
+  }
+  .rbc-date-cell {
+    font-size: 12px;
+  }
+}
+
+/* =========================================
+   Small fixes & cleanups
+   ========================================= */
+
+/* Fix invalid flex declaration from earlier version */
+.rbc-date-cell .rbc-events-container {
+  /* if another rule sets flex here, ensure it's valid */
+  flex: 0 0 auto;
+}
+
+/* Popup (show-more) styles */
+.rbc-overlay {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+.rbc-overlay-header {
+  background-color: #f8fafc;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  font-weight: 600;
+}
+
+/* =========================
+   1) NO OVERFLOW OUTSIDE
+   ========================= */
+.rbc-calendar {
+  overflow: hidden !important;            /* prevent outer scrollbars */
+}
+.rbc-time-view {
+  overflow: hidden !important;            /* keep header fixed; inner grid scrolls */
+}
+.rbc-time-content {
+  overflow-y: auto !important;            /* only the time grid scrolls */
+  overflow-x: hidden !important;
+  min-height: 0 !important;               /* allow flex child to shrink */
+}
+
+/* =========================
+   2) FIX DAYS POSITION (STICKY)
+   - Week/Day headers stick to top while grid scrolls
+   ========================= */
+.rbc-time-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 3;                              /* above events */
+  background: #f8fafc !important;          /* your header background */
+}
+
+/* make the inner header cells stay on the same sticky layer */
+.rbc-time-header-content,
+.rbc-time-header-gutter {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 4;
+  background: #f8fafc !important;
+}
+
+/* Month view: keep weekday row fixed if the month grid ever scrolls */
+.rbc-month-view {
+  overflow: hidden !important;
+}
+.rbc-month-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2;
+  background: #f8fafc !important;
+}
+
+/* =========================================
+   3) REMOVE THE ROW BELOW THE DAYS (ALL-DAY)
+   ========================================= */
+/* Hide All-Day header cell and its event row entirely */
+.rbc-allday-header,
+.rbc-allday-cell,
+.rbc-row.rbc-allday-cell,
+.rbc-allday-events {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+/* Ensure removing all-day row doesn’t leave extra space/borders */
+.rbc-time-header {
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+.rbc-time-content > .rbc-time-gutter,
+.rbc-time-content > .rbc-day-slot {
+  min-height: 100% !important; /* keep columns full height */
+}
+
+/* Safety: prevent any nested containers from reintroducing scrollbars */
+.rbc-month-view .rbc-row,
+.rbc-month-view .rbc-month-row,
+.rbc-month-view .rbc-row-content,
+.rbc-month-view .rbc-date-cell,
+.rbc-overlay {
+  overflow: hidden !important;
+}
+
+/* If you have popovers (show more), let them escape without creating scrollbars */
+.rbc-overlay {
+  contain: layout paint !important; /* keeps main grid from scrolling */
+}
+
+/* === Fit calendar exactly in its parent === */
+.rbc-calendar,
+.rbc-time-view,
+.rbc-time-content {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.rbc-calendar {
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important; /* no outer scrollbars */
+}
+
+.rbc-time-view {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;    /* allow shrinking within flex parent */
+  overflow: hidden !important; /* header stays fixed */
+}
+
+.rbc-time-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;  /* only the grid scrolls */
+  overflow-x: hidden !important;
+}
+
+/* Remove borders that add stray pixels */
+.rbc-time-header,
+.rbc-time-content,
+.rbc-time-gutter,
+.rbc-day-slot {
+  box-sizing: border-box !important;
+}
+
+/* === Control hour + slot height with CSS variables === */
+/* Tweak these two numbers to make the grid shorter/taller. */
+:root {
+  --rbc-hour-height: 34px;        /* total height of 1 hour in the time grid */
+  --rbc-slots-per-hour: 2;        /* must match your Calendar `timeslots` prop */
+}
+
+/* Each hour group (e.g., 9:00–10:00) */
+.rbc-timeslot-group {
+  min-height: var(--rbc-hour-height) !important;
+}
+
+/* Each slot inside the hour (depends on your `timeslots` prop) */
 .rbc-time-slot {
-  min-height: 50px !important;
+  min-height: calc(var(--rbc-hour-height) / var(--rbc-slots-per-hour)) !important;
   border-bottom: 1px solid #f0f0f0 !important;
 }
-
 .rbc-time-slot:last-child {
   border-bottom: none !important;
 }
 
-/* Week/Day view event styling */
-.rbc-event {
-  border: none !important;
-  color: white !important;
-  padding: 4px 6px !important;
-  margin: 1px !important;
-  border-radius: 4px !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  line-height: 1.3 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+/* Slightly tighter gutter so it all fits */
+.rbc-time-gutter.rbc-time-column {
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
 }
 
-.rbc-event:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
-}
-
-.rbc-event-label {
-  color: white !important;
-  margin-bottom: 1px !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  line-height: 1.2 !important;
-}
-
-/* Ensure proper flex layout for week view days */
-.rbc-time-content > * {
-  min-height: 100% !important;
-}
-
-.rbc-time-column {
-  flex: 1 !important;
-  min-width: 0 !important;
-  height: 100% !important;
-}
-
-/* Fix week view day alignment */
+/* Keep header fixed while grid scrolls */
+.rbc-time-header,
+.rbc-time-header-content,
 .rbc-time-header-gutter {
-  flex-shrink: 0 !important;
-  width: 60px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 3;
+  background: #f8fafc !important;
 }
 
-/* Responsive improvements */
-@media (max-width: 768px) {
-  .rbc-toolbar-label {
-    font-size: 16px !important;
-    padding: 0 10px !important;
-  }
-  
-  .rbc-btn-group:last-child button {
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-  }
-  
-  .rbc-month-view .rbc-event {
-    font-size: 9px !important;
-    min-height: 14px !important;
-    max-height: 14px !important;
-  }
-  
-  .rbc-date-cell {
-    min-height: 100px !important;
-    font-size: 12px !important;
-  }
-}
-
-/* Popup styles for month view */
-.rbc-overlay {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-  border-radius: 8px !important;
-  border: 1px solid #e0e0e0 !important;
-}
-
-.rbc-overlay-header {
-  background-color: #f8fafc !important;
-  padding: 8px 12px !important;
-  border-bottom: 1px solid #e0e0e0 !important;
-  font-weight: 600 !important;
+/* (From earlier) Remove the all-day row entirely (row below day names) */
+.rbc-allday-header,
+.rbc-allday-cell,
+.rbc-allday-events {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
 }

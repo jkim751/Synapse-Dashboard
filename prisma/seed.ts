@@ -24,9 +24,9 @@ async function seedProductionData() {
 
   // SUBJECT
   const subjectData = [
-    { name: "Math Prelim" }, { name: "Math Adv" }, { name: "Math Ext 1" },
+    { name: "Math Adv" }, { name: "Math Ext 1" },
     { name: "Math Ext 2" }, { name: "Math" }, { name: "English" },
-    { name: "English Prelim" }, { name: "English Adv" }, { name: "English Ext 1" },
+    { name: "English Adv" }, { name: "English Ext 1" },
     { name: "English Ext 2" }, { name: "Physics" }, { name: "Chemistry" },
     { name: "Biology" }, { name: "Economics" },
   ];
@@ -44,8 +44,10 @@ async function seedDevelopmentData() {
 
   // CLASS
   for (let i = 1; i <= 4; i++) {
-    await prisma.class.create({
-      data: {
+    await prisma.class.upsert({
+      where: { name: `${i}A` }, // The unique field to search for
+      update: {}, // What to do if it exists (nothing in this case)
+      create: { // What to do if it doesn't exist
         name: `${i}A`, 
         gradeId: i, 
         capacity: Math.floor(Math.random() * (20 - 15 + 1)) + 15,
@@ -53,10 +55,12 @@ async function seedDevelopmentData() {
     });
   }
 
-  // Additional classes for demonstrating multi-class enrollment
+  // Also apply this to your second class loop
   for (let i = 1; i <= 4; i++) {
-    await prisma.class.create({
-      data: {
+    await prisma.class.upsert({
+      where: { name: `${i}B` },
+      update: {},
+      create: {
         name: `${i}B`, 
         gradeId: i, 
         capacity: Math.floor(Math.random() * (20 - 15 + 1)) + 15,
@@ -87,7 +91,7 @@ async function seedDevelopmentData() {
    console.log("Seeding single and recurring lessons...");
 
    // Let's create a few one-off, single lessons (e.g., a special guest lecture)
-   await prisma.lesson.create({
+   const singleLesson = await prisma.lesson.create({
      data: {
        name: "Special Guest Lecture: Quantum Physics",
        // A specific date and time
@@ -112,7 +116,7 @@ async function seedDevelopmentData() {
      dtstart: semesterStart,
      until: semesterEnd,
    });
-   await prisma.recurringLesson.create({
+   const recurringMath = await prisma.recurringLesson.create({
      data: {
        name: "Year 9 Advanced Maths",
        rrule: mathRule.toString(),
@@ -131,7 +135,7 @@ async function seedDevelopmentData() {
      dtstart: semesterStart,
      until: semesterEnd,
    });
-   await prisma.recurringLesson.create({
+   const recurringEnglish = await prisma.recurringLesson.create({
      data: {
        name: "Year 10 English Literature",
        rrule: englishRule.toString(),
@@ -224,52 +228,57 @@ async function seedDevelopmentData() {
   }
 
   // EXAM
+  const exams = [];
   for (let i = 1; i <= 10; i++) {
-    await prisma.exam.create({
+    const exam = await prisma.exam.create({
       data: {
-        title: `Exam ${i}`, 
-        startTime: new Date(new Date().setHours(new Date().getHours() + 1)), 
-        endTime: new Date(new Date().setHours(new Date().getHours() + 2)), 
-        lessonId: (i % 30) + 1, 
+        title: `Exam ${i}`,
+        startTime: new Date(new Date().setHours(new Date().getHours() + 1)),
+        endTime: new Date(new Date().setHours(new Date().getHours() + 2)),
+        lessonId: singleLesson.id,
       },
     });
+    exams.push(exam);
   }
 
   // ASSIGNMENT
+  const assignments = [];
   for (let i = 1; i <= 10; i++) {
-    await prisma.assignment.create({
+    const assignment = await prisma.assignment.create({
       data: {
-        title: `Assignment ${i}`, 
-        startDate: new Date(new Date().setHours(new Date().getHours() + 1)), 
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)), 
-        lessonId: (i % 30) + 1, 
+        title: `Assignment ${i}`,
+        startDate: new Date(new Date().setHours(new Date().getHours() + 1)),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+        recurringLessonId: recurringMath.id,
       },
     });
+    assignments.push(assignment);
   }
 
-  // RESULT
-  for (let i = 1; i <= 10; i++) {
-    await prisma.result.create({
-      data: {
-        title: i <= 5 ? `Exam ${i} Result` : `Assignment ${i - 5} Result`,
-        score: 90, 
-        studentId: `student${i}`, 
-        ...(i <= 5 ? { examId: i } : { assignmentId: i - 5 }), 
-      },
-    });
-  }
+  // // RESULT
+  // for (let i = 1; i <= 10; i++) {
+  //   await prisma.result.create({
+  //     data: {
+  //       title: i <= 5 ? `Exam ${i} Result` : `Assignment ${i - 5} Result`,
+  //       score: 90,
+  //       studentId: `student${i}`,
+  //       examId: i <= 5 ? exams[i - 1].id : null,
+  //       assignmentId: i > 5 ? assignments[i - 6].id : null,
+  //     },
+  //   });
+  // }
 
-  // ATTENDANCE
-  for (let i = 1; i <= 10; i++) {
-    await prisma.attendance.create({
-      data: {
-        date: new Date(), 
-        present: true, 
-        studentId: `student${i}`, 
-        lessonId: (i % 30) + 1, 
-      },
-    });
-  }
+  // // ATTENDANCE
+  // for (let i = 1; i <= 10; i++) {
+  //   await prisma.attendance.create({
+  //     data: {
+  //       date: new Date(), 
+  //       present: true, 
+  //       studentId: `student${i}`, 
+  //       lessonId: (i % 30) + 1, 
+  //     },
+  //   });
+  // }
 
   // EVENT
   for (let i = 1; i <= 5; i++) {
@@ -296,29 +305,29 @@ async function seedDevelopmentData() {
     });
   }
 
-  // NOTIFICATION
-  for (let i = 1; i <= 15; i++) {
-    await prisma.notification.create({
-      data: {
-        title: `Notification ${i}`,
-        message: i <= 5 
-          ? `Student student${i} is running late for lesson ${i}` 
-          : i <= 10 
-          ? `Assignment ${i - 5} has been submitted by student${i - 5}`
-          : `Exam ${i - 10} reminder for tomorrow`,
-        type: i <= 5 ? "LATE" : i <= 10 ? "ASSIGNMENT" : "EXAM",
-        recipientId: i <= 5 
-          ? `teacher${(i % 15) + 1}` 
-          : i <= 10 
-          ? `teacher${((i - 5) % 15) + 1}`
-          : `student${i - 10}`,
-        recipientType: i <= 10 ? "TEACHER" : "STUDENT",
-        isRead: i % 3 === 0, // Some notifications are read
-        lessonId: i <= 5 ? i : null,
-        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
-      },
-    });
-  }
+//   // NOTIFICATION
+//   for (let i = 1; i <= 15; i++) {
+//     await prisma.notification.create({
+//       data: {
+//         title: `Notification ${i}`,
+//         message: i <= 5 
+//           ? `Student student${i} is running late for lesson ${i}` 
+//           : i <= 10 
+//           ? `Assignment ${i - 5} has been submitted by student${i - 5}`
+//           : `Exam ${i - 10} reminder for tomorrow`,
+//         type: i <= 5 ? "LATE" : i <= 10 ? "ASSIGNMENT" : "EXAM",
+//         recipientId: i <= 5 
+//           ? `teacher${(i % 15) + 1}` 
+//           : i <= 10 
+//           ? `teacher${((i - 5) % 15) + 1}`
+//           : `student${i - 10}`,
+//         recipientType: i <= 10 ? "TEACHER" : "STUDENT",
+//         isRead: i % 3 === 0, // Some notifications are read
+//         lessonId: i <= 5 ? i : null,
+//         createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
+//       },
+//     });
+//   }
 }
 
   console.log("Development data seeded.");

@@ -5,9 +5,16 @@ import { getXeroClient } from '@/lib/xero';
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    
+    // Allow both admin and teacher to access their own payroll
+    if (role !== "teacher" && role !== "admin") {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     const teacher = await prisma.teacher.findUnique({
@@ -16,14 +23,12 @@ export async function GET() {
     });
 
     if (!teacher || !teacher.xeroEmployeeId) {
-      throw new Error('Teacher is not linked to an employee in Xero Payroll.');
+      throw new Error('User is not linked to an employee in Xero Payroll.');
     }
 
     const xero = await getXeroClient(userId);
     const activeTenantId = xero.tenants[0].tenantId;
 
-    // FIX 1: The method is indeed `getPaySlips` (plural). This was correct.
-    // The previous error was likely a cascade from the 'any' type error below.
     const payslipsResponse = await xero.payrollAUApi.getPayslip(
       activeTenantId,
       `EmployeeID=="${teacher.xeroEmployeeId}"`
@@ -32,11 +37,9 @@ export async function GET() {
     const latestPayslip = payslipsResponse.body.payslip;
 
     if (!latestPayslip) {
-      return NextResponse.json({ error: 'No payslips found for this teacher in Xero.' }, { status: 404 });
+      return NextResponse.json({ error: 'No payslips found for this user in Xero.' }, { status: 404 });
     }
 
-    // FIX 2: Explicitly type the parameter 'e' to resolve the 'any' type error.
-    // FIX 2: Explicitly type the parameter 'e' to resolve the 'any' type error.
     const processedPayroll = {
       baseSalary: latestPayslip.earningsLines?.find((e: any) => e.calculationType === 'STANDARDPAY')?.amount || 0,
       hoursWorked: (() => {

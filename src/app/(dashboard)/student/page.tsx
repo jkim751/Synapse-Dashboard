@@ -1,11 +1,12 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 const StudentPage = async () => {
-  const { userId, sessionClaims } = await auth();
-  const userName = String(sessionClaims?.firstName || sessionClaims?.name || "Student");
+  const user = await currentUser();
+  const userId = user?.id;
+  const userName = user?.firstName || "Student";
 
   const student = await prisma.student.findUnique({
     where: {
@@ -28,6 +29,20 @@ const StudentPage = async () => {
       </div>
     );
   }
+  const classes = await prisma.class.findMany({
+    where: { students: { some: { studentId: userId } } },
+    select: { id: true, name: true },
+  });
+
+  const classIds = classes.map(c => c.id);
+
+  if (classIds.length === 0) {
+    return (
+      <div className="p-6 text-gray-600">
+        We couldn’t find any classes linked to your account yet.
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -41,10 +56,13 @@ const StudentPage = async () => {
         </p>
       </div>
        {/* BOTTOM */}
-       <div className="mt-4 bg-white rounded-xl p-4 h-[900px] overflow-hidden">
+       <div className="mt-4 ml-4 mr-4 bg-white rounded-xl p-4 h-[900px] overflow-hidden">
           <h1 className="mb-4">Student&apos;s Schedule</h1>
           <div className="h-[calc(100%-2rem)]">
-            <BigCalendarContainer type="classId" id={student.classes[0].id} showNotifications={true} />
+          <BigCalendarContainer
+            classIds={classIds}
+            showNotifications={true}
+          />
           </div>
         </div>
       </div>

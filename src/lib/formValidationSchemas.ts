@@ -85,34 +85,41 @@ export const examSchema = z.object({
   title: z.string().min(1, { message: "Title is required!" }),
   startTime: z.coerce.date({ message: "Start time is required!" }),
   endTime: z.coerce.date({ message: "End time is required!" }),
-  lessonId: z.coerce.number({ message: "Lesson is required!" }),
+  lessonId: z.coerce.number().optional().nullable(),
+  recurringLessonId: z.coerce.number().optional().nullable(),
   documents: z.array(z.string()).optional(),
+}).refine(data => {
+  // Ensure that either lessonId or recurringLessonId is provided, but not both.
+  return (data.lessonId != null && data.recurringLessonId == null) || (data.lessonId == null && data.recurringLessonId != null);
+}, {
+  message: "An exam must be linked to either a single lesson or a recurring series, but not both.",
+  path: ["lessonId"], // Where to display the error
 });
 export type ExamSchema = z.infer<typeof examSchema>;
 
 
 export const lessonSchema = z.object({
-  id: z.coerce.number().optional(), // Can be a RecurringLesson ID or a Lesson ID
-  name: z.string().min(1, { message: "Lesson name is required!" }),
-  
-  day: z.enum(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]).optional(),
+  id: z.coerce.number().int().positive().optional(),
+  name: z.string().min(1, "Name is required"),
+  subjectId: z.coerce.number().int().positive(),
+  classId: z.coerce.number().int().positive(),
+  teacherId: z.string().min(1, "Teacher is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
 
-  startTime: z.coerce.date({ message: "Start time is required!" }),
-  endTime: z.coerce.date({ message: "End time is required!" }),
-  subjectId: z.coerce.number({ message: "Subject is required!" }),
-  classId: z.coerce.number({ message: "Class is required!" }),
-  teacherId: z.string().min(1, { message: "Teacher is required!" }),
+  // creation controls
+  repeats: z.enum(["never", "weekly"]).default("never"),
+  day: z.enum(["MO","TU","WE","TH","FR","SA","SU"]).optional(),
+  endDate: z.string().optional(), // until
 
-  // --- Recurrence fields ---
-  repeats: z.enum(["never", "weekly"]),
-  endDate: z.coerce.date().optional(),
+  // recurring update controls
+  updateScope: z.enum(["series", "instance"]).optional(),
+  originalDate: z.string().optional(),
 
-  // --- NEW: Fields for managing updates ---
-  // The original start date of the instance being edited.
-  originalDate: z.coerce.date().optional(),
-  // Specifies how to apply the update.
-  updateScope: z.enum(["single", "all", "future"]).optional(),
+  // routing hint
+  variant: z.enum(["single", "recurring"]).optional(),
 });
+
 export type LessonSchema = z.infer<typeof lessonSchema>;
 
 
@@ -145,8 +152,15 @@ export const assignmentSchema = z.object({
   title: z.string().min(1, { message: "Title is required!" }),
   startDate: z.coerce.date({ message: "Start date is required!" }),
   dueDate: z.coerce.date({ message: "Due date is required!" }),
-  lessonId: z.coerce.number({ message: "Lesson is required!" }),
+  lessonId: z.coerce.number().optional().nullable(),
+  recurringLessonId: z.coerce.number().optional().nullable(),
   documents: z.array(z.string()).optional(),
+}).refine(data => {
+  // Ensure that either lessonId or recurringLessonId is provided, but not both.
+  return (data.lessonId != null && data.recurringLessonId == null) || (data.lessonId == null && data.recurringLessonId != null);
+}, {
+  message: "An assignment must be linked to either a single lesson or a recurring series, but not both.",
+  path: ["lessonId"], // Where to display the error
 });
 export type AssignmentSchema = z.infer<typeof assignmentSchema>;
 

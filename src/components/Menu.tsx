@@ -111,7 +111,7 @@ const menuItems = [
         icon: "/finance.png",
         label: "Payroll",
         href: "/list/payroll",
-        visible: ["teacher"],
+        visible: ["admin", "teacher"],
       },
     ],  
   },

@@ -47,11 +47,12 @@ const TeacherForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast.success(`Teacher has been ${type === "create" ? "created" : "updated"} successfully!`);      setOpen(false);
+      toast.success(state.message || `Teacher has been ${type === "create" ? "created" : "updated"} successfully!`);
+      setOpen(false);
       router.refresh();
     }
-    if (state.error) {
-      toast.error(`Failed to ${type} teacher. Please check all required fields and try again.`);
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} teacher. Please check all required fields and try again.`);
     }
   }, [state, router, type, setOpen]);
 

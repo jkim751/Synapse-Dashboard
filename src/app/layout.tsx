@@ -8,8 +8,29 @@ import "react-toastify/dist/ReactToastify.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Synapse Portal",
-  description: "Synapse Education Portal, the portal of Sydney's leading HSC specialist centre used to delivering a holistic education to maximise student potential.",
+  metadataBase: new URL("https://www.synapseeducation-dashboard.com.au"),
+  title: {
+    default: "Synapse Portal",
+    template: "%s · Synapse Portal",
+  },
+  description:
+    "Synapse Education Portal, the portal of Sydney's leading HSC specialist centre used to delivering a holistic education to maximise student potential.",
+  openGraph: {
+    title: "Synapse Portal",
+    siteName: "Synapse Portal",
+    type: "website",
+    url: "https://www.synapseeducation-dashboard.com.au",
+  },
+  twitter: {
+    title: "Synapse Portal",
+  },
+  alternates: {
+    canonical: "https://www.synapseeducation-dashboard.com.au",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

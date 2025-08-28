@@ -60,9 +60,12 @@ const EventForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Event has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Event has been ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} event.`);
     }
   }, [state, router, type, setOpen]);
 

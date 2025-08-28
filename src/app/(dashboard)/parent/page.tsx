@@ -1,12 +1,12 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 const ParentPage = async () => {
-const { userId, sessionClaims } = await auth();
-const currentUserId = userId;
-
+  const user = await currentUser();
+  const currentUserId = user?.id;
+  const { userId } = await auth();
 
   const students = await prisma.student.findMany({
     where: {
@@ -21,7 +21,22 @@ const currentUserId = userId;
     },
   });
 
-  const userName: string = (sessionClaims?.name as string) || "Parent";
+  const userName: string = user?.firstName || "Parent";
+  
+  const classes = await prisma.class.findMany({
+    where: { students: { some: { student: { parentId: userId } } } },
+    select: { id: true, name: true },
+  });
+
+  const classIds = classes.map(c => c.id);
+
+  if (classIds.length === 0) {
+    return (
+      <div className="p-6 text-gray-600">
+        We couldn’t find any classes for your children yet.
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -39,18 +54,18 @@ const currentUserId = userId;
           {students.length > 0 ? (
             <div className="bg-white p-4 rounded-xl h-[850px]">
               <h1 className="text-xl font-semibold mb-4">
-                Childrens Schedule
+                Their Schedules
                 {students.length > 1 && (
                   <span className="text-sm text-gray-600 ml-2">
                     ({students.map(s => s.name).join(", ")})
                   </span>
                 )}
               </h1>
-              <div className="h-[calc(100%-2rem)]">
+              <div className="h-[calc(100%-3rem)]">
                 {students[0]?.classes?.length > 0 ? (
                   <BigCalendarContainer
-                    type="classId"
-                    id={students[0].classes.find(c => c.isPrimary)?.classId || students[0].classes[0].classId}
+                    classIds={classIds}
+                    showNotifications={false}
                   />
                 ) : (
                   <p>No class assigned to display calendar</p>
@@ -66,7 +81,6 @@ const currentUserId = userId;
         {/* RIGHT */}
         <div className="w-full xl:w-1/3 flex flex-col gap-8">
           <Announcements />
-
         </div>
       </div>
     </div>

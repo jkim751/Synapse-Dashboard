@@ -135,9 +135,13 @@ model Exam {
   endTime   DateTime
   documents String[] @default([])
 
-  lessonId Int
-  lesson   Lesson   @relation(fields: [lessonId], references: [id])
-  results  Result[]
+  lessonId Int?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id] )
+
+  recurringLessonId Int?
+  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id])
+
+  results Result[]
 }
 
 model Assignment {
@@ -147,9 +151,13 @@ model Assignment {
   dueDate   DateTime
   documents String[] @default([])
 
-  lessonId Int
-  lesson   Lesson   @relation(fields: [lessonId], references: [id])
-  results  Result[]
+  lessonId Int?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id])
+
+  recurringLessonId Int?
+  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id] )
+  
+  results Result[]
 }
 
 model Result {
@@ -158,7 +166,7 @@ model Result {
   title String
 
   examId       Int?
-  exam         Exam?       @relation(fields: [examId], references: [id])
+  exam         Exam?       @relation(fields: [examId], references: [id] )
   assignmentId Int?
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   studentId    String
@@ -173,7 +181,7 @@ model Attendance {
   studentId String
   student   Student @relation(fields: [studentId], references: [id])
   lessonId  Int
-  lesson    Lesson  @relation(fields: [lessonId], references: [id])
+  lesson    Lesson  @relation(fields: [lessonId], references: [id] , onDelete: Cascade)
 }
 
 model Event {
@@ -211,22 +219,17 @@ model XeroTokens {
 }
 
 model Notification {
-  id            String   @id @default(cuid())
-  title         String
-  message       String
-  type          String   @default("general")
-  recipientId   String
-  recipientType String   @default("STUDENT")
-  senderId      String?
-  lessonId      Int?
-  isRead        Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lesson        Lesson?  @relation(fields: [lessonId], references: [id])
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  recipientId String
+  isRead      Boolean  @default(false)
+  type        String?
+  lessonId    Int?
+  lesson      Lesson?  @relation(fields: [lessonId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@index([recipientId])
-  @@index([isRead])
-  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -260,6 +263,8 @@ model RecurringLesson {
   teacher   Teacher @relation(fields: [teacherId], references: [id])
 
   lessonInstances Lesson[]
+  exams           Exam[]
+  assignments     Assignment[]
 }
 
 enum UserSex {

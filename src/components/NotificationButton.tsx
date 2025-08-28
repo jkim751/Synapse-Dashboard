@@ -1,12 +1,11 @@
-
 "use client";
 
 import Image from "next/image";
-import { useNotification } from "./NotificationContext";
+import { useNotifications } from "./NotificationContext";
 import { useState, useEffect } from "react";
 
 const NotificationButton = () => {
-  const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
+  const { notifications, unreadCount, markAsRead, refreshNotifications, clearAllNotifications, isClearing } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
 
   // Auto-refresh notifications every 30 seconds
@@ -20,6 +19,15 @@ const NotificationButton = () => {
 
   const handleNotificationClick = (id: string) => {
     markAsRead(id);
+  };
+
+  const handleClearAll = async (mode: "delete" | "read" = "delete") => {
+    try {
+      await clearAllNotifications(mode);
+      console.log(`Notifications ${mode === "delete" ? "deleted" : "marked as read"} successfully`);
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+    }
   };
 
   return (
@@ -40,6 +48,24 @@ const NotificationButton = () => {
         <div className="absolute right-0 top-8 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
           <div className="p-3 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800">Notifications</h3>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                disabled={isClearing || notifications.length === 0}
+                onClick={() => handleClearAll("read")}
+                title="Mark all as read"
+              >
+                {isClearing ? "Clearing…" : "Mark all read"}
+              </button>
+              <button
+                className="text-xs px-2 py-1 rounded bg-red-100 hover:bg-red-200 disabled:opacity-50"
+                disabled={isClearing || notifications.length === 0}
+                onClick={() => handleClearAll("delete")}
+                title="Delete all"
+              >
+                {isClearing ? "Clearing…" : "Delete all"}
+              </button>
+            </div>
           </div>
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
@@ -53,7 +79,11 @@ const NotificationButton = () => {
                   className={`p-3 cursor-pointer hover:bg-gray-50 ${
                     !notification.read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                   }`}
-                  onClick={() => handleNotificationClick(notification.id)}
+                  onClick={ async () => {
+                    const next = !isOpen;
+                    setIsOpen(next);
+                    if (next) await refreshNotifications();
+                    handleNotificationClick(notification.id)}}
                 >
                   <div className="font-medium text-sm text-gray-800">
                     {notification.title}

@@ -38,9 +38,15 @@ export async function POST() {
     // 2. Prepare contacts for Xero API, separating new from existing
     const contactsToCreate: Contact[] = [];
     const contactsToUpdate: Contact[] = [];
+    // Create a map to link our local ID to the Xero payload
+    const creationMap = new Map<string, { id: string; type: 'student' | 'parent' }>();
 
     for (const person of allPeople) {
+      // Use a unique account number to reliably map back after creation
+      const accountNumber = `${person.type.toUpperCase()}-${person.id}`;
+
       const contactPayload: Contact = {
+        accountNumber: accountNumber, // Add a unique identifier
         name: `${person.name} ${person.surname} (${person.type.charAt(0).toUpperCase()})`, // e.g., "Jason Kim (S)"
         firstName: person.name,
         lastName: person.surname,
@@ -60,6 +66,8 @@ export async function POST() {
       } else {
         // This is a new contact, we'll create it
         contactsToCreate.push(contactPayload);
+        // Map the account number back to our local person's ID and type
+        creationMap.set(accountNumber, { id: person.id, type: person.type as 'student' | 'parent' });
       }
     }
 
@@ -74,17 +82,18 @@ export async function POST() {
       // IMPORTANT: Update your local database with the new Xero Contact IDs
       if (createResponse.body.contacts) {
         for (const newXeroContact of createResponse.body.contacts) {
-          // Find the original person record to update it
-          const originalPerson = allPeople.find(p => !('xeroContactId' in p && p.xeroContactId) && p.name === newXeroContact.firstName && p.surname === newXeroContact.lastName);
-          if (originalPerson && newXeroContact.contactID) {
-            if (originalPerson.type === 'student') {
+          // Find the original person record using our reliable map
+          const originalPersonInfo = newXeroContact.accountNumber ? creationMap.get(newXeroContact.accountNumber) : undefined;
+          
+          if (originalPersonInfo && newXeroContact.contactID) {
+            if (originalPersonInfo.type === 'student') {
               await prisma.student.update({
-                where: { id: originalPerson.id },
+                where: { id: originalPersonInfo.id },
                 data: { xeroContactId: newXeroContact.contactID }
               });
             } else {
               await prisma.parent.update({
-                where: { id: originalPerson.id },
+                where: { id: originalPersonInfo.id },
                 data: { xeroContactId: newXeroContact.contactID }
               });
             }
@@ -94,8 +103,13 @@ export async function POST() {
     }
 
     if (contactsToUpdate.length > 0) {
-        const updateResponse = await xero.accountingApi.updateOrCreateContacts(activeTenantId, { contacts: contactsToUpdate });
-        updatedCount = updateResponse.body.contacts?.length || 0;
+        // Update contacts individually since updateContacts doesn't exist
+        for (const contact of contactsToUpdate) {
+          if (contact.contactID) {
+            await xero.accountingApi.updateContact(activeTenantId, contact.contactID, { contacts: [contact] });
+            updatedCount++;
+          }
+        }
     }
     
     return NextResponse.json({ 

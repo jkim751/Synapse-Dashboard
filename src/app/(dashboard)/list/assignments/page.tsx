@@ -7,6 +7,8 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Assignment, Class, Prisma, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
+import DocumentList from "@/components/DocumentList";
+import FormContainer from "@/components/FormContainer";
 
 type AssignmentList = Assignment & {
   lesson: {
@@ -26,8 +28,8 @@ const AssignmentListPage = async ({
   const role = (sessionClaims?.metadata as { role?: string })?.role;
   const resolvedSearchParams = await searchParams;
   const currentUserId = userId;
-  
-  
+
+
   const columns = [
     {
       header: "Subject Name",
@@ -47,16 +49,21 @@ const AssignmentListPage = async ({
       accessor: "dueDate",
       className: "hidden md:table-cell",
     },
+    {
+      header: "Docs",
+      accessor: "docs",
+      className: "hidden md:table-cell"
+    },
     ...(role === "admin" || role === "teacher"
       ? [
-          {
-            header: "Actions",
-            accessor: "action",
-          },
-        ]
+        {
+          header: "Actions",
+          accessor: "action",
+        },
+      ]
       : []),
   ];
-  
+
   const renderRow = (item: AssignmentList) => (
     <tr
       key={item.id}
@@ -70,12 +77,20 @@ const AssignmentListPage = async ({
       <td className="hidden md:table-cell">
         {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
       </td>
+      <td className="hidden md:table-cell">
+        <DocumentList
+          documents={item.documents ?? []}
+          type="assignment"
+        // maxVisible={4} // optional tweak
+        />
+      </td>
+  
       <td>
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "teacher") && (
             <>
-              <FormModal table="assignment" type="update" data={item} />
-              <FormModal table="assignment" type="delete" id={item.id} />
+              <FormContainer table="assignment" type="update" data={item} />
+              <FormContainer table="assignment" type="delete" id={item.id} />
             </>
           )}
         </div>
@@ -120,18 +135,18 @@ const AssignmentListPage = async ({
   switch (role) {
     case "admin":
       break;
-      case "teacher":
-        query.lesson = { teacherId: currentUserId! };
-        break;
-      case "student":
-        query.lesson = {
-          class: { students: { some: { studentId: currentUserId! } } },
-        };
-        break;
-      case "parent":
-        query.lesson = {
-          class: { students: { some: { student: { parentId: currentUserId! } } } },
-    };
+    case "teacher":
+      query.lesson = { teacherId: currentUserId! };
+      break;
+    case "student":
+      query.lesson = {
+        class: { students: { some: { studentId: currentUserId! } } },
+      };
+      break;
+    case "parent":
+      query.lesson = {
+        class: { students: { some: { student: { parentId: currentUserId! } } } },
+      };
       break;
 
     default:
@@ -147,6 +162,13 @@ const AssignmentListPage = async ({
             subject: { select: { name: true } },
             teacher: { select: { name: true, surname: true } },
             class: { select: { name: true } },
+            recurringLesson: {
+              select: {
+                subject: { select: { name: true } },
+                teacher: { select: { name: true, surname: true } },
+                class: { select: { name: true } },
+              },
+            },
           },
         },
       },
@@ -165,10 +187,10 @@ const AssignmentListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-        
+
             {role === "admin" ||
               (role === "teacher" && (
-                <FormModal table="assignment" type="create" />
+                <FormContainer table="assignment" type="create" />
               ))}
           </div>
         </div>

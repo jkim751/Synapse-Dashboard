@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import AttendanceMarkButton from "./AttendanceMarkButton";
 import { Student, Attendance, Lesson } from "@prisma/client";
@@ -26,10 +26,15 @@ const AttendanceRow = ({
   date,
 }: AttendanceRowProps) => {
   const isToday = new Date().toDateString() === date.toDateString();
-  // Initialize local state with current attendance statuses
+  // Initialize local state with current attendance statuses for the selected date
   const [localAttendance, setLocalAttendance] = useState<
     Map<number, boolean | undefined>
-  >(new Map(attendanceMap));
+  >(() => new Map(attendanceMap));
+
+  // Update local state when attendanceMap changes (e.g., when date changes)
+  useEffect(() => {
+    setLocalAttendance(new Map(attendanceMap));
+  }, [attendanceMap]);
 
   const handleAttendanceChange = useCallback(
     (lessonId: number, present: boolean) => {
@@ -80,24 +85,25 @@ const AttendanceRow = ({
                     studentId={student.id}
                     lessonId={lesson.id}
                     date={date}
-                    initialStatus={attendanceMap.get(lesson.id)}
-                    onStatusChange={(lessonId, status) => handleAttendanceChange(lessonId, status)} currentStatus={undefined}                  />
+                    currentStatus={attendanceMap.get(lesson.id)}   // <-- this is the one the component uses
+                    onStatusChange={(lessonId, status) => handleAttendanceChange(lessonId, status)}
+                  />
+
                 ) : (
                   <div
                     key={lesson.id}
-                    className={`px-2 py-1 rounded text-xs ${
-                      attendanceMap.get(lesson.id) === true
+                    className={`px-2 py-1 rounded text-xs ${localAttendance.get(lesson.id) === true
                         ? "bg-green-100 text-green-800"
-                        : attendanceMap.get(lesson.id) === false
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                        : localAttendance.get(lesson.id) === false
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
                   >
-                    {attendanceMap.get(lesson.id) === true
+                    {localAttendance.get(lesson.id) === true
                       ? "Present"
-                      : attendanceMap.get(lesson.id) === false
-                      ? "Absent"
-                      : "Not Marked"}
+                      : localAttendance.get(lesson.id) === false
+                        ? "Absent"
+                        : "Not Marked"}
                   </div>
                 )}
               </div>
@@ -110,13 +116,12 @@ const AttendanceRow = ({
       </td>
       <td className="text-center">
         <span
-          className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
-            attendanceRate >= 80
+          className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${attendanceRate >= 80
               ? "bg-green-100 text-green-800"
               : attendanceRate >= 60
                 ? "bg-yellow-100 text-yellow-800"
                 : "bg-red-100 text-red-800"
-          }`}
+            }`}
         >
           {attendanceRate}%
         </span>

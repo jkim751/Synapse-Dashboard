@@ -59,9 +59,12 @@ const AnnouncementForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Announcement has been ${type === "create" ? "created" : "updated"}!`);
+      toast.success(state.message || `Announcement has been ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Failed to ${type} announcement.`);
     }
   }, [state, router, type, setOpen]);
 

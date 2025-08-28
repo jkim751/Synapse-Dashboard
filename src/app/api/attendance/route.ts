@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -44,9 +43,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    let attendanceResult;
+
     if (existingAttendance) {
       // Update existing attendance record
-      const updatedAttendance = await prisma.attendance.update({
+      attendanceResult = await prisma.attendance.update({
         where: {
           id: existingAttendance.id,
         },
@@ -54,11 +55,9 @@ export async function POST(request: NextRequest) {
           present,
         },
       });
-      
-      return NextResponse.json(updatedAttendance);
     } else {
       // Create new attendance record
-      const newAttendance = await prisma.attendance.create({
+      attendanceResult = await prisma.attendance.create({
         data: {
           studentId,
           lessonId,
@@ -66,9 +65,47 @@ export async function POST(request: NextRequest) {
           date: attendanceDate,
         },
       });
-      
-      return NextResponse.json(newAttendance);
     }
+
+    // If student is marked as absent, send notification to teacher
+    if (!present) {
+      try {
+        // Get lesson details with teacher and student info
+        const lessonDetails = await prisma.lesson.findUnique({
+          where: { id: lessonId },
+          include: {
+            teacher: true,
+            subject: true,
+            class: true,
+          },
+        });
+
+        // Get student details
+        const studentDetails = await prisma.student.findUnique({
+          where: { id: studentId },
+        });
+
+        if (lessonDetails?.teacher && studentDetails) {
+          // Create notification for the teacher
+          await prisma.notification.create({
+            data: {
+              title: "Student Absence Alert",
+              message: `${studentDetails.name} ${studentDetails.surname} is absent from ${lessonDetails.subject?.name || 'the lesson'} in ${lessonDetails.class?.name || 'class'}`,
+              recipientId: lessonDetails.teacher.id,
+              type: "student_absence",
+              lessonId: lessonId,
+            },
+          });
+
+          console.log(`Created absence notification for teacher ${lessonDetails.teacher.id} about student ${studentId}`);
+        }
+      } catch (notificationError) {
+        console.error("Error creating absence notification:", notificationError);
+        // Don't fail the attendance update if notification fails
+      }
+    }
+    
+    return NextResponse.json(attendanceResult);
   } catch (error) {
     console.error("Error marking attendance:", error);
     return NextResponse.json(

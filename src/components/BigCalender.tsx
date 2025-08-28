@@ -2,56 +2,55 @@
 
 import { Calendar, momentLocalizer, View, Views } from "react-big-calendar";
 import moment from "moment";
+import "moment/locale/en-gb";
+moment.locale("en-gb"); // keep header & grid aligned
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 
 const localizer = momentLocalizer(moment);
 
 // Predefined color mapping for common subjects
 const subjectColorMap: Record<string, string> = {
-  'Maths': '#EDBDF6',  
-  'Maths Preim':'#EDBDF6',  
-  'Maths Ext 1':'#EDBDF6',  
-  'Maths Ext 2': '#CBCBCB', 
+  'Maths': '#EDBDF6',
+  'Maths Preim': '#EDBDF6',
+  'Maths Ext 1': '#EDBDF6',
+  'Maths Ext 2': '#CBCBCB',
   'Maths Adv': '#FFC7E7',
   'English Adv': '#ED3E61',
   'English Ext 1': '#ED3E61',
   'English Ext 2': '#ED3E61',
-  'Biology': '#D3FDCA',    
-  'Chemistry': '#CAFDFB',  
-  'Physics': '#FFFEC0',   
+  'Biology': '#D3FDCA',
+  'Chemistry': '#CAFDFB',
+  'Physics': '#FFFEC0',
   'Economics': '#FFCCE9',
-  'Event': '#FC711866',    
+  'Event': '#FC711866',
 };
-  
+
 // Generate consistent colors for subjects and events
 const generateColor = (subject: string, type: 'lesson' | 'event' = 'lesson') => {
-  // First check if we have a predefined color for this subject
   if (subjectColorMap[subject]) {
     return subjectColorMap[subject];
   }
-  
-  // Different color sets for lessons vs events
+
   const lessonColors = [
     '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899',
     '#06B6D4', '#84CC16', '#F97316', '#6366F1', '#14B8A6', '#A855F7'
   ];
-  
+
   const eventColors = [
     '#6B7280', '#9CA3AF', '#6366F1', '#8B5CF6', '#EC4899', '#EF4444',
     '#F59E0B', '#10B981', '#06B6D4', '#84CC16', '#F97316', '#14B8A6'
   ];
-  
+
   const colors = type === 'lesson' ? lessonColors : eventColors;
-  
-  // Create a simple hash from the subject name
+
   let hash = 0;
   for (let i = 0; i < subject.length; i++) {
     const char = subject.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash & hash;
   }
-  
+
   return colors[Math.abs(hash) % colors.length];
 };
 
@@ -69,63 +68,35 @@ interface CalendarEvent {
   subjectColor?: string;
 }
 
-const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolean; }) => {
-  // State for calendar data
-  const [lessons, setLessons] = useState<CalendarEvent[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const BigCalendar = ({ 
+  initialLessons = [], 
+  initialEvents = [], 
+  showNotifications = false 
+}: { 
+  initialLessons?: CalendarEvent[];
+  initialEvents?: CalendarEvent[];
+  showNotifications?: boolean; 
+}) => {
+  const [lessons] = useState<CalendarEvent[]>(initialLessons);
+  const [events] = useState<CalendarEvent[]>(initialEvents);
 
-  // State for calendar UI control
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
 
-  // State for the modal
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
 
-  // --- Data Fetching Logic ---
-  const fetchAllCalendarData = useCallback(async (currentDate: Date, currentView: View) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Map react-big-calendar view types to moment.js StartOf types
-      const momentView = currentView === 'month' ? 'month' : currentView === 'week' || currentView === 'work_week' ? 'week' : 'day';
-      const start = moment(currentDate).startOf(momentView as moment.unitOfTime.StartOf).toISOString();
-      const end = moment(currentDate).endOf(momentView as moment.unitOfTime.StartOf).toISOString();
-      const params = new URLSearchParams({ start, end });
-
-      const [lessonsRes, eventsRes] = await Promise.all([
-        fetch(`/api/calendar-lessons?${params.toString()}`),
-        fetch(`/api/calendar-events?${params.toString()}`)
-      ]);
-
-      if (!lessonsRes.ok || !eventsRes.ok) {
-        throw new Error('Failed to fetch calendar data.');
+  const sortedEvents = useMemo(() => {
+    const allEvents = [...lessons, ...events];
+    return allEvents.sort((a, b) => {
+      if (a.start.getTime() !== b.start.getTime()) {
+        return a.start.getTime() - b.start.getTime();
       }
+      return a.title.localeCompare(b.title);
+    });
+  }, [lessons, events]);
 
-      const lessonsData = await lessonsRes.json();
-      const eventsData = await eventsRes.json();
-
-      const formatData = (data: any[]) => data.map(d => ({ ...d, start: new Date(d.start), end: new Date(d.end) }));
-      
-      setLessons(formatData(lessonsData));
-      setEvents(formatData(eventsData));
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); // useCallback memoizes this function
-
-  // Initial data fetch and re-fetch on navigation/view change
-  useEffect(() => {
-    fetchAllCalendarData(date, view);
-  }, [date, view, fetchAllCalendarData]);
-
-  // --- Handlers ---
   const handleView = (newView: View) => setView(newView);
   const handleNavigate = (newDate: Date) => setDate(newDate);
 
@@ -138,18 +109,18 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
     setIsModalOpen(false);
     setSelectedEvent(null);
   };
+
   const handleNotifyTeacher = async () => {
     if (!selectedEvent || !selectedEvent.lessonId) return;
 
     setIsNotifying(true);
     try {
-      const response = await fetch('/api/notifications', {
+      const response = await fetch('/api/attendance/notifications', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lessonId: selectedEvent.lessonId,
+          title: `Late: ${selectedEvent.title}`,
           message: `Student will be late for ${selectedEvent.title} lesson`,
           type: 'late_notification',
         }),
@@ -170,14 +141,14 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
   };
 
   const eventStyleGetter = (event: CalendarEvent) => {
-    const backgroundColor = event.subject 
-      ? generateColor(event.subject, event.type) 
-      : event.type === 'event' 
-        ? '#6B7280' 
+    const backgroundColor = event.subject
+      ? generateColor(event.subject, event.type)
+      : event.type === 'event'
+        ? '#6B7280'
         : '#3B82F6';
-    
+
     const isEvent = event.type === 'event';
-    
+
     return {
       style: {
         backgroundColor,
@@ -201,20 +172,10 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
     timeslots: 2,
   };
 
-  function handleOnChangeView(view: View): void {
-    throw new Error("Function not implemented.");
-  }
-
-  function onNavigate(handleNavigate: (newDate: Date) => void) {
-    throw new Error("Function not implemented.");
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Custom Navigation Bar */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
-          {/* Navigation buttons */}
           <div className="flex items-center space-x-2">
             <button
               onClick={() => {
@@ -226,7 +187,7 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
                 } else {
                   newDate.setDate(newDate.getDate() - 1);
                 }
-                onNavigate(handleNavigate);
+                handleNavigate(newDate);
               }}
               className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
             >
@@ -235,14 +196,14 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
                 {view === 'month' ? 'Previous Month' : view === 'week' ? 'Previous Week' : 'Previous Day'}
               </span>
             </button>
-            
+
             <button
               onClick={() => handleNavigate(new Date())}
               className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors text-sm font-medium"
             >
               Today
             </button>
-            
+
             <button
               onClick={() => {
                 const newDate = new Date(date);
@@ -264,40 +225,35 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
             </button>
           </div>
 
-          {/* Current date display */}
           <div className="flex-1 text-center">
             <h2 className="text-xl font-semibold text-gray-800">
-              {view === 'month' 
+              {view === 'month'
                 ? date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
                 : view === 'week'
-                ? (() => {
-                    const weekStart = new Date(date);
-                    weekStart.setDate(date.getDate() - date.getDay());
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekStart.getDate() + 6);
+                  ? (() => {
+                    const weekStart = moment(date).startOf('week').toDate();
+                    const weekEnd = moment(date).endOf('week').toDate();
                     return `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
                   })()
-                : date.toLocaleDateString('en-GB', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
+                  : date.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
                   })
               }
             </h2>
           </div>
 
-          {/* View switcher */}
           <div className="flex bg-gray-100 rounded-xl p-1">
             {(['month', 'week', 'day'] as View[]).map((viewType) => (
               <button
                 key={viewType}
-                onClick={() => handleOnChangeView(viewType)}
-                className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${
-                  view === viewType
+                onClick={() => handleView(viewType)}
+                className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${view === viewType
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
               </button>
@@ -306,22 +262,21 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
         </div>
       </div>
 
-      {/* Calendar container with proper height constraints */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <Calendar
           localizer={localizer}
-          events={[...lessons, ...events]}
+          events={sortedEvents}
           startAccessor="start"
           endAccessor="end"
           views={["month", "week", "day"]}
           view={view}
           date={date}
-          style={{ 
-            height: "100%", 
+          style={{
+            height: "100%",
             width: "100%",
-            minHeight: "400px" // Ensure minimum height
+            minHeight: "400px"
           }}
-          onView={handleOnChangeView}
+          onView={handleView}
           onNavigate={handleNavigate}
           onSelectEvent={handleEventClick}
           eventPropGetter={eventStyleGetter}
@@ -330,19 +285,17 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
           popup={view === "month"}
           popupOffset={30}
           showMultiDayTimes={true}
-          // Force proper week start on Sunday (or Monday based on your locale)
           culture="en-GB"
           {...(view === 'day' ? dayViewProps : {})}
           components={{
             event: ({ event }) => (
-              <div 
-                className={`text-white text-xs font-medium overflow-hidden ${
-                  view === 'month' ? 'leading-tight' : 'leading-normal'
-                }`}
+              <div
+                className={`text-white text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
+                  }`}
                 style={{
                   textOverflow: 'ellipsis',
                   whiteSpace: view === 'month' ? 'nowrap' : 'normal',
-                  height: '100%',
+                  height: view === 'month' ? '100%' : 'auto',
                   display: 'flex',
                   alignItems: view === 'month' ? 'center' : 'flex-start',
                   padding: view === 'month' ? '1px 3px' : '2px 4px',
@@ -358,7 +311,6 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
         />
       </div>
 
-      {/* Event Details Modal */}
       {isModalOpen && selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl">
@@ -382,7 +334,7 @@ const BigCalendar = ({ showNotifications = false }: { showNotifications?: boolea
 
               {selectedEvent.type === 'event' && (
                 <div className="bg-blue-50 p-3 rounded-xl">
-                  <span className="text-blue-800 font-medium">📅 School Event</span>
+                  <span className="text-blue-800 font-medium">📅 Event</span>
                 </div>
               )}
 

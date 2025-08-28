@@ -2,6 +2,7 @@ import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+import DocumentList from "@/components/DocumentList";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Prisma } from "@prisma/client";
@@ -19,8 +20,8 @@ type ResultList = {
   score: number;
   className: string;
   startTime: Date;
+  documents: string[];
 };
-
 
 const ResultListPage = async ({
   searchParams,
@@ -63,6 +64,11 @@ const columns = [
     accessor: "date",
     className: "hidden md:table-cell",
   },
+  {
+    header: "Docs",
+    accessor: "docs",
+    className: "hidden lg:table-cell",
+  },
   ...(role === "admin" || role === "teacher"
     ? [
         {
@@ -79,7 +85,7 @@ const renderRow = (item: ResultList) => (
     className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
   >
     <td className="flex items-center gap-4 p-4">{item.title}</td>
-    <td>{item.studentName + " " + item.studentName}</td>
+    <td>{item.studentName + " " + item.studentSurname}</td>
     <td className="hidden md:table-cell">{item.score}</td>
     <td className="hidden md:table-cell">
       {item.teacherName + " " + item.teacherSurname}
@@ -87,6 +93,9 @@ const renderRow = (item: ResultList) => (
     <td className="hidden md:table-cell">{item.className}</td>
     <td className="hidden md:table-cell">
       {new Intl.DateTimeFormat("en-US").format(item.startTime)}
+    </td>
+    <td className="hidden lg:table-cell">
+      <DocumentList documents={item.documents ?? []} type="result" />
     </td>
     <td>
       <div className="flex items-center gap-2">
@@ -198,11 +207,12 @@ const renderRow = (item: ResultList) => (
       title: assessment.title,
       studentName: item.student.name,
       studentSurname: item.student.surname,
-      teacherName: assessment.lesson.teacher?.name || "",
-      teacherSurname: assessment.lesson.teacher?.surname || "",
+      teacherName: assessment.lesson?.teacher?.name || "",
+      teacherSurname: assessment.lesson?.teacher?.surname || "",
       score: item.score,
-      className: assessment.lesson.class?.name || "",
+      className: assessment.lesson?.class?.name || "",
       startTime: isExam ? assessment.startTime : assessment.startDate,
+      documents: assessment.documents || [],
     };
   });
 
