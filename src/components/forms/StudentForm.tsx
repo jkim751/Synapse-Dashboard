@@ -148,7 +148,7 @@ const StudentForm = ({
       <span className="text-xs text-gray-400 font-medium">
         Personal Information
       </span>
-      <div className="flex justify-start flex-wrap gap-4">
+      <div className="flex justify-between flex-wrap gap-4">
         <InputField
           label="First Name"
           name="name"
