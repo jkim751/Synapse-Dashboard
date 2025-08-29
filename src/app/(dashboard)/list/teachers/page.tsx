@@ -72,14 +72,14 @@ const TeacherListPage = async ({
           <p className="text-xs text-gray-500">{item?.email}</p>
         </div>
       </td>
-      <td className="hidden md:table-cell">
+      <td className="p-2 hidden md:table-cell">
         {item.subjects.map((subject) => subject.name).join(",  ")}
       </td>
       <td className="hidden md:table-cell">
         {item.classes.map((classItem) => classItem.name).join(",  ")}
       </td>
-      <td className="hidden md:table-cell">{item.phone}</td>
-      <td className="hidden md:table-cell">{item.address}</td>
+      <td className="p-2 hidden md:table-cell">{item.phone}</td>
+      <td className="p-2 hidden md:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
           <Link href={`/list/teachers/${item.id}`}>
