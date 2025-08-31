@@ -141,7 +141,7 @@ const ParentForm = ({
           error={errors?.phone}
         />
         <InputField
-          label="Address"
+          label="Branch"
           name="address"
           defaultValue={data?.address}
           register={register}

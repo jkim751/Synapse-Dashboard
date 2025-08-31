@@ -38,8 +38,8 @@ const columns = [
     className: "hidden lg:table-cell",
   },
   {
-    header: "Address",
-    accessor: "address",
+    header: "Branch",
+    accessor: "branch",
     className: "hidden lg:table-cell",
   },
   ...(role === "admin"
@@ -91,10 +91,20 @@ const renderRow = (item: ParentList) => (
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
-      if (value !== undefined) {
+      if (value !== undefined && value !== "") {
         switch (key) {
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            query.OR = [
+              { name: { contains: value, mode: "insensitive" } },
+              { email: { contains: value, mode: "insensitive" } },
+              { phone: { contains: value, mode: "insensitive" } },
+              { address: { contains: value, mode: "insensitive" } },
+              {
+                students: {
+                  some: { name: { contains: value, mode: "insensitive" } },
+                },
+              },
+            ];
             break;
           default:
             break;

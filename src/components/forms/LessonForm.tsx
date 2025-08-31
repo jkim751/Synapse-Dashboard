@@ -11,6 +11,7 @@ import InputField from "../InputField";
 import { lessonSchema, LessonSchema } from "@/lib/formValidationSchemas";
 import { createLesson, updateLesson, updateRecurringLesson } from "@/lib/actions";
 import { RRule, Weekday } from "rrule";
+import { handleLessonFormSubmission } from "@/lib/lessonActions";
 
 const LessonForm = ({
   type,
@@ -111,34 +112,66 @@ const LessonForm = ({
     // build rrule if weekly
     let rruleString: string | null = null;
     if (formData.repeats === "weekly" && formData.day && formData.endDate) {
-      const dayMap: Record<string, number> = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
-      const weekday = new Weekday(dayMap[formData.day]);
+      const dayMap: Record<string, number> = { 
+        MO: RRule.MO.weekday, 
+        TU: RRule.TU.weekday, 
+        WE: RRule.WE.weekday, 
+        TH: RRule.TH.weekday, 
+        FR: RRule.FR.weekday, 
+        SA: RRule.SA.weekday, 
+        SU: RRule.SU.weekday 
+      };
+      
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endDate);
+      
+      // Create RRule with proper weekday
       const rule = new RRule({
         freq: RRule.WEEKLY,
-        byweekday: [weekday],
-        dtstart: new Date(formData.startTime),
-        until: new Date(formData.endDate),
+        byweekday: [dayMap[formData.day]],
+        dtstart: startDate,
+        until: endDate,
       });
+      
       rruleString = rule.toString();
+      console.log("Generated RRule:", rruleString);
     }
 
-    // IMPORTANT: include id for update
-    const payload: any = {
-      ...formData,
+    // Prepare payload for the server action
+    const payload = {
+      name: formData.name,
+      subjectId: Number(formData.subjectId),
+      classId: Number(formData.classId),
+      teacherId: formData.teacherId,
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString(),
+      repeats: formData.repeats,
       rrule: rruleString,
-      variant: variant || "single",           // lets the server know if this is a recurring record
-      ...(type === "update" && data?.id ? { id: data.id } : {}),
+      variant: relatedData?.variant || (formData.repeats === "weekly" ? "recurring" : "single"),
+      ...(type === "update" && data?.id ? { 
+        id: data.id,
+        updateScope: formData.updateScope,
+        originalDate: formData.originalDate,
+      } : {}),
     };
 
-    startTransition(() => {
-      const formData = new FormData();
-      Object.keys(payload).forEach(key => {
-        const value = payload[key];
-        if (value !== undefined && value !== null) {
-          formData.append(key, value instanceof Date ? value.toISOString() : String(value));
+    console.log("Submitting lesson with payload:", payload);
+
+    startTransition(async () => {
+      try {
+        const result = await handleLessonFormSubmission(type, payload);
+        
+        if (result.success) {
+          toast.success(result.message);
+          setOpen(false);
+          router.refresh();
+        } else {
+          toast.error(result.message);
         }
-      });
-      formAction(formData);
+      } catch (error: any) {
+        console.error("Form submission error:", error);
+        toast.error("Something went wrong!");
+      }
     });
   });
 

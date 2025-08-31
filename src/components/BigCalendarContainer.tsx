@@ -155,15 +155,15 @@ const BigCalendarContainer = async ({
           // Use recurring lesson template data with actual occurrence date
           const start = new Date(occurrenceDate);
           start.setHours(
-            recurringLesson.startTime.getHours(),
-            recurringLesson.startTime.getMinutes(),
+            recurringLesson.startTime.getUTCHours(),
+            recurringLesson.startTime.getUTCMinutes(),
             0, 0
           );
           
           const end = new Date(occurrenceDate);
           end.setHours(
-            recurringLesson.endTime.getHours(),
-            recurringLesson.endTime.getMinutes(),
+            recurringLesson.endTime.getUTCHours(),
+            recurringLesson.endTime.getUTCMinutes(),
             0, 0
           );
 

@@ -29,6 +29,7 @@ import {
 } from "./formValidationSchemas";
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
+import { RRule } from "rrule";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
@@ -648,37 +649,6 @@ interface LessonFormData extends LessonSchema {
   rrule: string | null;
 }
 
-export async function createLesson(payload: {
-  name: string;
-  subjectId: number;
-  classId: number;
-  teacherId: string;
-  startTime: string;
-  endTime: string;
-}) {
-  try {
-    const startDate = new Date(payload.startTime);
-    const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()];
-    
-    await prisma.lesson.create({
-      data: {
-        name: payload.name,
-        subjectId: Number(payload.subjectId),
-        classId: Number(payload.classId),
-        teacherId: payload.teacherId,
-        startTime: startDate,
-        endTime: new Date(payload.endTime),
-        day: dayOfWeek,
-        recurringLessonId: null,
-      },
-    });
-    return { success: true, error: false, message: "Lesson created" };
-  } catch (e: any) {
-    return { success: false, error: true, message: e.message || "Create failed" };
-  }
-}
-
 // CREATE — recurring (series)
 export async function createRecurringLesson(payload: {
   name: string;
@@ -690,19 +660,37 @@ export async function createRecurringLesson(payload: {
   rrule: string; // required for weekly
 }) {
   try {
-    await prisma.recurringLesson.create({
+    console.log("Creating recurring lesson with payload:", payload);
+    
+    const startDate = new Date(payload.startTime);
+    const endDate = new Date(payload.endTime);
+    
+    // Validate the RRule
+    try {
+      const testRule = RRule.fromString(payload.rrule);
+      console.log("RRule validation successful:", testRule.toString());
+    } catch (rruleError) {
+      console.error("Invalid RRule:", payload.rrule, rruleError);
+      return { success: false, error: true, message: "Invalid recurrence rule" };
+    }
+
+    const recurringLesson = await prisma.recurringLesson.create({
       data: {
         name: payload.name,
         subjectId: Number(payload.subjectId),
         classId: Number(payload.classId),
         teacherId: payload.teacherId,
-        startTime: new Date(payload.startTime),
-        endTime: new Date(payload.endTime),
+        startTime: startDate,
+        endTime: endDate,
         rrule: payload.rrule,
       },
     });
+    
+    console.log("Recurring lesson created:", recurringLesson);
+    revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Recurring lesson created" };
   } catch (e: any) {
+    console.error("Error creating recurring lesson:", e);
     return { success: false, error: true, message: e.message || "Create failed" };
   }
 }
@@ -722,17 +710,25 @@ export async function updateLesson(payload: {
     const existing = await prisma.lesson.findUnique({ where: { id: Number(id) } });
     if (!existing) return { success: false, error: true, message: `Update failed: Lesson with ID ${id} not found.` };
 
+    const updateData: any = {};
+    if (rest.name !== undefined) updateData.name = rest.name;
+    if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
+    if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
+    if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
+    if (rest.startTime !== undefined) {
+      updateData.startTime = new Date(rest.startTime);
+      // Update day based on new start time
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+      updateData.day = dayNames[new Date(rest.startTime).getDay()];
+    }
+    if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
+
     await prisma.lesson.update({
       where: { id: Number(id) },
-      data: {
-        ...(rest.name && { name: rest.name }),
-        ...(rest.subjectId && { subjectId: Number(rest.subjectId) }),
-        ...(rest.classId && { classId: Number(rest.classId) }),
-        ...(rest.teacherId && { teacherId: rest.teacherId }),
-        ...(rest.startTime && { startTime: new Date(rest.startTime) }),
-        ...(rest.endTime && { endTime: new Date(rest.endTime) }),
-      },
+      data: updateData,
     });
+
+    revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Lesson updated" };
   } catch (e: any) {
     return { success: false, error: true, message: e.message || "Update failed" };
@@ -771,6 +767,8 @@ export async function updateRecurringLesson(payload: {
         where: { id: Number(id) },
         data: updateData,
       });
+
+      revalidatePath("/list/lessons");
       return { success: true, error: false, message: "Recurring series updated" };
     }
 
@@ -793,6 +791,8 @@ export async function updateRecurringLesson(payload: {
         recurringLessonId: Number(id), // link to series
       },
     });
+
+    revalidatePath("/list/lessons");
     return { success: true, error: false, message: "This instance updated (exception created)" };
   } catch (e: any) {
     return { success: false, error: true, message: e.message || "Update failed" };
@@ -800,32 +800,76 @@ export async function updateRecurringLesson(payload: {
 }
 
 // DELETE — single
-export async function deleteLesson(formData: FormData) {
+export async function deleteLesson(
+  currentState: CurrentState,
+  data: FormData
+) {
+  const id = data.get("id") as string;
   try {
-    const id = Number(formData.get("id"));
-    if (!id) return { success: false, error: true, message: "Invalid lesson id" };
-
-    await prisma.lesson.delete({ where: { id } });
-    return { success: true, error: false, message: "Lesson deleted" };
-  } catch (e: any) {
-    return { success: false, error: true, message: e.message || "Delete failed" };
+    await prisma.lesson.delete({ 
+      where: { id: parseInt(id) } 
+    });
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Lesson deleted successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to delete lesson!" };
   }
 }
 
 // DELETE — recurring (cascades children first)
-export async function deleteRecurringLesson(formData: FormData) {
+export async function deleteRecurringLesson(
+  currentState: CurrentState,
+  data: FormData
+) {
+  const id = data.get("id") as string;
   try {
-    const id = Number(formData.get("id"));
-    if (!id) return { success: false, error: true, message: "Invalid recurring lesson id" };
-
     await prisma.$transaction(async (tx) => {
-      await tx.lesson.deleteMany({ where: { recurringLessonId: id } });
-      await tx.recurringLesson.delete({ where: { id } });
+      await tx.lesson.deleteMany({ where: { recurringLessonId: parseInt(id) } });
+      await tx.recurringLesson.delete({ where: { id: parseInt(id) } });
     });
 
-    return { success: true, error: false, message: "Recurring lesson deleted" };
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Recurring lesson deleted successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to delete recurring lesson!" };
+  }
+}
+
+// The form now passes an extra 'rrule' property
+interface LessonFormData extends LessonSchema {
+  rrule: string | null;
+}
+
+export async function createLesson(payload: {
+  name: string;
+  subjectId: number;
+  classId: number;
+  teacherId: string;
+  startTime: string;
+  endTime: string;
+}) {
+  try {
+    const startDate = new Date(payload.startTime);
+    const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+    const dayOfWeek = dayNames[startDate.getDay()];
+    
+    await prisma.lesson.create({
+      data: {
+        name: payload.name,
+        subjectId: Number(payload.subjectId),
+        classId: Number(payload.classId),
+        teacherId: payload.teacherId,
+        startTime: startDate,
+        endTime: new Date(payload.endTime),
+        day: dayOfWeek,
+        recurringLessonId: null,
+      },
+    });
+    return { success: true, error: false, message: "Lesson created" };
   } catch (e: any) {
-    return { success: false, error: true, message: e.message || "Delete failed" };
+    return { success: false, error: true, message: e.message || "Create failed" };
   }
 }
 
