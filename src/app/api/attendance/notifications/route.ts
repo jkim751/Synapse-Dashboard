@@ -133,40 +133,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if sender is a student and get their name
+    const student = await prisma.student.findUnique({
+      where: { id: userId },
+      include: {
+        classes: {
+          include: {
+            class: {
+              include: {
+                supervisor: true,
+                lessons: { include: { teacher: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
     // Case 2: No specific lesson, but sender is a student (general inquiry),
     // or if the lesson had no teacher, find all of the student's teachers as a fallback.
-    if (finalRecipients.length === 0) {
-        const student = await prisma.student.findUnique({
-            where: { id: userId },
-            include: {
-                classes: {
-                    include: {
-                        class: {
-                            include: {
-                                supervisor: true,
-                                lessons: { include: { teacher: true } },
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (student) {
-            console.log("Sender is a student, finding all associated teachers as recipients.");
-            const teacherIds = new Set<string>();
-            student.classes.forEach(studentClass => {
-                if (studentClass.class.supervisor?.id) {
-                    teacherIds.add(studentClass.class.supervisor.id);
-                }
-                studentClass.class.lessons.forEach(lesson => {
-                    if (lesson.teacher?.id) {
-                        teacherIds.add(lesson.teacher.id);
-                    }
-                });
-            });
-            finalRecipients.push(...Array.from(teacherIds));
+    if (finalRecipients.length === 0 && student) {
+      console.log("Sender is a student, finding all associated teachers as recipients.");
+      const teacherIds = new Set<string>();
+      student.classes.forEach(studentClass => {
+        if (studentClass.class.supervisor?.id) {
+          teacherIds.add(studentClass.class.supervisor.id);
         }
+        studentClass.class.lessons.forEach(lesson => {
+          if (lesson.teacher?.id) {
+            teacherIds.add(lesson.teacher.id);
+          }
+        });
+      });
+      finalRecipients.push(...Array.from(teacherIds));
     }
     
     // Case 3: Explicit recipients were provided in the original call.
@@ -187,13 +186,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "No recipients found for notification." });
     }
 
-    const isFromStudent = await prisma.student.count({ where: { id: userId } }) > 0;
+    // Create notification title with student name if sender is a student
+    let notificationTitle = title;
+    if (student) {
+      const studentName = `${student.name} ${student.surname}`;
+      notificationTitle = `[${studentName}] ${title}`;
+    }
 
     const notifications = await Promise.all(
       uniqueRecipients.map((recipientId: string) =>
         prisma.notification.create({
           data: {
-            title: isFromStudent ? `[Student] ${title}` : title,
+            title: notificationTitle,
             message,
             recipientId,
             type,
