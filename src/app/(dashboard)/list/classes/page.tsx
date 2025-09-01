@@ -122,6 +122,10 @@ const renderRow = (item: ClassList) => (
         supervisor: true,
         grade: true,
       },
+      orderBy: [
+        { grade: { level: "desc" } },
+        { name: "asc" }
+      ],
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),

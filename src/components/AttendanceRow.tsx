@@ -37,11 +37,17 @@ const AttendanceRow = ({
   const handleStatusChange = (
     lessonId: number | undefined,
     recurringLessonId: number | undefined,
-    status: AttendanceStatus
+    status: AttendanceStatus | undefined
   ) => {
     const key = lessonId ? `lesson_${lessonId}` : `recurring_${recurringLessonId}`;
     const newMap = new Map(localAttendanceMap);
-    newMap.set(key, status);
+    
+    if (status === undefined) {
+      newMap.delete(key); // Remove the entry if status is cleared
+    } else {
+      newMap.set(key, status);
+    }
+    
     setLocalAttendanceMap(newMap);
   };
 

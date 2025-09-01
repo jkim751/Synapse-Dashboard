@@ -90,10 +90,13 @@ const BigCalendar = ({
   const sortedEvents = useMemo(() => {
     const allEvents = [...lessons, ...events];
     return allEvents.sort((a, b) => {
-      if (a.start.getTime() !== b.start.getTime()) {
-        return a.start.getTime() - b.start.getTime();
+      // Primary sort: alphabetical by title
+      const titleComparison = a.title.localeCompare(b.title);
+      if (titleComparison !== 0) {
+        return titleComparison;
       }
-      return a.title.localeCompare(b.title);
+      // Secondary sort: by start time if titles are the same
+      return a.start.getTime() - b.start.getTime();
     });
   }, [lessons, events]);
 

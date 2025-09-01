@@ -168,7 +168,7 @@ const BigCalendarContainer = async ({
           );
 
           recurringLessonInstances.push({
-            title: `${recurringLesson.subject?.name || 'Unknown Subject'} - ${recurringLesson.name}`,
+            title: `${recurringLesson.name}`,
             start,
             end,
             subject: recurringLesson.subject?.name,

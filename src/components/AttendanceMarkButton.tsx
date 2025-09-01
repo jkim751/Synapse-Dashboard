@@ -14,7 +14,7 @@ interface AttendanceMarkButtonProps {
   onStatusChange?: (
     lessonId: number | undefined,
     recurringLessonId: number | undefined,
-    status: AttendanceStatus
+    status: AttendanceStatus | undefined
   ) => void;
   showCurrentStatus?: boolean;
 }
@@ -38,11 +38,20 @@ const AttendanceMarkButton = ({
   const markAttendance = async (newStatus: AttendanceStatus) => {
     startTransition(async () => {
       try {
+        // If clicking the same status, deselect it
+        const finalStatus = status === newStatus ? undefined : newStatus;
+
         const requestBody: any = {
           studentId,
-          status: newStatus,
           date: date.toISOString(),
         };
+
+        // Add status or mark as cleared
+        if (finalStatus) {
+          requestBody.status = finalStatus;
+        } else {
+          requestBody.clear = true; // Flag to indicate we want to clear the attendance
+        }
 
         if (lessonId && typeof lessonId === 'number') {
           requestBody.lessonId = lessonId;
@@ -56,7 +65,7 @@ const AttendanceMarkButton = ({
         console.log('Sending attendance request:', requestBody);
           
         const response = await fetch('/api/attendance', {
-          method: 'POST',
+          method: finalStatus ? 'POST' : 'DELETE', // Use DELETE for clearing
           headers: {
             'Content-Type': 'application/json',
           },
@@ -64,8 +73,8 @@ const AttendanceMarkButton = ({
         });
 
         if (response.ok) {
-          setStatus(newStatus);
-          onStatusChange?.(lessonId, recurringLessonId, newStatus);
+          setStatus(finalStatus);
+          onStatusChange?.(lessonId, recurringLessonId, finalStatus);
         } else {
           const errorData = await response.json();
           console.error('Failed to mark attendance:', errorData);
@@ -99,12 +108,13 @@ const AttendanceMarkButton = ({
   };
 
   const getStatusTitle = (statusType: AttendanceStatus) => {
+    const isCurrentlySelected = status === statusType;
     const titles = {
-      present: "Mark Present",
-      absent: "Mark Absent",
-      trial: "Mark as Trial",
-      makeup: "Mark as Make-up",
-      cancelled: "Mark as Cancelled/Moved",
+      present: isCurrentlySelected ? "Clear Present" : "Mark Present",
+      absent: isCurrentlySelected ? "Clear Absent" : "Mark Absent",
+      trial: isCurrentlySelected ? "Clear Trial" : "Mark as Trial",
+      makeup: isCurrentlySelected ? "Clear Make-up" : "Mark as Make-up",
+      cancelled: isCurrentlySelected ? "Clear Cancelled" : "Mark as Cancelled/Moved",
     };
     return titles[statusType];
   };
