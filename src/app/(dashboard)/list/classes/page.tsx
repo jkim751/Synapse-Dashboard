@@ -91,11 +91,7 @@ const renderRow = (item: ClassList) => (
 
    // ROLE CONDITIONS
    if (role === "teacher") {
-    query.lessons = {
-      some: {
-        teacherId: userId!,
-      },
-    };
+    query.supervisorId = userId!;
   }
 
   if (queryParams) {

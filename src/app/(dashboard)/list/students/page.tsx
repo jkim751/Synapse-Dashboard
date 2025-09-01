@@ -136,11 +136,7 @@ const StudentListPage = async ({
     query.classes = {
       some: {
         class: {
-          lessons: {
-            some: {
-              teacherId: userId!,
-            },
-          },
+          supervisorId: userId!,
         },
       },
     };
