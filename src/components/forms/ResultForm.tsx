@@ -64,6 +64,14 @@ const ResultForm = ({
   }, [state, router, type, setOpen]);
 
   const { exams, assignments, students } = relatedData;
+  
+  // Add debug logging
+  useEffect(() => {
+    console.log("ResultForm relatedData:", relatedData);
+    console.log("Exams:", exams);
+    console.log("Assignments:", assignments);
+  }, [relatedData, exams, assignments]);
+
   const watchedExamId = watch("examId");
 
   // Fetch all students that the teacher teaches
@@ -176,10 +184,10 @@ const ResultForm = ({
           register={register}
           error={errors?.examId}
           type="select"
-          options={exams?.map((exam: { id: number; title: string }) => ({
+          options={exams && exams.length > 0 ? exams.map((exam: { id: number; title: string }) => ({
             value: exam.id,
             label: exam.title,
-          }))}
+          })) : []}
         />
         <InputField
           label="Assignment"
@@ -188,10 +196,10 @@ const ResultForm = ({
           register={register}
           error={errors?.assignmentId}
           type="select"
-          options={assignments?.map((assignment: { id: number; title: string }) => ({
+          options={assignments && assignments.length > 0 ? assignments.map((assignment: { id: number; title: string }) => ({
             value: assignment.id,
             label: assignment.title,
-          }))}
+          })) : []}
         />
            <FileUpload
           label="Result Documents"
