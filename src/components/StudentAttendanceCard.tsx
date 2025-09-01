@@ -1,24 +1,61 @@
 import prisma from "@/lib/prisma";
 
 const StudentAttendanceCard = async ({ id }: { id: string }) => {
-  const attendance = await prisma.attendance.findMany({
-    where: {
-      studentId: id,
-      date: {
-        gte: new Date(new Date().getFullYear(), 0, 1),
-      },
-    },
-  });
+  try {
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
 
-  const totalDays = attendance.length;
-  const presentDays = attendance.filter((day) => day.present).length;
-  const percentage = (presentDays / totalDays) * 100;
-  return (
-    <div className="">
-      <h1 className="text-xl font-semibold">{percentage || "-"}%</h1>
-      <span className="text-sm text-gray-400">Attendance</span>
-    </div>
-  );
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        studentId: id,
+        date: { gte: startOfYear },
+      },
+      select: {
+        present: true,
+        status: true,
+      },
+    });
+
+    // Filter out cancelled lessons from the total count (only if status field exists)
+    const validAttendance = attendance.filter(a => {
+      try {
+        return a.status !== "cancelled";
+      } catch (error) {
+        // If status field doesn't exist, include all records
+        return true;
+      }
+    });
+    
+    const totalDays = validAttendance.length;
+    
+    // Count present days (including make-ups and trials as positive attendance)
+    const presentDays = validAttendance.filter((a) => {
+      try {
+        if (a.status && typeof a.status === 'string') {
+          return a.status === "present" || a.status === "makeup" || a.status === "trial";
+        }
+      } catch (error) {
+        // Status field doesn't exist, fallback to present field
+      }
+      return a.present; // fallback for records without status
+    }).length;
+    
+    const percentage = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
+
+    return (
+      <div className="">
+        <h1 className="text-xl font-semibold">{totalDays ? percentage.toFixed(0) : "-"}%</h1>
+        <span className="text-sm text-gray-400">Attendance</span>
+      </div>
+    );
+  } catch (error) {
+    console.error("Error fetching attendance:", error);
+    return (
+      <div className="">
+        <h1 className="text-xl font-semibold">-</h1>
+        <span className="text-sm text-gray-400">Attendance</span>
+      </div>
+    );
+  }
 };
 
 export default StudentAttendanceCard;

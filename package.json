@@ -8,7 +8,9 @@
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "cleanup-attendance": "npx tsx scripts/cleanupAttendance.ts",
+    "cleanup-attendance-delete": "npx tsx scripts/cleanupAttendance.ts --delete"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5",

@@ -98,15 +98,10 @@ const SingleClassPage = async ({
       <td className="hidden lg:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
-          <Link href={`/list/students/${item.id}`}>
-            <button className="w-7 h-7 flex items-center justify-center rounded-full bg-orange-200">
-              <Image src="/view.png" alt="" width={16} height={16} />
-            </button>
-          </Link>
+
           {role === "admin" && (
             <>
               <FormContainer table="student" type="update" data={item} />
-              <FormContainer table="student" type="delete" id={item.id} />
             </>
           )}
         </div>
@@ -189,9 +184,7 @@ const SingleClassPage = async ({
       <div className="flex items-center justify-between mb-4">
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
-          <div className="flex items-center gap-4 self-end">
-            {role === "admin" && <FormContainer table="student" type="create" />}
-          </div>
+          
         </div>
       </div>
       

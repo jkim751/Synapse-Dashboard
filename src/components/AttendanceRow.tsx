@@ -1,130 +1,124 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import Image from "next/image";
+import { Student } from "@prisma/client";
 import AttendanceMarkButton from "./AttendanceMarkButton";
-import { Student, Attendance, Lesson } from "@prisma/client";
+import AttendanceStatusDisplay from "./AttendanceStatusDisplay";
+import { useState, useEffect } from "react";
 
-type StudentWithAttendance = Student & {
-  attendances: (Attendance & { lesson: Lesson })[];
-};
+type AttendanceStatus = "present" | "absent" | "trial" | "makeup" | "cancelled";
 
 interface AttendanceRowProps {
-  student: StudentWithAttendance;
-  attendanceMap: Map<number, boolean>;
-  todayLessons: (Lesson & {
+  student: Student;
+  attendanceMap: Map<string, AttendanceStatus>;
+  todayLessons: Array<{
+    id: string;
+    originalId: number;
+    originalType: 'regular' | 'recurring';
     subject: { name: string };
     teacher: { name: string; surname: string };
-  })[];
+    startTime: Date;
+  }>;
   date: Date;
 }
 
-const AttendanceRow = ({
-  student,
-  attendanceMap,
-  todayLessons,
-  date,
+const AttendanceRow = ({ 
+  student, 
+  attendanceMap, 
+  todayLessons, 
+  date 
 }: AttendanceRowProps) => {
-  const isToday = new Date().toDateString() === date.toDateString();
-  // Initialize local state with current attendance statuses for the selected date
-  const [localAttendance, setLocalAttendance] = useState<
-    Map<number, boolean | undefined>
-  >(() => new Map(attendanceMap));
+  const [localAttendanceMap, setLocalAttendanceMap] = useState(attendanceMap);
 
-  // Update local state when attendanceMap changes (e.g., when date changes)
+  // Reset attendance map when date or attendanceMap changes
   useEffect(() => {
-    setLocalAttendance(new Map(attendanceMap));
-  }, [attendanceMap]);
+    setLocalAttendanceMap(new Map(attendanceMap));
+  }, [attendanceMap, date]);
 
-  const handleAttendanceChange = useCallback(
-    (lessonId: number, present: boolean) => {
-      setLocalAttendance((prev) => new Map(prev.set(lessonId, present)));
-    },
-    [],
-  );
-
-  // Calculate attendance rate based on local state
-  const calculateAttendanceRate = () => {
-    const presentCount = Array.from(localAttendance.values()).filter(
-      (status) => status === true,
-    ).length;
-    const totalLessons = todayLessons.length;
-    return totalLessons > 0
-      ? Math.round((presentCount / totalLessons) * 100)
-      : 0;
+  const handleStatusChange = (
+    lessonId: number | undefined,
+    recurringLessonId: number | undefined,
+    status: AttendanceStatus
+  ) => {
+    const key = lessonId ? `lesson_${lessonId}` : `recurring_${recurringLessonId}`;
+    const newMap = new Map(localAttendanceMap);
+    newMap.set(key, status);
+    setLocalAttendanceMap(newMap);
   };
 
-  const attendanceRate = calculateAttendanceRate();
+  // Calculate overall attendance status for the day
+  const getOverallStatus = () => {
+    if (todayLessons.length === 0) return null;
+    
+    const statuses = todayLessons.map(lesson => 
+      localAttendanceMap.get(lesson.id)
+    ).filter(Boolean);
+    
+    if (statuses.length === 0) return null;
+    
+    // If all are present, show present
+    if (statuses.every(s => s === 'present')) return 'present';
+    // If any are absent, show absent
+    if (statuses.some(s => s === 'absent')) return 'absent';
+    // If mixed or other statuses, show the first non-present status
+    return statuses.find(s => s !== 'present') || statuses[0];
+  };
+
+  const overallStatus = getOverallStatus();
 
   return (
     <tr className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
       <td className="flex items-center gap-4 p-4">
-        <Image
-          src={student.img || "/noAvatar.png"}
-          alt=""
-          width={40}
-          height={40}
-          className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-        />
-        <div className="flex flex-col">
-          <h3 className="font-semibold">
-            {student.name} {student.surname}
-          </h3>
-          <p className="text-xs text-gray-500">{student.id.slice(0, 8)}...</p>
+        <div>
+          <h3 className="font-medium">{student.name} {student.surname}</h3>
+          <p className="text-xs text-gray-500">{student.email}</p>
         </div>
       </td>
-      <td className="text-center">
-        <div className="flex flex-col items-center justify-center gap-2 p-2">
-          {todayLessons.map((lesson) => {
-            const isPresent = localAttendance.get(lesson.id);
-            return (
-              <div key={lesson.id} className="flex items-center justify-center">
-                {isToday ? (
-                  <AttendanceMarkButton
-                    key={lesson.id}
-                    studentId={student.id}
-                    lessonId={lesson.id}
-                    date={date}
-                    currentStatus={attendanceMap.get(lesson.id)}   // <-- this is the one the component uses
-                    onStatusChange={(lessonId, status) => handleAttendanceChange(lessonId, status)}
-                  />
-
-                ) : (
-                  <div
-                    key={lesson.id}
-                    className={`px-2 py-1 rounded text-xs ${localAttendance.get(lesson.id) === true
-                        ? "bg-green-100 text-green-800"
-                        : localAttendance.get(lesson.id) === false
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                  >
-                    {localAttendance.get(lesson.id) === true
-                      ? "Present"
-                      : localAttendance.get(lesson.id) === false
-                        ? "Absent"
-                        : "Not Marked"}
+      
+      <td className="p-4">
+        <div className="space-y-2">
+          {todayLessons.length > 0 ? (
+            todayLessons.map((lesson) => {
+              const currentStatus = localAttendanceMap.get(lesson.id);
+              
+              return (
+                <div key={`${lesson.id}-${date.toISOString()}`} className="flex items-center gap-3 py-1">
+                  <div className="min-w-[120px] text-xs">
+                    <div className="font-medium">{lesson.subject.name}</div>
+                    <div className="text-gray-500">
+                      {lesson.startTime.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-          {todayLessons.length === 0 && (
-            <span className="text-sm text-gray-500">No lessons today</span>
+                  
+                  <AttendanceMarkButton
+                    key={`${lesson.id}-${date.toDateString()}`} // Force re-render on date change
+                    studentId={student.id}
+                    lessonId={lesson.originalType === 'regular' ? lesson.originalId : undefined}
+                    recurringLessonId={lesson.originalType === 'recurring' ? lesson.originalId : undefined}
+                    currentStatus={currentStatus}
+                    date={date}
+                    onStatusChange={handleStatusChange}
+                    showCurrentStatus={true}
+                  />
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-gray-500 text-xs">No lessons scheduled</div>
           )}
         </div>
       </td>
-      <td className="text-center">
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${attendanceRate >= 80
-              ? "bg-green-100 text-green-800"
-              : attendanceRate >= 60
-                ? "bg-yellow-100 text-yellow-800"
-                : "bg-red-100 text-red-800"
-            }`}
-        >
-          {attendanceRate}%
-        </span>
+      
+      <td className="p-4 text-center">
+        {overallStatus ? (
+          <AttendanceStatusDisplay status={overallStatus} />
+        ) : (
+          <span className="text-gray-400 text-xs">
+            {todayLessons.length === 0 ? "No lessons" : "Not marked"}
+          </span>
+        )}
       </td>
     </tr>
   );

@@ -3,19 +3,25 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Attendance, Lesson, Prisma, Student, Class, Subject, Teacher } from "@prisma/client";
+import { Attendance, Lesson, Prisma, Student, Class, Subject, Teacher, RecurringLesson } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import DateFilter from "@/components/DateFilter";
+import AttendanceStatusDisplay from "@/components/AttendanceStatusDisplay";
 
 type AttendanceWithDetails = Attendance & {
   student: Student;
-  lesson: Lesson & {
+  lesson: (Lesson & {
     subject: Subject;
     class: Class;
     teacher: Teacher;
-  };
+  }) | null; // Lesson can be null
+  recurringLesson: (RecurringLesson & {
+    subject: Subject;
+    class: Class;
+    teacher: Teacher;
+  }) | null; // Add recurringLesson
 };
 
 const AttendanceHistoryPage = async ({
@@ -75,6 +81,14 @@ const AttendanceHistoryPage = async ({
             teacher: true,
           },
         },
+        // --- FIX: Also include the recurringLesson relation ---
+        recurringLesson: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: true,
+          },
+        },
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
@@ -116,51 +130,92 @@ const AttendanceHistoryPage = async ({
     },
   ];
 
-  const renderRow = (record: AttendanceWithDetails) => (
-    <tr
-      key={record.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
-      <td className="p-4">
-        {new Date(record.date).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })}
-      </td>
-      <td className="p-4">
-        <Link
-          href={`/list/students/${record.student.id}`}
-          className="text-black-600 hover:underline"
-        >
-          {record.student.name} {record.student.surname}
-        </Link>
-      </td>
-      <td className="p-4">
-        <Link
-          href={`/list/attendance/${record.lesson.class.id}`}
-          className="text-black-600 hover:underline"
-        >
-          {record.lesson.class.name}
-        </Link>
-      </td>
-      <td className="p-4">{record.lesson.subject.name}</td>
-      <td className="p-4">
-        {record.lesson.teacher.name} {record.lesson.teacher.surname}
-      </td>
-      <td className="p-4 text-center">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            record.present
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
-        >
-          {record.present ? "Present" : "Absent"}
-        </span>
-      </td>
-    </tr>
-  );
+  const renderRow = (record: AttendanceWithDetails) => {
+    const getStatusDisplay = (present: boolean, status?: string | null) => {
+      if (status && typeof status === 'string') {
+        const statusConfig = {
+          present: { text: "Present", color: "bg-green-100 text-green-800" },
+          absent: { text: "Absent", color: "bg-red-100 text-red-800" },
+          trial: { text: "Trial", color: "bg-blue-100 text-blue-800" },
+          makeup: { text: "Make-up", color: "bg-purple-100 text-purple-800" },
+          cancelled: { text: "Cancelled", color: "bg-orange-100 text-orange-800" },
+        };
+        
+        const config = statusConfig[status as keyof typeof statusConfig];
+        if (config) {
+          return config;
+        }
+      }
+      
+      // Fallback for records without status field or invalid status
+      return present 
+        ? { text: "Present", color: "bg-green-100 text-green-800" }
+        : { text: "Absent", color: "bg-red-100 text-red-800" };
+    };
+
+    const statusDisplay = getStatusDisplay(record.present, record.status);
+
+    // --- FIX: Get lesson details from whichever relation is not null ---
+    const lessonDetails = record.lesson || record.recurringLesson;
+
+    // --- FIX: Add a safety check to prevent crashing if neither exists ---
+    if (!lessonDetails) {
+      return (
+        <tr key={record.id} className="border-b border-gray-200 text-sm bg-red-50">
+          <td className="p-4">{new Date(record.date).toLocaleDateString('en-US')}</td>
+          <td className="p-4">{record.student.name} {record.student.surname}</td>
+          <td colSpan={3} className="p-4 text-red-700 font-medium">
+            Error: Attendance record is not linked to any lesson.
+          </td>
+          <td className="p-4 text-center">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusDisplay.color}`}>
+              {statusDisplay.text}
+            </span>
+          </td>
+        </tr>
+      );
+    }
+
+    return (
+      <tr
+        key={record.id}
+        className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+      >
+        <td className="p-4">
+          {new Date(record.date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+        </td>
+        <td className="p-4">
+          <Link
+            href={`/list/students/${record.student.id}`}
+            className="text-black-600 hover:underline"
+          >
+            {record.student.name} {record.student.surname}
+          </Link>
+        </td>
+        <td className="p-4">
+          {/* --- FIX: Use lessonDetails --- */}
+          <Link
+            href={`/list/attendance/${lessonDetails.class.id}`}
+            className="text-black-600 hover:underline"
+          >
+            {lessonDetails.class.name}
+          </Link>
+        </td>
+        {/* --- FIX: Use lessonDetails --- */}
+        <td className="p-4">{lessonDetails.subject.name}</td>
+        <td className="p-4">
+          {lessonDetails.teacher.name} {lessonDetails.teacher.surname}
+        </td>
+        <td className="p-4 text-center">
+          <AttendanceStatusDisplay status={record.status as any} present={record.present} />
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">

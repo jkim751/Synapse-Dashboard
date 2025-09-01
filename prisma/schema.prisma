@@ -9,16 +9,16 @@ datasource db {
 }
 
 model Admin {
-  id        String   @id
-  username  String   @unique
-  name      String
-  surname   String
-  email     String?  @unique
-  phone     String?  @unique
-  address   String
-  img       String?
-  sex       UserSex
-  birthday  DateTime
+  id       String   @id
+  username String   @unique
+  address  String
+  birthday DateTime
+  email    String?  @unique
+  img      String?
+  name     String
+  phone    String?  @unique
+  sex      UserSex
+  surname  String
 }
 
 model Student {
@@ -33,36 +33,35 @@ model Student {
   sex           UserSex
   createdAt     DateTime       @default(now())
   parentId      String?
-  parent        Parent?        @relation(fields: [parentId], references: [id])
-  school        String?
   gradeId       Int
-  grade         Grade          @relation(fields: [gradeId], references: [id])
+  birthday      DateTime
+  xeroContactId String?
+  school        String?
+  updatedAt     DateTime       @updatedAt
   attendances   Attendance[]
   results       Result[]
-  birthday      DateTime
-  xeroContactId String? // Xero contact ID for financial operations
+  grade         Grade          @relation(fields: [gradeId], references: [id])
+  parent        Parent?        @relation(fields: [parentId], references: [id])
   classes       StudentClass[]
-  updatedAt     DateTime       @updatedAt
 }
 
 model Teacher {
-  id             String    @id
-  username       String    @unique
-  name           String
-  surname        String
-  email          String?   @unique
-  phone          String?   @unique
-  address        String
-  img            String?
-  sex            UserSex
-  createdAt      DateTime  @default(now())
-  subjects       Subject[]
-  lessons        Lesson[]
-  classes        Class[]
-  birthday       DateTime
-  xeroEmployeeId String? // Xero employee ID for financial operations
-
+  id              String            @id
+  username        String            @unique
+  name            String
+  surname         String
+  email           String?           @unique
+  phone           String?           @unique
+  address         String
+  img             String?
+  sex             UserSex
+  createdAt       DateTime          @default(now())
+  birthday        DateTime
+  xeroEmployeeId  String?
+  classes         Class[]
+  lessons         Lesson[]
   RecurringLesson RecurringLesson[]
+  subjects        Subject[]         @relation("SubjectToTeacher")
 }
 
 model Parent {
@@ -74,124 +73,110 @@ model Parent {
   phone         String    @unique
   address       String
   createdAt     DateTime  @default(now())
+  xeroContactId String?
   students      Student[]
-  xeroContactId String? // Xero contact ID for financial operations
 }
 
 model Grade {
-  id    Int @id @default(autoincrement())
-  level Int @unique
-
-  students Student[]
+  id       Int       @id @default(autoincrement())
+  level    Int       @unique
   classess Class[]
+  students Student[]
 }
 
 model Class {
-  id       Int    @id @default(autoincrement())
-  name     String @unique
-  capacity Int
-
-  supervisorId  String?
-  supervisor    Teacher?       @relation(fields: [supervisorId], references: [id])
-  lessons       Lesson[]
-  students      StudentClass[]
-  gradeId       Int
-  grade         Grade          @relation(fields: [gradeId], references: [id])
-  events        Event[]
-  announcements Announcement[]
-
+  id              Int               @id @default(autoincrement())
+  name            String            @unique
+  capacity        Int
+  supervisorId    String?
+  gradeId         Int
+  announcements   Announcement[]
+  grade           Grade             @relation(fields: [gradeId], references: [id])
+  supervisor      Teacher?          @relation(fields: [supervisorId], references: [id])
+  events          Event[]
+  lessons         Lesson[]
   RecurringLesson RecurringLesson[]
+  students        StudentClass[]
 }
 
 model Subject {
-  id       Int       @id @default(autoincrement())
-  name     String    @unique
-  teachers Teacher[]
-  lessons  Lesson[]
-
+  id              Int               @id @default(autoincrement())
+  name            String            @unique
+  lessons         Lesson[]
   RecurringLesson RecurringLesson[]
+  teachers        Teacher[]         @relation("SubjectToTeacher")
 }
 
 model Lesson {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  startTime DateTime
-  endTime   DateTime
-
+  id                Int              @id @default(autoincrement())
+  name              String
+  startTime         DateTime
+  endTime           DateTime
   recurringLessonId Int?
+  subjectId         Int?
+  classId           Int?
+  teacherId         String?
+  isCancelled       Boolean          @default(false)
+  day               Day
+  assignments       Assignment[]
+  attendances       Attendance[]
+  exams             Exam[]
+  class             Class?           @relation(fields: [classId], references: [id])
   recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id], onDelete: Cascade)
-
-  subjectId Int?
-  subject   Subject? @relation(fields: [subjectId], references: [id])
-  classId   Int?
-  class     Class?   @relation(fields: [classId], references: [id])
-  teacherId String?
-  teacher   Teacher? @relation(fields: [teacherId], references: [id])
-
-  isCancelled Boolean @default(false)
-
-  exams         Exam[]
-  assignments   Assignment[]
-  attendances   Attendance[]
-  notifications Notification[]
-  day           Day
+  subject           Subject?         @relation(fields: [subjectId], references: [id])
+  teacher           Teacher?         @relation(fields: [teacherId], references: [id])
+  notifications     Notification[]
 }
 
 model Exam {
-  id        Int      @id @default(autoincrement())
-  title     String
-  startTime DateTime
-  endTime   DateTime
-  documents String[] @default([])
-
-  lessonId Int?
-  lesson   Lesson? @relation(fields: [lessonId], references: [id] )
-
+  id                Int              @id @default(autoincrement())
+  title             String
+  startTime         DateTime
+  endTime           DateTime
+  documents         String[]         @default([])
+  lessonId          Int?
   recurringLessonId Int?
+  lesson            Lesson?          @relation(fields: [lessonId], references: [id])
   recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id])
-
-  results Result[]
+  results           Result[]
 }
 
 model Assignment {
-  id        Int      @id @default(autoincrement())
-  title     String
-  startDate DateTime
-  dueDate   DateTime
-  documents String[] @default([])
-
-  lessonId Int?
-  lesson   Lesson? @relation(fields: [lessonId], references: [id])
-
+  id                Int              @id @default(autoincrement())
+  title             String
+  startDate         DateTime
+  dueDate           DateTime
+  documents         String[]         @default([])
+  lessonId          Int?
   recurringLessonId Int?
-  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id] )
-  
-  results Result[]
+  lesson            Lesson?          @relation(fields: [lessonId], references: [id])
+  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id])
+  results           Result[]
 }
 
 model Result {
-  id    Int    @id @default(autoincrement())
-  score Int
-  title String
-
+  id           Int         @id @default(autoincrement())
+  score        Int
+  title        String
   examId       Int?
-  exam         Exam?       @relation(fields: [examId], references: [id] )
   assignmentId Int?
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   studentId    String
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  exam         Exam?       @relation(fields: [examId], references: [id])
   student      Student     @relation(fields: [studentId], references: [id])
 }
 
 model Attendance {
-  id      Int      @id @default(autoincrement())
-  date    DateTime
-  present Boolean
-
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id])
-  lessonId  Int
-  lesson    Lesson  @relation(fields: [lessonId], references: [id] , onDelete: Cascade)
+  id                Int              @id @default(autoincrement())
+  date              DateTime
+  present           Boolean
+  studentId         String
+  lessonId          Int?
+  recurringLessonId Int?
+  status            String?          @default("present")
+  lesson            Lesson?          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id], onDelete: Cascade)
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model Event {
@@ -200,9 +185,8 @@ model Event {
   description String
   startTime   DateTime
   endTime     DateTime
-
-  classId Int?
-  class   Class? @relation(fields: [classId], references: [id])
+  classId     Int?
+  class       Class?   @relation(fields: [classId], references: [id])
 }
 
 model Announcement {
@@ -210,14 +194,13 @@ model Announcement {
   title       String
   description String
   date        DateTime
-
-  classId Int?
-  class   Class? @relation(fields: [classId], references: [id])
+  classId     Int?
+  class       Class?   @relation(fields: [classId], references: [id])
 }
 
 model XeroTokens {
   id           String   @id @default(cuid())
-  userId       String   @unique // <-- ADD THIS LINE
+  userId       String   @unique
   accessToken  String
   refreshToken String
   tenantId     String
@@ -232,13 +215,13 @@ model Notification {
   id          String   @id @default(cuid())
   title       String
   message     String
-  recipientId String
-  isRead      Boolean  @default(false)
   type        String?
+  recipientId String
   lessonId    Int?
-  lesson      Lesson?  @relation(fields: [lessonId], references: [id])
+  isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  lesson      Lesson?  @relation(fields: [lessonId], references: [id])
 
   @@map("notifications")
 }
@@ -246,35 +229,33 @@ model Notification {
 model StudentClass {
   id        Int      @id @default(autoincrement())
   studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   classId   Int
-  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  isPrimary Boolean  @default(false) // Optional: mark one class as primary
+  isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, classId]) // Ensure a student can't be in the same class twice
+  @@unique([studentId, classId])
   @@index([studentId])
   @@index([classId])
 }
 
 model RecurringLesson {
-  id        Int      @id @default(autoincrement())
-  name      String
-  // Stores the recurrence rule in iCalendar format (e.g., 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20251231T235959Z')
-  rrule     String
-  startTime DateTime // The time the lesson starts (e.g., 14:00:00)
-  endTime   DateTime // The time the lesson ends (e.g., 15:00:00)
-
-  subjectId Int
-  subject   Subject @relation(fields: [subjectId], references: [id])
-  classId   Int
-  class     Class   @relation(fields: [classId], references: [id])
-  teacherId String
-  teacher   Teacher @relation(fields: [teacherId], references: [id])
-
-  lessonInstances Lesson[]
-  exams           Exam[]
+  id              Int          @id @default(autoincrement())
+  name            String
+  rrule           String
+  startTime       DateTime
+  endTime         DateTime
+  subjectId       Int
+  classId         Int
+  teacherId       String
   assignments     Assignment[]
+  attendances     Attendance[]
+  exams           Exam[]
+  lessonInstances Lesson[]
+  class           Class        @relation(fields: [classId], references: [id])
+  subject         Subject      @relation(fields: [subjectId], references: [id])
+  teacher         Teacher      @relation(fields: [teacherId], references: [id])
 }
 
 enum UserSex {

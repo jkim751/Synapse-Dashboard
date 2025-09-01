@@ -9,7 +9,7 @@ async function seedProductionData() {
 
   // GRADE
   const grades = [];
-  for (let i = 9; i <= 12; i++) {
+  for (let i = 7; i <= 12; i++) {
     grades.push({ level: i });
   }
   await prisma.grade.createMany({

@@ -12,17 +12,15 @@ const AttendanceChartContainer = async () => {
   lastMonday.setDate(today.getDate() - daysSinceMonday);
 
   const resData = await prisma.attendance.findMany({
-    where: {
-      date: {
-        gte: lastMonday,
-      },
-    },
+    where: { date: { gte: lastMonday } },
     select: {
       date: true,
       present: true,
+      // include identifiers in case you later want to split them
+      lessonId: true,
+      recurringLessonId: true,
     },
   });
-
   // console.log(data)
 
   const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri"];

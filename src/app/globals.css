@@ -258,7 +258,7 @@
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 .rbc-event-label {
-  color: #fff;
+  color: #000000;
   margin-bottom: 1px;
   font-size: 11px;
   font-weight: 600;
@@ -492,4 +492,69 @@
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
+}
+
+/* Responsive base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Responsive containers */
+.container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Responsive text sizes */
+.text-responsive {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.heading-responsive {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+/* Touch-friendly interactive elements */
+@media (max-width: 767px) {
+  button, .btn, a[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

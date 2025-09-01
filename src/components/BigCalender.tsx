@@ -290,7 +290,7 @@ const BigCalendar = ({
           components={{
             event: ({ event }) => (
               <div
-                className={`text-white text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
+                className={`text-black text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
                   }`}
                 style={{
                   textOverflow: 'ellipsis',
