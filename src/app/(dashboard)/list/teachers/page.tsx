@@ -39,11 +39,6 @@ const TeacherListPage = async ({
       accessor: "phone",
       className: "hidden lg:table-cell",
     },
-    {
-      header: "Address",
-      accessor: "address",
-      className: "hidden lg:table-cell",
-    },
     ...(role === "admin"
       ? [
           {
@@ -79,7 +74,6 @@ const TeacherListPage = async ({
         {item.classes.map((classItem) => classItem.name).join(",  ")}
       </td>
       <td className="p-2 hidden md:table-cell">{item.phone}</td>
-      <td className="p-2 hidden md:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
           <Link href={`/list/teachers/${item.id}`}>

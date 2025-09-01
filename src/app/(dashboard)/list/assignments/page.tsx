@@ -11,7 +11,12 @@ import DocumentList from "@/components/DocumentList";
 import FormContainer from "@/components/FormContainer";
 
 type AssignmentList = Assignment & {
-  lesson: {
+  lesson?: {
+    subject: Subject;
+    class: Class;
+    teacher: Teacher;
+  };
+  recurringLesson?: {
     subject: Subject;
     class: Class;
     teacher: Teacher;
@@ -64,39 +69,39 @@ const AssignmentListPage = async ({
       : []),
   ];
 
-  const renderRow = (item: AssignmentList) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
-      <td className="flex items-center gap-4 p-4">{item.lesson.subject.name}</td>
-      <td>{item.lesson.class.name}</td>
-      <td className="hidden md:table-cell">
-        {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
-      </td>
-      <td className="hidden md:table-cell">
-        {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
-      </td>
-      <td className="hidden md:table-cell">
-        <DocumentList
-          documents={item.documents ?? []}
-          type="assignment"
-        // maxVisible={4} // optional tweak
-        />
-      </td>
-  
-      <td>
-        <div className="flex items-center gap-2">
-          {(role === "admin" || role === "teacher") && (
-            <>
-              <FormContainer table="assignment" type="update" data={item} />
-              <FormContainer table="assignment" type="delete" id={item.id} />
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
+  const renderRow = (item: AssignmentList) => {
+    const lessonData = item.lesson || item.recurringLesson;
+    if (!lessonData) return null;
+
+    return (
+      <tr
+        key={item.id}
+        className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+      >
+        <td className="flex items-center gap-4 p-4">{lessonData.subject.name}</td>
+        <td>{lessonData.class.name}</td>
+        <td className="hidden md:table-cell">
+          {lessonData.teacher.name + " " + lessonData.teacher.surname}
+        </td>
+        <td className="hidden md:table-cell">
+          {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
+        </td>
+        <td className="hidden md:table-cell">
+          <DocumentList documents={item.documents ?? []} type="assignment" />
+        </td>
+        <td>
+          <div className="flex items-center gap-2">
+            {(role === "admin" || role === "teacher") && (
+              <>
+                <FormContainer table="assignment" type="update" data={item} />
+                <FormContainer table="assignment" type="delete" id={item.id} />
+              </>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   const { page, ...queryParams } = resolvedSearchParams;
 
@@ -106,22 +111,27 @@ const AssignmentListPage = async ({
 
   const query: Prisma.AssignmentWhereInput = {};
 
-  query.lesson = {};
-
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
           case "classId":
-            query.lesson.classId = parseInt(value);
+            query.OR = [
+              { lesson: { classId: parseInt(value) } },
+              { recurringLesson: { classId: parseInt(value) } }
+            ];
             break;
           case "teacherId":
-            query.lesson.teacherId = value;
+            query.OR = [
+              { lesson: { teacherId: value } },
+              { recurringLesson: { teacherId: value } }
+            ];
             break;
           case "search":
-            query.lesson.subject = {
-              name: { contains: value, mode: "insensitive" },
-            };
+            query.OR = [
+              { lesson: { subject: { name: { contains: value, mode: "insensitive" } } } },
+              { recurringLesson: { subject: { name: { contains: value, mode: "insensitive" } } } }
+            ];
             break;
           default:
             break;
@@ -136,17 +146,22 @@ const AssignmentListPage = async ({
     case "admin":
       break;
     case "teacher":
-      query.lesson = { teacherId: currentUserId! };
+      query.OR = [
+        { lesson: { teacherId: currentUserId! } },
+        { recurringLesson: { teacherId: currentUserId! } }
+      ];
       break;
     case "student":
-      query.lesson = {
-        class: { students: { some: { studentId: currentUserId! } } },
-      };
+      query.OR = [
+        { lesson: { class: { students: { some: { studentId: currentUserId! } } } } },
+        { recurringLesson: { class: { students: { some: { studentId: currentUserId! } } } } }
+      ];
       break;
     case "parent":
-      query.lesson = {
-        class: { students: { some: { student: { parentId: currentUserId! } } } },
-      };
+      query.OR = [
+        { lesson: { class: { students: { some: { student: { parentId: currentUserId! } } } } } },
+        { recurringLesson: { class: { students: { some: { student: { parentId: currentUserId! } } } } } }
+      ];
       break;
 
     default:
@@ -162,13 +177,13 @@ const AssignmentListPage = async ({
             subject: { select: { name: true } },
             teacher: { select: { name: true, surname: true } },
             class: { select: { name: true } },
-            recurringLesson: {
-              select: {
-                subject: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
-                class: { select: { name: true } },
-              },
-            },
+          },
+        },
+        recurringLesson: {
+          select: {
+            subject: { select: { name: true } },
+            teacher: { select: { name: true, surname: true } },
+            class: { select: { name: true } },
           },
         },
       },
