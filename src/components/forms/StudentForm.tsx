@@ -104,226 +104,228 @@ const StudentForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new student" : "Update the student"}
-      </h1>
-      <span className="text-xs text-gray-400 font-medium">
-        Authentication Information
-      </span>
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Username"
-          name="username"
-          defaultValue={data?.username}
-          register={register}
-          error={errors?.username}
-        />
-        <InputField
-          label="Email"
-          name="email"
-          defaultValue={data?.email}
-          register={register}
-          error={errors?.email}
-        />
-        {type === "create" && (
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new student" : "Update the student"}
+        </h1>
+        <span className="text-xs text-gray-400 font-medium">
+          Authentication Information
+        </span>
+        <div className="flex justify-between flex-wrap gap-4">
           <InputField
-            label="Password"
-            name="password"
-            type="password"
+            label="Username"
+            name="username"
+            defaultValue={data?.username}
             register={register}
-            error={errors?.password}
+            error={errors?.username}
           />
-        )}
-        {type === "update" && (
           <InputField
-            label="Password (leave blank to keep current)"
-            name="password"
-            type="password"
+            label="Email"
+            name="email"
+            defaultValue={data?.email}
             register={register}
-            error={errors?.password}
+            error={errors?.email}
           />
-        )}
-      </div>
-      <span className="text-xs text-gray-400 font-medium">
-        Personal Information
-      </span>
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="First Name"
-          name="name"
-          defaultValue={data?.name}
-          register={register}
-          error={errors.name}
-        />
-        <InputField
-          label="Last Name"
-          name="surname"
-          defaultValue={data?.surname}
-          register={register}
-          error={errors.surname}
-        />
-        <InputField
-          label="Phone"
-          name="phone"
-          defaultValue={data?.phone}
-          register={register}
-          error={errors.phone}
-        />
-        <InputField
-          label="Branch"
-          name="address"
-          defaultValue={data?.address}
-          register={register}
-          error={errors.address}
-        />
-        <InputField
-          label="Birthday"
-          name="birthday"
-          defaultValue={data?.birthday?.toISOString().split("T")[0]}          
-          register={register}
-          error={errors.birthday}
-          type="date"
-        />
-        <InputField
-          label="School (Optional)"
-          name="school"
-          defaultValue={data?.school}
-          register={register}
-          error={errors?.school}
-        />
-        <InputField
-          label="Grade"
-          name="gradeId"
-          defaultValue={data?.gradeId}
-          register={register}
-          error={errors?.gradeId}
-          type="select"
-          options={grades?.map((grade: { id: number; level: number }) => ({
-            value: grade.id,
-            label: grade.level.toString(),
-          })) || []}
-        />
-        
-        {/* Multiple Class Selection */}
-        <div className="flex flex-col gap-2 w-full">
-          <label className="text-xs text-gray-500">
-            Classes (Select multiple)
-            <span className="text-red-500 ml-1">*</span>
-          </label>
-          <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
-            {filteredClasses?.length > 0 ? (
-              filteredClasses.map((classItem: any) => (
-                <div key={classItem.id} className="flex items-center gap-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id={`class-${classItem.id}`}
-                    checked={selectedClasses.includes(classItem.id)}
-                    onChange={() => handleClassToggle(classItem.id)}
-                    className="w-4 h-4"
-                  />
-                  <label 
-                    htmlFor={`class-${classItem.id}`} 
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    {classItem.name} 
-                    <span className="text-xs text-gray-500 ml-2">
-                      ({classItem._count.students}/{classItem.capacity} students)
-                    </span>
-                  </label>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-gray-500">
-                {selectedGrade ? "No classes available for this grade" : "Select a grade first"}
+          {type === "create" && (
+            <InputField
+              label="Password"
+              name="password"
+              type="password"
+              register={register}
+              error={errors?.password}
+            />
+          )}
+          {type === "update" && (
+            <InputField
+              label="Password (leave blank to keep current)"
+              name="password"
+              type="password"
+              register={register}
+              error={errors?.password}
+            />
+          )}
+        </div>
+        <span className="text-xs text-gray-400 font-medium">
+          Personal Information
+        </span>
+        <div className="flex justify-between flex-wrap gap-4">
+          <InputField
+            label="First Name"
+            name="name"
+            defaultValue={data?.name}
+            register={register}
+            error={errors.name}
+          />
+          <InputField
+            label="Last Name"
+            name="surname"
+            defaultValue={data?.surname}
+            register={register}
+            error={errors.surname}
+          />
+          <InputField
+            label="Phone"
+            name="phone"
+            defaultValue={data?.phone}
+            register={register}
+            error={errors.phone}
+          />
+          <InputField
+            label="Branch"
+            name="address"
+            defaultValue={data?.address}
+            register={register}
+            error={errors.address}
+          />
+          <InputField
+            label="Birthday"
+            name="birthday"
+            defaultValue={data?.birthday?.toISOString().split("T")[0]}          
+            register={register}
+            error={errors.birthday}
+            type="date"
+          />
+          <InputField
+            label="School (Optional)"
+            name="school"
+            defaultValue={data?.school}
+            register={register}
+            error={errors?.school}
+          />
+          <InputField
+            label="Grade"
+            name="gradeId"
+            defaultValue={data?.gradeId}
+            register={register}
+            error={errors?.gradeId}
+            type="select"
+            options={grades?.map((grade: { id: number; level: number }) => ({
+              value: grade.id,
+              label: grade.level.toString(),
+            })) || []}
+          />
+          
+          {/* Multiple Class Selection */}
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-xs text-gray-500">
+              Classes (Select multiple)
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
+              {filteredClasses?.length > 0 ? (
+                filteredClasses.map((classItem: any) => (
+                  <div key={classItem.id} className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id={`class-${classItem.id}`}
+                      checked={selectedClasses.includes(classItem.id)}
+                      onChange={() => handleClassToggle(classItem.id)}
+                      className="w-4 h-4"
+                    />
+                    <label 
+                      htmlFor={`class-${classItem.id}`} 
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {classItem.name} 
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({classItem._count.students}/{classItem.capacity} students)
+                      </span>
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-500">
+                  {selectedGrade ? "No classes available for this grade" : "Select a grade first"}
+                </p>
+              )}
+            </div>
+            {errors.classIds && (
+              <p className="text-xs text-red-400">
+                {errors.classIds.message}
+              </p>
+            )}
+            {selectedClasses.length > 0 && (
+              <p className="text-xs text-gray-600">
+                Selected: {selectedClasses.length} class(es)
               </p>
             )}
           </div>
-          {errors.classIds && (
-            <p className="text-xs text-red-400">
-              {errors.classIds.message}
-            </p>
-          )}
-          {selectedClasses.length > 0 && (
-            <p className="text-xs text-gray-600">
-              Selected: {selectedClasses.length} class(es)
-            </p>
-          )}
-        </div>
 
-        <InputField
-          label="Parent (Optional)"
-          name="parentId"
-          defaultValue={data?.parentId}
-          register={register}
-          error={errors?.parentId}
-          type="select"
-          options={[
-            { value: "", label: "No parent assigned" },
-            ...parents?.map((parent: { id: string; name: string; surname: string }) => ({
-              value: parent.id,
-              label: `${parent.name} ${parent.surname}`,
-            })) || []
-          ]}
-        />
-        {data && (
           <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
+            label="Parent (Optional)"
+            name="parentId"
+            defaultValue={data?.parentId}
             register={register}
-            error={errors?.id}
-            hidden
+            error={errors?.parentId}
+            type="select"
+            options={[
+              { value: "", label: "No parent assigned" },
+              ...parents?.map((parent: { id: string; name: string; surname: string }) => ({
+                value: parent.id,
+                label: `${parent.name} ${parent.surname}`,
+              })) || []
+            ]}
           />
-        )}
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Sex</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-            {...register("sex")}
-            defaultValue={data?.sex}
-          >
-            <option value="">Select Sex</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-          </select>
-          {errors.sex?.message && (
-            <p className="text-xs text-red-400">
-              {errors.sex.message.toString()}
-            </p>
+          {data && (
+            <InputField
+              label="Id"
+              name="id"
+              defaultValue={data?.id}
+              register={register}
+              error={errors?.id}
+              hidden
+            />
           )}
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Sex</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("sex")}
+              defaultValue={data?.sex}
+            >
+              <option value="">Select Sex</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+            </select>
+            {errors.sex?.message && (
+              <p className="text-xs text-red-400">
+                {errors.sex.message.toString()}
+              </p>
+            )}
+          </div>
+          <CldUploadWidget
+            uploadPreset="school"
+            onSuccess={(result, { widget }) => {
+              setImg(result.info);
+              widget.close();
+            }}
+          >
+            {({ open }) => {
+              return (
+                <div
+                  className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
+                  onClick={() => open()}
+                >
+                  <Image src="/upload.png" alt="" width={28} height={28} />
+                  <span>Upload a photo</span>
+                </div>
+              );
+            }}
+          </CldUploadWidget>
         </div>
-        <CldUploadWidget
-          uploadPreset="school"
-          onSuccess={(result, { widget }) => {
-            setImg(result.info);
-            widget.close();
-          }}
+        {state.error && (
+          <span className="text-red-500">Something went wrong! Please check all required fields.</span>
+        )}
+        <button 
+          type="submit" 
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
         >
-          {({ open }) => {
-            return (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={28} height={28} />
-                <span>Upload a photo</span>
-              </div>
-            );
-          }}
-        </CldUploadWidget>
-      </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong! Please check all required fields.</span>
-      )}
-      <button 
-        type="submit" 
-        className="bg-orange-400 text-white p-2 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 
