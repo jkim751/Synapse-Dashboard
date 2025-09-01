@@ -23,7 +23,12 @@ import { useActionState } from "react";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
-const deleteActionMap = {
+type DeleteAction = (
+  currentState: any,
+  data: FormData
+) => Promise<{ success: boolean; error: boolean; message: string }>;
+
+const deleteActionMap: { [key: string]: DeleteAction } = {
   subject: deleteSubject,
   subjects: deleteSubject,
   class: deleteClass,

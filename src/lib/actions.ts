@@ -1340,3 +1340,26 @@ export const deleteAnnouncement = async (
     return { success: false, error: true, message: "Failed to delete announcement!" };
   }
 };
+
+export const addStudentToClass = async (
+  currentState: { success: boolean; error: boolean },
+  data: FormData
+) => {
+  try {
+    const classId = parseInt(data.get("classId") as string);
+    const studentId = data.get("studentId") as string;
+
+    await prisma.studentClass.create({
+      data: {
+        classId,
+        studentId,
+      },
+    });
+
+    revalidatePath(`/list/classes/${classId}`);
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};

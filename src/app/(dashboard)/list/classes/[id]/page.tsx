@@ -1,8 +1,8 @@
-
 import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+import AddStudentToClassForm from "@/components/forms/AddStudentToClassForm";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Grade, Prisma, Student } from "@prisma/client";
@@ -153,6 +153,20 @@ const SingleClassPage = async ({
     prisma.student.count({ where: query }),
   ]);
 
+  // Get students not in this class for the add form
+  const availableStudents = role === "admin" ? await prisma.student.findMany({
+    where: {
+      NOT: {
+        classes: {
+          some: {
+            classId: classId
+          }
+        }
+      }
+    },
+    orderBy: { name: "asc" },
+  }) : [];
+
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
@@ -184,8 +198,13 @@ const SingleClassPage = async ({
       <div className="flex items-center justify-between mb-4">
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
-          
         </div>
+        {role === "admin" && availableStudents.length > 0 && (
+          <AddStudentToClassForm 
+            classId={classId} 
+            availableStudents={availableStudents} 
+          />
+        )}
       </div>
       
       {/* LIST */}
