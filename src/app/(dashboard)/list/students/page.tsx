@@ -196,6 +196,16 @@ const StudentListPage = async ({
         },
         grade: true,
       },
+      orderBy: [
+        {
+          grade: {
+            level: 'desc', // Order by grade level first
+          },
+        },
+        {
+          name: 'asc', // Then alphabetically by name
+        },
+      ],
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
     }),
