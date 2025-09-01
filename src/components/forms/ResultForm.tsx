@@ -24,6 +24,7 @@ const ResultForm = ({
   relatedData?: any;
 }) => {
   const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
+  const [allTeacherStudents, setAllTeacherStudents] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>("");
   const [selectedTitle, setSelectedTitle] = useState<string>("Result");
   const [documents, setDocuments] = useState<string[]>(data?.documents || []);
@@ -65,6 +66,24 @@ const ResultForm = ({
   const { exams, assignments, students } = relatedData;
   const watchedExamId = watch("examId");
 
+  // Fetch all students that the teacher teaches
+  useEffect(() => {
+    fetch('/api/students-by-teacher')
+      .then(res => res.json())
+      .then(teacherStudents => {
+        console.log("Fetched teacher's students:", teacherStudents);
+        setAllTeacherStudents(teacherStudents || []);
+        // If no exam is selected, show all teacher's students
+        if (!watchedExamId && !watch("assignmentId")) {
+          setFilteredStudents(teacherStudents || []);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching teacher's students:", err);
+        setAllTeacherStudents([]);
+      });
+  }, []);
+
   // Filter students based on selected exam
   useEffect(() => {
     if (watchedExamId && exams) {
@@ -82,14 +101,15 @@ const ResultForm = ({
           })
           .catch(err => {
             console.error("Error fetching students:", err);
-            setFilteredStudents([]);
+            setFilteredStudents(allTeacherStudents);
           });
       }
-    } else {
-      setFilteredStudents([]);
+    } else if (!watch("assignmentId")) {
+      // If no exam is selected and no assignment is selected, show all teacher's students
+      setFilteredStudents(allTeacherStudents);
       setValue("studentId", "");
     }
-  }, [watchedExamId, exams, setValue]);
+  }, [watchedExamId, exams, setValue, allTeacherStudents]);
 
   // Handle assignment selection
   const watchedAssignmentId = watch("assignmentId");
@@ -100,12 +120,14 @@ const ResultForm = ({
         setSelectedTitle("Assignment");
         setValue("examId", undefined);
         
-        // For assignments, we would need to fetch students based on the assignment's lesson class
-        // For now, we'll use all students from relatedData
-        setFilteredStudents(students || []);
+        // For assignments, show all teacher's students
+        setFilteredStudents(allTeacherStudents);
       }
+    } else if (!watchedExamId) {
+      // If no assignment is selected and no exam is selected, show all teacher's students
+      setFilteredStudents(allTeacherStudents);
     }
-  }, [watchedAssignmentId, assignments, setValue, students]);
+  }, [watchedAssignmentId, assignments, setValue, allTeacherStudents, watchedExamId]);
 
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {
