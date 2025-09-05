@@ -27,7 +27,7 @@ const subjectColorMap: Record<string, string> = {
 };
 
 // Generate consistent colors for subjects and events
-const generateColor = (subject: string, type: 'lesson' | 'event' = 'lesson') => {
+const generateColor = (subject: string, type: 'lesson' | 'event' | 'exam' | 'assignment' = 'lesson') => {
   if (subjectColorMap[subject]) {
     return subjectColorMap[subject];
   }
@@ -42,7 +42,20 @@ const generateColor = (subject: string, type: 'lesson' | 'event' = 'lesson') => 
     '#F59E0B', '#10B981', '#06B6D4', '#84CC16', '#F97316', '#14B8A6'
   ];
 
-  const colors = type === 'lesson' ? lessonColors : eventColors;
+  // CHANGE EXAM COLORS HERE
+  const examColors = [
+    '#E3735E', '#E3735E', '#E3735E', '#E3735E', '#E3735E', '#E3735E'
+  ];
+
+  // CHANGE ASSIGNMENT COLORS HERE
+  const assignmentColors = [
+    '#FAC898', '#FAC898', '#FAC898', '#FAC898', '#FAC898', '#FAC898'
+  ];
+
+  const colors = type === 'lesson' ? lessonColors
+    : type === 'event' ? eventColors
+    : type === 'exam' ? examColors
+    : assignmentColors;
 
   let hash = 0;
   for (let i = 0; i < subject.length; i++) {
@@ -64,7 +77,7 @@ interface CalendarEvent {
   description?: string;
   lessonId?: number;
   eventId?: number;
-  type: 'lesson' | 'event';
+  type: 'lesson' | 'event' | 'exam' | 'assignment';
   subjectColor?: string;
 }
 
@@ -147,8 +160,12 @@ const BigCalendar = ({
     const backgroundColor = event.subject
       ? generateColor(event.subject, event.type)
       : event.type === 'event'
-        ? '#6B7280'
-        : '#3B82F6';
+        ? '#6B7280'  // CHANGE DEFAULT EVENT COLOR HERE
+        : event.type === 'exam'
+          ? '##E3735E'  // CHANGE DEFAULT EXAM COLOR HERE
+          : event.type === 'assignment'
+            ? '#059669'  // CHANGE DEFAULT ASSIGNMENT COLOR HERE
+            : '#3B82F6';  // CHANGE DEFAULT LESSON COLOR HERE
 
     const isEvent = event.type === 'event';
 

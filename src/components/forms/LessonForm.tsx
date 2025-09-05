@@ -90,7 +90,7 @@ const LessonForm = ({
       reset(defaults as any);
     }
     // --- FIX: Add missing dependencies ---
-  }, [data, reset]); // Assuming 'reset' is from useForm and 'data' is the prop. Adjust if needed.
+  }, [data, reset, isRecurring]); // Assuming 'reset' is from useForm and 'data' is the prop. Adjust if needed.
 
   useEffect(() => {
     if (state.success) {
@@ -102,7 +102,7 @@ const LessonForm = ({
       toast.error(state.message || "Something went wrong!");
     }
     // --- FIX: Add missing dependencies ---
-  }, [state, router, setOpen]);
+  }, [state, router, setOpen, type]);
 
   const repeatsValue = watch("repeats");
   const { subjects, classes, teachers, variant } = relatedData || {};

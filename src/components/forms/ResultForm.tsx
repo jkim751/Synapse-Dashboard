@@ -90,27 +90,34 @@ const ResultForm = ({
         console.error("Error fetching teacher's students:", err);
         setAllTeacherStudents([]);
       });
-  }, []);
+  }, [watch, watchedExamId]);
 
   // Filter students based on selected exam
   useEffect(() => {
     if (watchedExamId && exams) {
-      const selectedExam = exams.find((exam: any) => exam.id == watchedExamId);      if (selectedExam) {
+      const selectedExam = exams.find((exam: any) => exam.id == watchedExamId);
+      if (selectedExam) {
         setSelectedExamId(watchedExamId.toString());
         setSelectedTitle("Exam Result");
         
-        // Fetch students for the selected exam's class
-        const classId = selectedExam.lesson.class.id;
-        fetch(`/api/students-by-class?classId=${classId}`)
-          .then(res => res.json())
-          .then(studentsData => {
-            console.log("Fetched students:", studentsData);
-            setFilteredStudents(studentsData || []);
-          })
-          .catch(err => {
-            console.error("Error fetching students:", err);
-            setFilteredStudents(allTeacherStudents);
-          });
+        // Get class ID from either lesson or recurringLesson
+        const lessonData = selectedExam.lesson || selectedExam.recurringLesson;
+        if (lessonData && lessonData.class) {
+          const classId = lessonData.class.id;
+          fetch(`/api/students-by-class?classId=${classId}`)
+            .then(res => res.json())
+            .then(studentsData => {
+              console.log("Fetched students:", studentsData);
+              setFilteredStudents(studentsData || []);
+            })
+            .catch(err => {
+              console.error("Error fetching students:", err);
+              setFilteredStudents(allTeacherStudents);
+            });
+        } else {
+          console.warn("No lesson data found for exam:", selectedExam);
+          setFilteredStudents(allTeacherStudents);
+        }
       }
     } else if (!watch("assignmentId")) {
       // If no exam is selected and no assignment is selected, show all teacher's students
@@ -128,14 +135,30 @@ const ResultForm = ({
         setSelectedTitle("Assignment");
         setValue("examId", undefined);
         
-        // For assignments, show all teacher's students
-        setFilteredStudents(allTeacherStudents);
+        // Get class ID from either lesson or recurringLesson
+        const lessonData = selectedAssignment.lesson || selectedAssignment.recurringLesson;
+        if (lessonData && lessonData.class) {
+          const classId = lessonData.class.id;
+          fetch(`/api/students-by-class?classId=${classId}`)
+            .then(res => res.json())
+            .then(studentsData => {
+              console.log("Fetched students for assignment:", studentsData);
+              setFilteredStudents(studentsData || []);
+            })
+            .catch(err => {
+              console.error("Error fetching students:", err);
+              setFilteredStudents(allTeacherStudents);
+            });
+        } else {
+          console.warn("No lesson data found for assignment:", selectedAssignment);
+          setFilteredStudents(allTeacherStudents);
+        }
       }
     } else if (!watchedExamId) {
       // If no assignment is selected and no exam is selected, show all teacher's students
       setFilteredStudents(allTeacherStudents);
     }
-  }, [watchedAssignmentId, assignments, setValue, allTeacherStudents, watchedExamId]);
+  }, [watchedAssignmentId, assignments, setValue, allTeacherStudents, watchedExamId, watch]);
 
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {

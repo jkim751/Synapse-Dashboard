@@ -20,6 +20,8 @@ const BigCalendarContainer = async ({
   // Build the where clause for lessons based on the parameters
   let lessonsWhereClause = {};
   let recurringLessonsWhereClause = {};
+  let examsWhereClause = {};
+  let assignmentsWhereClause = {};
 
   if (type && id) {
     // Specific teacher or class view
@@ -28,17 +30,70 @@ const BigCalendarContainer = async ({
       : { classId: id as number };
     lessonsWhereClause = clause;
     recurringLessonsWhereClause = clause;
+    
+    // For exams and assignments, check both lesson and recurringLesson relationships
+    if (type === "teacherId") {
+      examsWhereClause = {
+        OR: [
+          { lesson: { teacherId: id as string } },
+          { recurringLesson: { teacherId: id as string } }
+        ]
+      };
+      assignmentsWhereClause = {
+        OR: [
+          { lesson: { teacherId: id as string } },
+          { recurringLesson: { teacherId: id as string } }
+        ]
+      };
+    } else {
+      examsWhereClause = {
+        OR: [
+          { lesson: { classId: id as number } },
+          { recurringLesson: { classId: id as number } }
+        ]
+      };
+      assignmentsWhereClause = {
+        OR: [
+          { lesson: { classId: id as number } },
+          { recurringLesson: { classId: id as number } }
+        ]
+      };
+    }
   } else if (classIds && classIds.length > 0) {
     // Multiple classes (for students/parents)
     const clause = { classId: { in: classIds } };
     lessonsWhereClause = clause;
     recurringLessonsWhereClause = clause;
+    examsWhereClause = {
+      OR: [
+        { lesson: { classId: { in: classIds } } },
+        { recurringLesson: { classId: { in: classIds } } }
+      ]
+    };
+    assignmentsWhereClause = {
+      OR: [
+        { lesson: { classId: { in: classIds } } },
+        { recurringLesson: { classId: { in: classIds } } }
+      ]
+    };
   } else if (role !== "admin") {
     // Non-admin users should see their relevant lessons only
     if (role === "teacher") {
       const clause = { teacherId: userId! };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
+      examsWhereClause = {
+        OR: [
+          { lesson: { teacherId: userId! } },
+          { recurringLesson: { teacherId: userId! } }
+        ]
+      };
+      assignmentsWhereClause = {
+        OR: [
+          { lesson: { teacherId: userId! } },
+          { recurringLesson: { teacherId: userId! } }
+        ]
+      };
     } else if (role === "student") {
       const studentClasses = await prisma.studentClass.findMany({
         where: { studentId: userId! },
@@ -48,6 +103,18 @@ const BigCalendarContainer = async ({
       const clause = { classId: { in: studentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
+      examsWhereClause = {
+        OR: [
+          { lesson: { classId: { in: studentClassIds } } },
+          { recurringLesson: { classId: { in: studentClassIds } } }
+        ]
+      };
+      assignmentsWhereClause = {
+        OR: [
+          { lesson: { classId: { in: studentClassIds } } },
+          { recurringLesson: { classId: { in: studentClassIds } } }
+        ]
+      };
     } else if (role === "parent") {
       const parentClasses = await prisma.studentClass.findMany({
         where: { student: { parentId: userId! } },
@@ -57,6 +124,18 @@ const BigCalendarContainer = async ({
       const clause = { classId: { in: parentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
+      examsWhereClause = {
+        OR: [
+          { lesson: { classId: { in: parentClassIds } } },
+          { recurringLesson: { classId: { in: parentClassIds } } }
+        ]
+      };
+      assignmentsWhereClause = {
+        OR: [
+          { lesson: { classId: { in: parentClassIds } } },
+          { recurringLesson: { classId: { in: parentClassIds } } }
+        ]
+      };
     }
   }
   // Admin sees all lessons (empty where clause)
@@ -71,44 +150,157 @@ const BigCalendarContainer = async ({
   expansionEnd.setMonth(currentDate.getMonth() + 6);
   expansionEnd.setHours(23, 59, 59, 999);
 
-  // Fetch regular lessons (no date restriction for past/future viewing)
-  const lessonsRes = await prisma.lesson.findMany({
-    where: {
-      ...lessonsWhereClause,
-      recurringLessonId: null, // Only non-recurring lessons
-    },
-    include: {
-      subject: true,
-      teacher: true,
-      class: true,
-    },
-  });
-
-  // Fetch recurring lesson templates
-  const recurringLessonsRes = await prisma.recurringLesson.findMany({
-    where: recurringLessonsWhereClause,
-    include: {
-      subject: true,
-      teacher: true,
-      class: true,
-    },
-  });
-
-  // Fetch lesson exceptions (overrides/cancellations) within expansion range
-  const exceptionsRes = await prisma.lesson.findMany({
-    where: {
-      NOT: { recurringLessonId: null },
-      startTime: { 
-        gte: expansionStart,
-        lte: expansionEnd 
+  // Fetch all data in parallel
+  const [
+    lessonsRes,
+    recurringLessonsRes,
+    exceptionsRes,
+    eventsRes,
+    examsRes,
+    assignmentsRes
+  ] = await Promise.all([
+    // Fetch regular lessons (no date restriction for past/future viewing)
+    prisma.lesson.findMany({
+      where: {
+        ...lessonsWhereClause,
+        recurringLessonId: null, // Only non-recurring lessons
       },
-    },
-    include: {
-      subject: true,
-      teacher: true,
-      class: true,
-    },
-  });
+      include: {
+        subject: true,
+        teacher: true,
+        class: true,
+      },
+    }),
+
+    // Fetch recurring lesson templates
+    prisma.recurringLesson.findMany({
+      where: recurringLessonsWhereClause,
+      include: {
+        subject: true,
+        teacher: true,
+        class: true,
+      },
+    }),
+
+    // Fetch lesson exceptions (overrides/cancellations) within expansion range
+    prisma.lesson.findMany({
+      where: {
+        NOT: { recurringLessonId: null },
+        startTime: { 
+          gte: expansionStart,
+          lte: expansionEnd 
+        },
+      },
+      include: {
+        subject: true,
+        teacher: true,
+        class: true,
+      },
+    }),
+
+    // Fetch events with role-based filtering
+    (() => {
+      let eventsWhereClause = {};
+      if (role !== "admin") {
+        if (role === "student") {
+          const studentClasses = prisma.studentClass.findMany({
+            where: { studentId: userId! },
+            select: { classId: true },
+          }).then(classes => classes.map(sc => sc.classId));
+          return studentClasses.then(studentClassIds => 
+            prisma.event.findMany({
+              where: {
+                OR: [
+                  { classId: null },
+                  { classId: { in: studentClassIds } }
+                ]
+              },
+              include: { class: true },
+            })
+          );
+        } else if (role === "teacher") {
+          const teacherClasses = prisma.class.findMany({
+            where: { lessons: { some: { teacherId: userId! } } },
+            select: { id: true },
+          }).then(classes => classes.map(c => c.id));
+          return teacherClasses.then(teacherClassIds =>
+            prisma.event.findMany({
+              where: {
+                OR: [
+                  { classId: null },
+                  { classId: { in: teacherClassIds } }
+                ]
+              },
+              include: { class: true },
+            })
+          );
+        } else if (role === "parent") {
+          const parentClasses = prisma.studentClass.findMany({
+            where: { student: { parentId: userId! } },
+            select: { classId: true },
+          }).then(classes => classes.map(sc => sc.classId));
+          return parentClasses.then(parentClassIds =>
+            prisma.event.findMany({
+              where: {
+                OR: [
+                  { classId: null },
+                  { classId: { in: parentClassIds } }
+                ]
+              },
+              include: { class: true },
+            })
+          );
+        }
+      }
+      // Default case for admin or if other roles don't have specific logic
+      return prisma.event.findMany({
+        where: eventsWhereClause,
+        include: { class: true },
+      });
+    })(),
+
+    // Fetch exams
+    prisma.exam.findMany({
+      where: examsWhereClause,
+      include: {
+        lesson: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: true,
+          }
+        },
+        recurringLesson: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: true,
+          }
+        }
+      }
+    }),
+
+    // Fetch assignments
+    prisma.assignment.findMany({
+      where: assignmentsWhereClause,
+      include: {
+        lesson: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: true,
+          }
+        },
+        recurringLesson: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: true,
+          }
+        }
+      }
+    })
+  ]);
 
   // Generate recurring lesson instances
   const recurringLessonInstances = [];
@@ -187,58 +379,6 @@ const BigCalendarContainer = async ({
     }
   }
 
-  // Build the where clause for events based on role
-  let eventsWhereClause = {};
-  if (role !== "admin") {
-    if (role === "student") {
-      const studentClasses = await prisma.studentClass.findMany({
-        where: { studentId: userId! },
-        select: { classId: true },
-      });
-      const studentClassIds = studentClasses.map(sc => sc.classId);
-      eventsWhereClause = {
-        OR: [
-          { classId: null },
-          { classId: { in: studentClassIds } }
-        ]
-      };
-    } else if (role === "teacher") {
-      const teacherClasses = await prisma.class.findMany({
-        where: { lessons: { some: { teacherId: userId! } } },
-        select: { id: true },
-      });
-      const teacherClassIds = teacherClasses.map(c => c.id);
-      eventsWhereClause = {
-        OR: [
-          { classId: null },
-          { classId: { in: teacherClassIds } }
-        ]
-      };
-    } else if (role === "parent") {
-      const parentClasses = await prisma.studentClass.findMany({
-        where: { student: { parentId: userId! } },
-        select: { classId: true },
-      });
-      const parentClassIds = parentClasses.map(sc => sc.classId);
-      eventsWhereClause = {
-        OR: [
-          { classId: null },
-          { classId: { in: parentClassIds } }
-        ]
-      };
-    } else {
-      eventsWhereClause = { classId: null };
-    }
-  }
-
-  // Fetch events (no date restriction for past/future viewing)
-  const eventsRes = await prisma.event.findMany({
-    where: eventsWhereClause,
-    include: {
-      class: true,
-    },
-  });
-
   // Transform regular lessons data (keep original dates)
   const lessonsData = lessonsRes.map((lesson) => ({
     title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
@@ -254,7 +394,7 @@ const BigCalendarContainer = async ({
   }));
 
   // Transform events data (keep original dates)
-  const eventsData = eventsRes.map((event) => ({
+  const eventsData = eventsRes.map((event: any) => ({
     title: event.title,
     start: new Date(event.startTime),
     end: new Date(event.endTime),
@@ -266,8 +406,45 @@ const BigCalendarContainer = async ({
     type: 'event' as const,
   }));
 
-  // Combine all lessons (regular + recurring instances) without date adjustment
-  const allLessons = [...lessonsData, ...recurringLessonInstances];
+  // Transform exams data
+  const examsData = examsRes.map(exam => {
+    const lessonData = exam.lesson || exam.recurringLesson;
+    return {
+      title: `📝 ${exam.title}`,
+      start: exam.startTime,
+      end: exam.endTime,
+      subject: lessonData?.subject?.name,
+      teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
+      classroom: lessonData?.class?.name,
+      description: `Exam: ${exam.title}`,
+      examId: exam.id,
+      type: 'exam' as const,
+    };
+  });
+
+  // Transform assignments data
+  const assignmentsData = assignmentsRes.map(assignment => {
+    const lessonData = assignment.lesson || assignment.recurringLesson;
+    return {
+      title: `📋 ${assignment.title}`,
+      start: assignment.dueDate,
+      end: new Date(assignment.dueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
+      subject: lessonData?.subject?.name,
+      teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
+      classroom: lessonData?.class?.name,
+      description: `Assignment due: ${assignment.title}`,
+      assignmentId: assignment.id,
+      type: 'assignment' as const,
+    };
+  });
+
+  // Combine all lesson events (regular + recurring instances)
+  const allLessons = [
+    ...lessonsData, 
+    ...recurringLessonInstances,
+    ...examsData,
+    ...assignmentsData
+  ];
 
   return (
     <div className="h-full overflow-hidden">

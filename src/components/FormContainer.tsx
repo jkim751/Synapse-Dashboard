@@ -186,21 +186,27 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
       case "result":
         const currentDate = new Date();
 
-        // Filter exams based on role and only show current/future exams
-        const examQuery = role === "teacher"
-          ? {
-            lesson: {
-              teacherId: currentUserId!,
-            },
-            startTime: {
-              gte: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Allow exams from last 7 days
-            }
+        // Filter exams based on role and handle both lesson and recurringLesson
+        let examQuery: any = {
+          startTime: {
+            gte: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Allow exams from last 7 days
           }
-          : {
-            startTime: {
-              gte: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Allow exams from last 7 days
+        };
+
+        if (role === "teacher") {
+          examQuery.OR = [
+            {
+              lesson: {
+                teacherId: currentUserId!,
+              }
+            },
+            {
+              recurringLesson: {
+                teacherId: currentUserId!,
+              }
             }
-          };
+          ];
+        }
 
         const resultExams = await prisma.exam.findMany({
           where: examQuery,
@@ -208,7 +214,15 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             lesson: {
               include: {
                 subject: true,
-                class: true
+                class: true,
+                teacher: true
+              }
+            },
+            recurringLesson: {
+              include: {
+                subject: true,
+                class: true,
+                teacher: true
               }
             }
           },
@@ -217,14 +231,23 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           }
         });
 
-        // Filter assignments for teachers
-        const assignmentQuery = role === "teacher"
-          ? {
-            lesson: {
-              teacherId: currentUserId!,
+        // Filter assignments for teachers - handle both lesson and recurringLesson
+        let assignmentQuery: any = {};
+
+        if (role === "teacher") {
+          assignmentQuery.OR = [
+            {
+              lesson: {
+                teacherId: currentUserId!,
+              }
+            },
+            {
+              recurringLesson: {
+                teacherId: currentUserId!,
+              }
             }
-          }
-          : {};
+          ];
+        }
 
         const resultAssignments = await prisma.assignment.findMany({
           where: assignmentQuery,
@@ -232,11 +255,25 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
             lesson: {
               include: {
                 subject: true,
-                class: true
+                class: true,
+                teacher: true
+              }
+            },
+            recurringLesson: {
+              include: {
+                subject: true,
+                class: true,
+                teacher: true
               }
             }
           },
+          orderBy: {
+            dueDate: 'desc'
+          }
         });
+
+        console.log("[FormContainer] Result exams found:", resultExams.length);
+        console.log("[FormContainer] Result assignments found:", resultAssignments.length);
 
         // Students will be filtered dynamically based on selected exam/assignment
         relatedData = {

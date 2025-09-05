@@ -1,27 +1,33 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import prisma from "@/lib/prisma";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 
 const ParentPage = async () => {
-  const user = await currentUser();
-  const currentUserId = user?.id;
   const { userId } = await auth();
 
+  if (!userId) {
+    return <div>Please log in to access this page.</div>;
+  }
+
   const students = await prisma.student.findMany({
-    where: {
-      parentId: currentUserId!,
-    },
+    where: { parentId: userId },
     include: {
       classes: {
         include: {
           class: true,
         },
-      },
+      }, 
     },
   });
 
-  const userName: string = user?.firstName || "Parent";
+  // Fetch parent info
+  const parent = await prisma.parent.findUnique({
+    where: { id: userId },
+    select: { name: true, surname: true }
+  });
+
+  const userName = parent ? `${parent.name} ${parent.surname}` : "Parent";
   
   const classes = await prisma.class.findMany({
     where: { students: { some: { student: { parentId: userId } } } },
@@ -33,7 +39,7 @@ const ParentPage = async () => {
   if (classIds.length === 0) {
     return (
       <div className="p-6 text-gray-600">
-        We couldn’t find any classes for your children yet.
+        We couldn&apos;t find any classes for your children yet.
       </div>
     );
   }
@@ -46,9 +52,10 @@ const ParentPage = async () => {
           Welcome, {userName}!
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Monitor your childrens progress
+          Monitor your children&apos;s progress
         </p>
       </div>
+      
       <div className="flex-1 p-4 flex gap-4 flex-col xl:flex-row">
         <div className="w-full xl:w-2/3">
           {students.length > 0 ? (
@@ -61,6 +68,7 @@ const ParentPage = async () => {
                   </span>
                 )}
               </h1>
+              <h1 className="mb-4">Parent&apos;s Schedule</h1>
               <div className="h-[calc(100%-3rem)]">
                 {students[0]?.classes?.length > 0 ? (
                   <BigCalendarContainer
