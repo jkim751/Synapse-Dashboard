@@ -104,60 +104,90 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
 
       case "exam":
-        const lessonsQuery = role === "teacher" ? { teacherId: currentUserId! } : {};
+        // Only teachers and students should see exams, not admins
+        if (role === "admin") {
+          relatedData = { singleLessons: [], recurringLessons: [] };
+          break;
+        }
+
+        let examLessonsQuery: any = {};
+        
+        if (role === "teacher") {
+          examLessonsQuery = { teacherId: currentUserId! };
+        } else if (role === "student") {
+          // For students, only show lessons from classes they're enrolled in
+          const studentClasses = await prisma.student.findUnique({
+            where: { id: currentUserId! },
+            include: {
+              classes: {
+                select: { classId: true }
+              }
+            }
+          });
+
+          if (studentClasses?.classes.length) {
+            examLessonsQuery = {
+              classId: {
+                in: studentClasses.classes.map(sc => sc.classId)
+              }
+            };
+          } else {
+            // Student not enrolled in any classes
+            relatedData = { singleLessons: [], recurringLessons: [] };
+            break;
+          }
+        }
 
         const singleLessons = await prisma.lesson.findMany({
-          where: { ...lessonsQuery, recurringLessonId: null },
+          where: { ...examLessonsQuery, recurringLessonId: null },
           select: { id: true, name: true },
         });
 
         const recurringLessons = await prisma.recurringLesson.findMany({
-          where: lessonsQuery,
+          where: examLessonsQuery,
           select: { id: true, name: true },
         });
 
         relatedData = { singleLessons, recurringLessons };
         break;
 
-          case "lesson": {
-            const [subjects, classes, teachers] = await Promise.all([
-              prisma.subject.findMany({ select: { id: true, name: true } }),
-              prisma.class.findMany({ select: { id: true, name: true } }),
-              prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
-            ]);
-    
-            if (type === "update" && id) {
-              const existing = await prisma.lesson.findUnique({
-                where: { id: Number(id) },
-                include: { subject: true, class: true, teacher: true },
-              });
-              if (existing) data = existing;
-            }
-    
-            relatedData = { subjects, classes, teachers, variant: "single" };
-            break;
-          }
-    
-          case "recurringLesson": {
-            const [subjects, classes, teachers] = await Promise.all([
-              prisma.subject.findMany({ select: { id: true, name: true } }),
-              prisma.class.findMany({ select: { id: true, name: true } }),
-              prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
-            ]);
-    
-            if (type === "update" && id) {
-              const existing = await prisma.recurringLesson.findUnique({
-                where: { id: Number(id) },
-                include: { subject: true, class: true, teacher: true },
-              });
-              if (existing) data = existing;
-            }
-    
-            relatedData = { subjects, classes, teachers, variant: "recurring" };
-            break;
-          }
-      
-      
+      case "lesson": {
+        const [subjects, classes, teachers] = await Promise.all([
+          prisma.subject.findMany({ select: { id: true, name: true } }),
+          prisma.class.findMany({ select: { id: true, name: true } }),
+          prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
+        ]);
+
+        if (type === "update" && id) {
+          const existing = await prisma.lesson.findUnique({
+            where: { id: Number(id) },
+            include: { subject: true, class: true, teacher: true },
+          });
+          if (existing) data = existing;
+        }
+
+        relatedData = { subjects, classes, teachers, variant: "single" };
+        break;
+      }
+
+      case "recurringLesson": {
+        const [subjects, classes, teachers] = await Promise.all([
+          prisma.subject.findMany({ select: { id: true, name: true } }),
+          prisma.class.findMany({ select: { id: true, name: true } }),
+          prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
+        ]);
+
+        if (type === "update" && id) {
+          const existing = await prisma.recurringLesson.findUnique({
+            where: { id: Number(id) },
+            include: { subject: true, class: true, teacher: true },
+          });
+          if (existing) data = existing;
+        }
+
+        relatedData = { subjects, classes, teachers, variant: "recurring" };
+        break;
+      }
 
       case "parent":
         const parentStudents = await prisma.student.findMany({
@@ -167,7 +197,39 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
 
       case "assignment":
-        const assignmentLessonsQuery = role === "teacher" ? { teacherId: currentUserId! } : {};
+        // Only teachers and students should see assignments, not admins
+        if (role === "admin") {
+          relatedData = { singleLessons: [], recurringLessons: [] };
+          break;
+        }
+
+        let assignmentLessonsQuery: any = {};
+        
+        if (role === "teacher") {
+          assignmentLessonsQuery = { teacherId: currentUserId! };
+        } else if (role === "student") {
+          // For students, only show lessons from classes they're enrolled in
+          const studentClasses = await prisma.student.findUnique({
+            where: { id: currentUserId! },
+            include: {
+              classes: {
+                select: { classId: true }
+              }
+            }
+          });
+
+          if (studentClasses?.classes.length) {
+            assignmentLessonsQuery = {
+              classId: {
+                in: studentClasses.classes.map(sc => sc.classId)
+              }
+            };
+          } else {
+            // Student not enrolled in any classes
+            relatedData = { singleLessons: [], recurringLessons: [] };
+            break;
+          }
+        }
 
         const singleLessonsForAssignment = await prisma.lesson.findMany({
           where: { ...assignmentLessonsQuery, recurringLessonId: null },
@@ -184,17 +246,20 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
 
       case "result":
+        // Only teachers should create results, not admins or students
+        if (role === "admin" || role === "student") {
+          relatedData = { students: [], exams: [], assignments: [] };
+          break;
+        }
+
         const currentDate = new Date();
 
-        // Filter exams based on role and handle both lesson and recurringLesson
-        let examQuery: any = {
+        // Only teachers can create results - filter exams for their lessons only
+        const examQuery = {
           startTime: {
             gte: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Allow exams from last 7 days
-          }
-        };
-
-        if (role === "teacher") {
-          examQuery.OR = [
+          },
+          OR: [
             {
               lesson: {
                 teacherId: currentUserId!,
@@ -205,8 +270,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
                 teacherId: currentUserId!,
               }
             }
-          ];
-        }
+          ]
+        };
 
         const resultExams = await prisma.exam.findMany({
           where: examQuery,
@@ -231,11 +296,9 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           }
         });
 
-        // Filter assignments for teachers - handle both lesson and recurringLesson
-        let assignmentQuery: any = {};
-
-        if (role === "teacher") {
-          assignmentQuery.OR = [
+        // Filter assignments for the teacher only
+        const assignmentQuery = {
+          OR: [
             {
               lesson: {
                 teacherId: currentUserId!,
@@ -246,8 +309,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
                 teacherId: currentUserId!,
               }
             }
-          ];
-        }
+          ]
+        };
 
         const resultAssignments = await prisma.assignment.findMany({
           where: assignmentQuery,
@@ -298,7 +361,48 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           where: eventClassesQuery,
           select: { id: true, name: true },
         });
-        relatedData = { classes: eventClasses };
+
+        // Fetch teachers and admins for the new selection option
+        const eventTeachers = await prisma.teacher.findMany({
+          select: { id: true, name: true, surname: true },
+        });
+
+        const eventAdmins = await prisma.admin.findMany({
+          select: { id: true, name: true, surname: true },
+        });
+
+        // Fetch grades for the new selection option
+        const eventGrades = await prisma.grade.findMany({
+          select: { id: true, level: true },
+          orderBy: { level: 'asc' },
+        });
+
+        // If updating, fetch existing user and grade relationships
+        if (type === "update" && id) {
+          const eventWithRelations = await prisma.event.findUnique({
+            where: { id: Number(id) },
+            include: {
+              eventUsers: {
+                select: { userId: true },
+              },
+              eventGrades: {
+                select: { gradeId: true },
+              },
+            },
+          });
+
+          if (data && eventWithRelations) {
+            data.userIds = eventWithRelations.eventUsers.map(eu => eu.userId);
+            data.gradeIds = eventWithRelations.eventGrades.map(eg => eg.gradeId);
+          }
+        }
+
+        relatedData = { 
+          classes: eventClasses, 
+          teachers: eventTeachers,
+          admins: eventAdmins,
+          grades: eventGrades
+        };
         break;
 
       case "announcement":

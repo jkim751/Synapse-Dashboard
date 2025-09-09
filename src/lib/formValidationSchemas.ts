@@ -214,6 +214,8 @@ export const eventSchema = z.object({
   startTime: z.coerce.date({ message: "Start time is required!" }),
   endTime: z.coerce.date({ message: "End time is required!" }),
   classId: z.coerce.number().optional().nullable(),
+  userIds: z.array(z.string()).optional().nullable(),
+  gradeIds: z.array(z.coerce.number()).optional().nullable(),
 });
 export type EventSchema = z.infer<typeof eventSchema>;
 

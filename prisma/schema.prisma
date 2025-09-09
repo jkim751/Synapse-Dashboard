@@ -19,6 +19,7 @@ model Admin {
   phone    String?  @unique
   sex      UserSex
   surname  String
+  eventUsers  EventUser[]
 }
 
 model Student {
@@ -62,6 +63,7 @@ model Teacher {
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]
   subjects        Subject[]         @relation("SubjectToTeacher")
+  eventUsers      EventUser[]
 }
 
 model Parent {
@@ -78,10 +80,11 @@ model Parent {
 }
 
 model Grade {
-  id       Int       @id @default(autoincrement())
-  level    Int       @unique
-  classess Class[]
-  students Student[]
+  id          Int          @id @default(autoincrement())
+  level       Int          @unique
+  classess    Class[]
+  students    Student[]
+  eventGrades EventGrade[]
 }
 
 model Class {
@@ -187,6 +190,31 @@ model Event {
   endTime     DateTime
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
+  eventUsers  EventUser[]
+  eventGrades EventGrade[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+}
+
+model EventUser {
+  id      Int    @id @default(autoincrement())
+  eventId Int
+  userId  String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teacher Teacher? @relation(fields: [userId], references: [id], onDelete: Cascade, map: "EventUser_teacherId_fkey")
+  admin   Admin?   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "EventUser_adminId_fkey")
+
+  @@unique([eventId, userId])
+}
+
+model EventGrade {
+  id      Int   @id @default(autoincrement())
+  eventId Int
+  gradeId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  grade   Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, gradeId])
 }
 
 model Announcement {

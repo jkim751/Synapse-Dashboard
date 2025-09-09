@@ -1191,12 +1191,12 @@ export const deleteResult = async (
 
 export const createEvent = async (
   currentState: CurrentState,
-  data: EventSchema
+  data: EventSchema & { userIds?: string[] | null; gradeIds?: number[] | null }
 ) => {
   try {
     const validatedData = eventSchema.parse(data);
 
-    await prisma.event.create({
+    const event = await prisma.event.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,
@@ -1205,6 +1205,26 @@ export const createEvent = async (
         classId: validatedData.classId || undefined,
       },
     });
+
+    // Create EventUser relationships if userIds are provided
+    if (data.userIds && data.userIds.length > 0) {
+      await prisma.eventUser.createMany({
+        data: data.userIds.map(userId => ({
+          eventId: event.id,
+          userId: userId,
+        })),
+      });
+    }
+
+    // Create EventGrade relationships if gradeIds are provided
+    if (data.gradeIds && data.gradeIds.length > 0) {
+      await prisma.eventGrade.createMany({
+        data: data.gradeIds.map(gradeId => ({
+          eventId: event.id,
+          gradeId: gradeId,
+        })),
+      });
+    }
 
     revalidatePath("/list/events");
     return { success: true, error: false, message: "Event created successfully!" };
@@ -1216,7 +1236,7 @@ export const createEvent = async (
 
 export const updateEvent = async (
   currentState: CurrentState,
-  data: EventSchema
+  data: EventSchema & { userIds?: string[] | null; gradeIds?: number[] | null }
 ) => {
   try {
     const validatedData = eventSchema.parse(data);
@@ -1237,6 +1257,34 @@ export const updateEvent = async (
         classId: validatedData.classId || undefined,
       },
     });
+
+    // Update EventUser relationships
+    await prisma.eventUser.deleteMany({
+      where: { eventId: validatedData.id },
+    });
+
+    if (data.userIds && data.userIds.length > 0) {
+      await prisma.eventUser.createMany({
+        data: data.userIds.map(userId => ({
+          eventId: validatedData.id!,
+          userId: userId,
+        })),
+      });
+    }
+
+    // Update EventGrade relationships
+    await prisma.eventGrade.deleteMany({
+      where: { eventId: validatedData.id },
+    });
+
+    if (data.gradeIds && data.gradeIds.length > 0) {
+      await prisma.eventGrade.createMany({
+        data: data.gradeIds.map(gradeId => ({
+          eventId: validatedData.id!,
+          gradeId: gradeId,
+        })),
+      });
+    }
 
     revalidatePath("/list/events");
     return { success: true, error: false, message: "Event updated successfully!" };

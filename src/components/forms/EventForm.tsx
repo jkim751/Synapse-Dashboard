@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useActionState } from "react";
 import InputField from "../InputField";
+import UserMultiSelect from "./UserMultiSelect";
+import GradeMultiSelect from "./GradeMultiSelect";
 import { eventSchema, EventSchema } from "@/lib/formValidationSchemas";
 import { createEvent, updateEvent } from "@/lib/actions";
 
@@ -21,10 +23,22 @@ const EventForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  // --- NEW: State to manage the target audience ---
-  const [targetAudience, setTargetAudience] = useState<'everyone' | 'class'>(
-    // Default to 'class' if we are updating an event that already has a classId
+  // --- UPDATED: Extended state to include grades option ---
+  const [targetAudience, setTargetAudience] = useState<'everyone' | 'class' | 'teachers-admins' | 'grades'>(
+    // Determine initial value based on existing data
+    data?.gradeIds?.length > 0 ? 'grades' :
+    data?.userIds?.length > 0 ? 'teachers-admins' :
     data?.classId ? 'class' : 'everyone'
+  );
+
+  // --- EXISTING: State for selected user IDs ---
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
+    data?.userIds || []
+  );
+
+  // --- NEW: State for selected grade IDs ---
+  const [selectedGradeIds, setSelectedGradeIds] = useState<number[]>(
+    data?.gradeIds || []
   );
 
   const {
@@ -69,15 +83,33 @@ const EventForm = ({
     }
   }, [state, router, type, setOpen]);
 
-  const { classes } = relatedData;
+  const { classes, teachers, admins, grades } = relatedData;
+
+  // --- EXISTING: Combine teachers and admins for the multi-select ---
+  const teachersAndAdmins = [
+    ...(teachers || []).map((teacher: any) => ({ ...teacher, role: 'TEACHER' })),
+    ...(admins || []).map((admin: any) => ({ ...admin, role: 'ADMIN' }))
+  ];
 
   const onSubmit = handleSubmit((formData) => {
-    // --- NEW: Adjust data before submitting to the server action ---
-    const dataToSubmit = { ...formData };
+    // --- UPDATED: Handle all four audience types ---
+    const dataToSubmit: EventSchema & { userIds?: string[] | null; gradeIds?: number[] | null } = { ...formData };
     
-    // If the user selected 'everyone', ensure we send 'null' for the classId
     if (targetAudience === 'everyone') {
       dataToSubmit.classId = null;
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = null;
+    } else if (targetAudience === 'class') {
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = null;
+    } else if (targetAudience === 'teachers-admins') {
+      dataToSubmit.classId = null;
+      dataToSubmit.gradeIds = null;
+      dataToSubmit.userIds = selectedUserIds;
+    } else if (targetAudience === 'grades') {
+      dataToSubmit.classId = null;
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = selectedGradeIds;
     }
 
     startTransition(() => {
@@ -97,10 +129,10 @@ const EventForm = ({
         <InputField label="Start Time" name="startTime" register={register} error={errors?.startTime} type="datetime-local" />
         <InputField label="End Time" name="endTime" register={register} error={errors?.endTime} type="datetime-local" />
         
-        {/* --- NEW: Radio buttons for audience selection --- */}
+        {/* --- UPDATED: Added grades option --- */}
         <div className="w-full">
           <label className="text-sm font-medium">Event For</label>
-          <div className="flex gap-4 mt-2">
+          <div className="flex gap-4 mt-2 flex-wrap">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -110,7 +142,7 @@ const EventForm = ({
                 onChange={() => setTargetAudience('everyone')}
                 className="form-radio"
               />
-              Everyone (Global Event)
+              Everyone 
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -121,12 +153,34 @@ const EventForm = ({
                 onChange={() => setTargetAudience('class')}
                 className="form-radio"
               />
-              A Specific Class
+              Class
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="targetAudience"
+                value="grades"
+                checked={targetAudience === 'grades'}
+                onChange={() => setTargetAudience('grades')}
+                className="form-radio"
+              />
+              Grade
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="targetAudience"
+                value="teachers-admins"
+                checked={targetAudience === 'teachers-admins'}
+                onChange={() => setTargetAudience('teachers-admins')}
+                className="form-radio"
+              />
+              Teachers & Admins
             </label>
           </div>
         </div>
 
-        {/* --- NEW: Conditionally render the class dropdown --- */}
+        {/* --- EXISTING: Conditionally render the class dropdown --- */}
         {targetAudience === 'class' && (
           <InputField
             label="Class"
@@ -138,6 +192,26 @@ const EventForm = ({
               value: classItem.id,
               label: classItem.name,
             }))}
+          />
+        )}
+
+        {/* --- NEW: Conditionally render the grade multi-select --- */}
+        {targetAudience === 'grades' && (
+          <GradeMultiSelect
+            grades={grades || []}
+            selectedGradeIds={selectedGradeIds}
+            onChange={setSelectedGradeIds}
+            error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
+          />
+        )}
+
+        {/* --- EXISTING: Conditionally render the user multi-select --- */}
+        {targetAudience === 'teachers-admins' && (
+          <UserMultiSelect
+            users={teachersAndAdmins}
+            selectedUserIds={selectedUserIds}
+            onChange={setSelectedUserIds}
+            error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
           />
         )}
         

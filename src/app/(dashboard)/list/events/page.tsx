@@ -7,6 +7,7 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Event, Prisma } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
+import { getEventsForUser } from "@/lib/utils";
 
 type EventList = Event & { class: Class };
 
@@ -130,6 +131,21 @@ const EventListPage = async ({
       },
     ];
   }
+
+  const events = userId && role ? 
+    await getEventsForUser(userId, role) : 
+    await prisma.event.findMany({
+      include: {
+        class: true,
+        eventUsers: {
+          include: {
+            teacher: { select: { name: true, surname: true } },
+            admin: { select: { name: true, surname: true } }
+          }
+        }
+      },
+      orderBy: { startTime: 'asc' }
+    });
 
   const [data, count] = await prisma.$transaction([
     prisma.event.findMany({
