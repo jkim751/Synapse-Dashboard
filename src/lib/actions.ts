@@ -33,6 +33,97 @@ import { RRule } from "rrule";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
+// Add these new photo sync actions
+export const syncPhotoToClerk = async (
+  photoUrl: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await fetch(photoUrl);
+    const imageBlob = await response.blob();
+
+    await (await clerkClient()).users.updateUserProfileImage(userId, {
+      file: imageBlob,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to sync photo to Clerk:", error);
+    return { success: false, error: "Failed to sync photo to Clerk" };
+  }
+};
+
+export const updateUserPhotoInDatabase = async (
+  userId: string,
+  userRole: string,
+  photoUrl: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    switch (userRole.toLowerCase()) {
+      case "teacher":
+        await prisma.teacher.update({
+          where: { id: userId },
+          data: { img: photoUrl },
+        });
+        break;
+      case "student":
+        await prisma.student.update({
+          where: { id: userId },
+          data: { img: photoUrl },
+        });
+        break;
+      case "admin":
+        await prisma.admin.update({
+          where: { id: userId },
+          data: { img: photoUrl },
+        });
+        break;
+      default:
+        return { success: false, error: "Invalid user role" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update photo in database:", error);
+    return { success: false, error: "Failed to update photo in database" };
+  }
+};
+
+export const handlePhotoUpload = async (
+  prevState: any,
+  formData: FormData
+): Promise<{ success: boolean; error?: string; message?: string }> => {
+  try {
+    const photoUrl = formData.get("photoUrl") as string;
+    const userId = formData.get("userId") as string;
+    const userRole = formData.get("userRole") as string;
+
+    if (!photoUrl || !userId || !userRole) {
+      return { success: false, error: "Missing required parameters" };
+    }
+
+    // Update database
+    const dbResult = await updateUserPhotoInDatabase(userId, userRole, photoUrl);
+    if (!dbResult.success) {
+      return { success: false, error: dbResult.error };
+    }
+
+    // Sync to Clerk
+    const clerkResult = await syncPhotoToClerk(photoUrl, userId);
+    if (!clerkResult.success) {
+      console.warn("Database updated but Clerk sync failed:", clerkResult.error);
+    }
+
+    return { 
+      success: true, 
+      message: "Photo updated successfully!"
+    };
+  } catch (error) {
+    console.error("Photo upload failed:", error);
+    return { success: false, error: "Photo upload failed" };
+  }
+};
+
 export const createSubject = async (
   currentState: CurrentState,
   data: SubjectSchema

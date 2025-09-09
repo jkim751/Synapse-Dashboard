@@ -3,15 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
-import Image from "next/image";
 import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { createTeacher, updateTeacher } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { CldUploadWidget } from "next-cloudinary";
 import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
 import { useUser } from "@clerk/nextjs";
+import PhotoUploadWidget from "../PhotoUploadWidget";
 
 const TeacherForm = ({
   type,
@@ -32,7 +31,7 @@ const TeacherForm = ({
     resolver: zodResolver(teacherSchema),
   });
 
-  const [img, setImg] = useState<any>();
+  const [img, setImg] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useActionState(
@@ -60,16 +59,6 @@ const TeacherForm = ({
 
   const { subjects } = relatedData;
 
-  const syncPhotoToClerk = async (photoUrl: string) => {
-    if (user && photoUrl) {
-      try {
-        await user.setProfileImage({ file: photoUrl });
-      } catch (error) {
-        console.log("Could not sync to Clerk profile:", error);
-      }
-    }
-  };
-
   const onSubmit = handleSubmit((formData) => {
     console.log("Form data before submission:", formData);
     
@@ -79,21 +68,14 @@ const TeacherForm = ({
     
     const formattedData = {
       ...formData,
-      img: img?.secure_url || undefined,
+      img: img || undefined,
       subjects: selectedSubjects || [],
-      // Convert empty strings to undefined for optional fields
       email: formData.email || undefined,
       phone: formData.phone || undefined,
-      // Handle password for updates - ensure it's either a string or undefined
       password: type === "update" && formData.password === "" ? undefined : formData.password,
     };
     
     console.log("Formatted data:", formattedData);
-    
-    // Sync photo to Clerk if uploading new photo for current user
-    if (img?.secure_url && user?.id === data?.id) {
-      syncPhotoToClerk(img.secure_url);
-    }
     
     startTransition(() => {
       formAction(formattedData);
@@ -232,25 +214,11 @@ const TeacherForm = ({
             </p>
           )}
         </div>
-        <CldUploadWidget
-          uploadPreset="school"
-          onSuccess={(result, { widget }) => {
-            setImg(result.info);
-            widget.close();
-          }}
-        >
-          {({ open }) => {
-            return (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={28} height={28} />
-                <span>Upload a photo</span>
-              </div>
-            );
-          }}
-        </CldUploadWidget>
+        <PhotoUploadWidget
+          currentUserId={user?.id === data?.id ? user?.id : undefined}
+          userRole={user && user.id === data?.id ? (user.publicMetadata?.role as string) : undefined}
+          onPhotoUploaded={(url) => setImg(url)}
+        />
       </div>
       {state.error && (
         <span className="text-red-500">Something went wrong! Please check all required fields.</span>

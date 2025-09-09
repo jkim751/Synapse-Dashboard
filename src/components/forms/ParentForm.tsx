@@ -2,13 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
+import InputField from "../InputField";
+import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
+import { useActionState } from "react";
+import { createParent, updateParent } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { useActionState } from "react";
-import InputField from "../InputField";
 import { parentSchema, ParentSchema } from "@/lib/formValidationSchemas";
-import { createParent, updateParent } from "@/lib/actions";
+import PhotoUploadWidget from "../PhotoUploadWidget";
 
 const ParentForm = ({
   type,
@@ -25,11 +26,11 @@ const ParentForm = ({
     register,
     handleSubmit,
     formState: { errors },
-    watch,
   } = useForm<ParentSchema>({
     resolver: zodResolver(parentSchema),
   });
 
+  const [img, setImg] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
 
   const [state, formAction] = useActionState(
@@ -50,29 +51,24 @@ const ParentForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(state.message || `Failed to ${type} parent.`);
+      toast.error(state.message || `Failed to ${type} parent. Please check all required fields and try again.`);
     }
   }, [state, router, type, setOpen]);
 
   const { students } = relatedData;
 
   const onSubmit = handleSubmit((formData) => {
-    console.log("Form data before submission:", formData); // Debug log
-    
-    // Get selected students from the form
-    const studentsSelect = document.querySelector('select[multiple]') as HTMLSelectElement;
-    const selectedStudents = Array.from(studentsSelect?.selectedOptions || []).map(option => option.value);
-    
+    const selectedStudents = Array.from(
+      document.querySelectorAll('input[name="students"]:checked')
+    ).map((checkbox: any) => checkbox.value);
+
     const formattedData = {
       ...formData,
+      img: img || undefined,
       students: selectedStudents || [],
-      // Convert empty strings to undefined for optional fields
       email: formData.email || undefined,
-      // Ensure password is only included for create operations or when provided
-      ...(type === "update" && formData.password === "" ? {} : { password: formData.password }),
+      password: type === "update" && formData.password === "" ? undefined : formData.password,
     };
-    
-    console.log("Formatted data:", formattedData); // Debug log
     
     startTransition(() => {
       formAction(formattedData);
@@ -84,7 +80,9 @@ const ParentForm = ({
       <h1 className="text-xl font-semibold">
         {type === "create" ? "Create a new parent" : "Update the parent"}
       </h1>
-
+      <span className="text-xs text-gray-400 font-medium">
+        Authentication Information
+      </span>
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
           label="Username"
@@ -92,6 +90,13 @@ const ParentForm = ({
           defaultValue={data?.username}
           register={register}
           error={errors?.username}
+        />
+        <InputField
+          label="Email"
+          name="email"
+          defaultValue={data?.email}
+          register={register}
+          error={errors?.email}
         />
         {type === "create" && (
           <InputField
@@ -111,67 +116,39 @@ const ParentForm = ({
             error={errors?.password}
           />
         )}
+      </div>
+      <span className="text-xs text-gray-400 font-medium">
+        Personal Information
+      </span>
+      <div className="flex justify-between flex-wrap gap-4">
         <InputField
-          label="Name"
+          label="First Name"
           name="name"
           defaultValue={data?.name}
           register={register}
-          error={errors?.name}
+          error={errors.name}
         />
         <InputField
-          label="Surname"
+          label="Last Name"
           name="surname"
           defaultValue={data?.surname}
           register={register}
-          error={errors?.surname}
-        />
-        <InputField
-          label="Email"
-          name="email"
-          defaultValue={data?.email}
-          register={register}
-          error={errors?.email}
-          type="email"
+          error={errors.surname}
         />
         <InputField
           label="Phone"
           name="phone"
           defaultValue={data?.phone}
           register={register}
-          error={errors?.phone}
+          error={errors.phone}
         />
         <InputField
-          label="Branch"
+          label="Address"
           name="address"
           defaultValue={data?.address}
           register={register}
-          error={errors?.address}
+          error={errors.address}
         />
-        
-        <div className="flex flex-col gap-2 w-full md:w-1/2">
-          <label className="text-xs text-gray-500">Students (Optional)</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full h-32"
-            multiple
-            {...register("students")}
-            defaultValue={data?.students?.map((student: any) => student.id) || []}
-          >
-            {students?.map((student: { id: string; name: string; surname: string }) => (
-              <option key={student.id} value={student.id}>
-                {student.name} {student.surname}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-400">
-            Hold Ctrl/Cmd to select multiple students
-          </p>
-          {errors?.students && (
-            <p className="text-xs text-red-400">
-              {errors.students.message?.toString()}
-            </p>
-          )}
-        </div>
-        
         {data && (
           <InputField
             label="Id"
@@ -182,13 +159,37 @@ const ParentForm = ({
             hidden
           />
         )}
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-xs text-gray-500">Students</label>
+          <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
+            {students?.map((student: { id: string; name: string; surname: string }) => (
+              <div key={student.id} className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  name="students"
+                  value={student.id}
+                  id={`student-${student.id}`}
+                  defaultChecked={data?.students?.some((s: any) => s.id === student.id)}
+                  className="w-4 h-4"
+                />
+                <label htmlFor={`student-${student.id}`} className="text-sm cursor-pointer">
+                  {student.name} {student.surname}
+                </label>
+              </div>
+            ))}
+          </div>
+          {errors.students?.message && (
+            <p className="text-xs text-red-400">
+              {errors.students.message.toString()}
+            </p>
+          )}
+        </div>
       </div>
-
       {state.error && (
         <span className="text-red-500">Something went wrong! Please check all required fields.</span>
       )}
-      <button
-        type="submit"
+      <button 
+        type="submit" 
         className="bg-orange-400 text-white p-2 rounded-xl"
         disabled={isPending}
       >
