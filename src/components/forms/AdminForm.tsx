@@ -181,7 +181,7 @@ const AdminForm = ({
         <PhotoUploadWidget
           currentUserId={user?.id === data?.id ? user?.id : undefined}
           userRole={user?.id === data?.id ? (user?.publicMetadata?.role as string) : undefined}
-          onPhotoUploaded={(url) => setImg(url)}
+          onPhotoUploaded={(url) => setImg(url || undefined)}
         />
       </div>
       {state.error && (

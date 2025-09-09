@@ -38,9 +38,9 @@ const UserPhotoDisplay = ({
     large: "w-36 h-36",
   };
 
-  const handlePhotoUpdate = (newUrl: string | null) => {
+  const handlePhotoUpdate = (newUrl: string | null | undefined) => {
     console.log("Photo updated in UserPhotoDisplay:", newUrl);
-    setPhotoUrl(newUrl);
+    setPhotoUrl(newUrl || null);
   };
 
   return (

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 interface PhotoUploadWidgetProps {
   currentUserId?: string;
   userRole?: string;
-  onPhotoUploaded?: (url: string | null) => void;
+  onPhotoUploaded?: (url: string | null | undefined) => void;
   className?: string;
   disabled?: boolean;
 }
