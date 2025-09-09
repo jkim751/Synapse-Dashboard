@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PhotoUploadWidget from "./PhotoUploadWidget";
 
 interface UserPhotoDisplayProps {
@@ -27,13 +27,19 @@ const UserPhotoDisplay = ({
 }: UserPhotoDisplayProps) => {
   const [photoUrl, setPhotoUrl] = useState(currentPhotoUrl);
 
+  // Update photo URL when prop changes (after page refresh)
+  useEffect(() => {
+    setPhotoUrl(currentPhotoUrl);
+  }, [currentPhotoUrl]);
+
   const sizeClasses = {
     small: "w-10 h-10",
     medium: "w-16 h-16",
     large: "w-36 h-36",
   };
 
-  const handlePhotoUpdate = (newUrl: string) => {
+  const handlePhotoUpdate = (newUrl: string | null) => {
+    console.log("Photo updated in UserPhotoDisplay:", newUrl);
     setPhotoUrl(newUrl);
   };
 
@@ -48,6 +54,7 @@ const UserPhotoDisplay = ({
           className={`${sizeClasses[size]} rounded-full object-cover ${
             size === "small" ? "md:hidden xl:block" : ""
           }`}
+          key={photoUrl} // Force re-render when photo changes
         />
         {canEdit && (
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-all duration-200">
@@ -56,7 +63,7 @@ const UserPhotoDisplay = ({
                 currentUserId={userId}
                 userRole={userRole}
                 onPhotoUploaded={handlePhotoUpdate}
-                className="text-white text-xs flex items-center justify-center"
+                className="text-white text-xs flex items-center justify-center p-2 rounded-full hover:bg-white hover:bg-opacity-20"
               />
             </div>
           </div>

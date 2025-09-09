@@ -2,16 +2,15 @@
 
 import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { toast } from "react-toastify";
 import { handlePhotoUpload } from "@/lib/actions";
-import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 
 interface PhotoUploadWidgetProps {
   currentUserId?: string;
   userRole?: string;
-  onPhotoUploaded?: (url: string) => void;
+  onPhotoUploaded?: (url: string | null) => void;
   className?: string;
   disabled?: boolean;
 }
@@ -24,22 +23,8 @@ const PhotoUploadWidget = ({
   disabled = false
 }: PhotoUploadWidgetProps) => {
   const [uploading, setUploading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  
-  const [state, formAction] = useActionState(handlePhotoUpload, {
-    success: false,
-    error: "",
-    message: "",
-  });
-
-  // Handle server action response
-  useEffect(() => {
-    if (state.success && state.message) {
-      toast.success(state.message);
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
 
   const handleUploadSuccess = async (result: any, { widget }: any) => {
     widget.close();
@@ -49,28 +34,50 @@ const PhotoUploadWidget = ({
       return;
     }
 
+    const photoUrl = result.info.secure_url;
+    console.log("Photo uploaded to Cloudinary:", photoUrl);
+    
     setUploading(true);
 
     try {
       if (currentUserId && userRole) {
-        // Optimistically update the UI
-        onPhotoUploaded?.(result.info.secure_url);
+        // Optimistically update the UI first
+        onPhotoUploaded?.(photoUrl);
         
-        // For current user - sync to both database and Clerk
+        // Create FormData for the server action
         const formData = new FormData();
-        formData.append("photoUrl", result.info.secure_url);
+        formData.append("photoUrl", photoUrl);
         formData.append("userId", currentUserId);
         formData.append("userRole", userRole);
         
-        // Execute the server action
-        await formAction(formData);
+        console.log("Calling server action with:", { photoUrl, currentUserId, userRole });
         
-        // Refresh the page to show updated data
-        router.refresh();
+        // Use startTransition to call the server action
+        startTransition(async () => {
+          try {
+            const result = await handlePhotoUpload({ success: false, error: "", message: "" }, formData);
+            console.log("Server action result:", result);
+            
+            if (result.success) {
+              toast.success(result.message || "Photo updated successfully!");
+              // Force a hard refresh to see the updated photo
+              window.location.reload();
+            } else {
+              toast.error(result.error || "Failed to update photo");
+              // Revert the optimistic update
+              onPhotoUploaded?.(null);
+            }
+          } catch (error) {
+            console.error("Server action error:", error);
+            toast.error("Failed to update photo");
+            // Revert the optimistic update
+            onPhotoUploaded?.(null);
+          }
+        });
       } else {
         // For form uploads - just pass the URL
         toast.success("Photo uploaded successfully!");
-        onPhotoUploaded?.(result.info.secure_url);
+        onPhotoUploaded?.(photoUrl);
       }
     } catch (error) {
       console.error("Upload error:", error);
@@ -86,6 +93,8 @@ const PhotoUploadWidget = ({
     setUploading(false);
   };
 
+  const isLoading = uploading || isPending;
+
   return (
     <CldUploadWidget
       uploadPreset="school"
@@ -95,16 +104,19 @@ const PhotoUploadWidget = ({
         maxFileSize: 10000000, // 10MB
         resourceType: "image",
         clientAllowedFormats: ["png", "jpg", "jpeg", "gif", "webp"],
+        sources: ["local", "url", "camera"],
+        multiple: false,
       }}
     >
       {({ open }) => (
         <div 
-          className={`${className} ${disabled || uploading ? 'opacity-50 cursor-not-allowed' : ''}`} 
+          className={`${className} ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-75'}`} 
           onClick={() => {
-            if (!disabled && !uploading) {
+            if (!disabled && !isLoading) {
               open();
             }
           }}
+          title={isLoading ? "Uploading..." : "Click to upload photo"}
         >
           <Image 
             src="/upload.png" 
