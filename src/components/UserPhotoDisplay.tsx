@@ -26,7 +26,6 @@ const UserPhotoDisplay = ({
   showInfo = true,
 }: UserPhotoDisplayProps) => {
   const [photoUrl, setPhotoUrl] = useState(currentPhotoUrl);
-  const [isHovered, setIsHovered] = useState(false);
 
   const sizeClasses = {
     small: "w-10 h-10",
@@ -40,11 +39,7 @@ const UserPhotoDisplay = ({
 
   return (
     <div className="flex items-center gap-4">
-      <div 
-        className="relative"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <div className="relative group">
         <Image
           src={photoUrl || "/noAvatar.png"}
           alt={userName}
@@ -54,14 +49,16 @@ const UserPhotoDisplay = ({
             size === "small" ? "md:hidden xl:block" : ""
           }`}
         />
-        {canEdit && isHovered && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-            <PhotoUploadWidget
-              currentUserId={userId}
-              userRole={userRole}
-              onPhotoUploaded={handlePhotoUpdate}
-              className="text-white text-xs flex items-center gap-1"
-            />
+        {canEdit && (
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-all duration-200">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <PhotoUploadWidget
+                currentUserId={userId}
+                userRole={userRole}
+                onPhotoUploaded={handlePhotoUpdate}
+                className="text-white text-xs flex items-center justify-center"
+              />
+            </div>
           </div>
         )}
       </div>

@@ -48,25 +48,37 @@ export const handlePhotoUpload = async (
     const userId = formData.get("userId") as string;
     const userRole = formData.get("userRole") as string;
 
+    console.log("Handling photo upload:", { photoUrl, userId, userRole });
+
     if (!photoUrl || !userId || !userRole) {
       return { success: false, error: "Missing required data" };
     }
 
-    // Update database
+    // Update database first
     const dbResult = await updateUserPhotoInDatabase(userId, userRole, photoUrl);
     if (!dbResult.success) {
+      console.error("Database update failed:", dbResult.error);
       return { success: false, error: dbResult.error };
     }
 
-    // Sync to Clerk
-    const clerkResult = await syncPhotoToClerk(photoUrl, userId);
-    if (!clerkResult.success) {
-      console.warn("Database updated but Clerk sync failed:", clerkResult.error);
+    console.log("Database updated successfully");
+
+    // Sync to Clerk (non-blocking)
+    try {
+      const clerkResult = await syncPhotoToClerk(photoUrl, userId);
+      if (!clerkResult.success) {
+        console.warn("Database updated but Clerk sync failed:", clerkResult.error);
+      } else {
+        console.log("Clerk sync successful");
+      }
+    } catch (clerkError) {
+      console.warn("Clerk sync error (non-blocking):", clerkError);
     }
 
     // Revalidate the relevant pages
     revalidatePath(`/list/${userRole}s`);
     revalidatePath(`/list/${userRole}s/${userId}`);
+    revalidatePath('/');
 
     return { 
       success: true, 
@@ -91,17 +103,22 @@ const syncPhotoToClerk = async (
       userId = currentUserId;
     }
 
+    console.log("Syncing photo to Clerk for user:", userId);
+
     const response = await fetch(photoUrl);
-    const imageBlob = await response.blob();
-
-    if (!userId) {
-      return { success: false, error: "User ID is missing" };
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
+    
+    const imageBlob = await response.blob();
+    console.log("Image blob size:", imageBlob.size);
 
-    await (await clerkClient()).users.updateUserProfileImage(userId, {
+    const client = await clerkClient();
+    await client.users.updateUserProfileImage(userId, {
       file: imageBlob,
     });
 
+    console.log("Clerk photo sync completed");
     return { success: true };
   } catch (error) {
     console.error("Failed to sync photo to Clerk:", error);
@@ -115,6 +132,8 @@ const updateUserPhotoInDatabase = async (
   photoUrl: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    console.log("Updating photo in database:", { userId, userRole, photoUrl });
+    
     switch (userRole.toLowerCase()) {
       case "teacher":
         await prisma.teacher.update({
@@ -135,9 +154,11 @@ const updateUserPhotoInDatabase = async (
         });
         break;
       default:
+        console.error("Invalid user role:", userRole);
         return { success: false, error: "Invalid user role" };
     }
 
+    console.log("Database update completed successfully");
     return { success: true };
   } catch (error) {
     console.error("Failed to update photo in database:", error);
