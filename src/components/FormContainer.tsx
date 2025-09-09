@@ -409,7 +409,48 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         const announcementClasses = await prisma.class.findMany({
           select: { id: true, name: true },
         });
-        relatedData = { classes: announcementClasses };
+
+        // Fetch teachers and admins for the new selection option
+        const announcementTeachers = await prisma.teacher.findMany({
+          select: { id: true, name: true, surname: true },
+        });
+
+        const announcementAdmins = await prisma.admin.findMany({
+          select: { id: true, name: true, surname: true },
+        });
+
+        // Fetch grades for the new selection option
+        const announcementGrades = await prisma.grade.findMany({
+          select: { id: true, level: true },
+          orderBy: { level: 'asc' },
+        });
+
+        // If updating, fetch existing user and grade relationships
+        if (type === "update" && id) {
+          const announcementWithRelations = await prisma.announcement.findUnique({
+            where: { id: Number(id) },
+            include: {
+              announcementUsers: {
+                select: { userId: true },
+              },
+              announcementGrades: {
+                select: { gradeId: true },
+              },
+            },
+          });
+
+          if (data && announcementWithRelations) {
+            data.userIds = announcementWithRelations.announcementUsers.map((au) => au.userId);
+            data.gradeIds = announcementWithRelations.announcementGrades.map((ag) => ag.gradeId);
+          }
+        }
+
+        relatedData = { 
+          classes: announcementClasses, 
+          teachers: announcementTeachers,
+          admins: announcementAdmins,
+          grades: announcementGrades
+        };
         break;
 
       default:

@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useActionState } from "react";
 import InputField from "../InputField";
+import UserMultiSelect from "./UserMultiSelect";
+import GradeMultiSelect from "./GradeMultiSelect";
 import { announcementSchema, AnnouncementSchema } from "@/lib/formValidationSchemas";
 import { createAnnouncement, updateAnnouncement } from "@/lib/actions";
 
@@ -21,16 +23,27 @@ const AnnouncementForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  // --- NEW: State to manage the target audience ---
-  const [sendTo, setSendTo] = useState<'everyone' | 'class'>(
-    // If updating an existing item that has a classId, default to 'class'
+  // --- UPDATED: Extended state to include grades and teachers-admins options ---
+  const [sendTo, setSendTo] = useState<'everyone' | 'class' | 'teachers-admins' | 'grades'>(
+    // Determine initial value based on existing data
+    data?.gradeIds?.length > 0 ? 'grades' :
+    data?.userIds?.length > 0 ? 'teachers-admins' :
     data?.classId ? 'class' : 'everyone'
+  );
+
+  // --- NEW: State for selected user IDs ---
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
+    data?.userIds || []
+  );
+
+  // --- NEW: State for selected grade IDs ---
+  const [selectedGradeIds, setSelectedGradeIds] = useState<number[]>(
+    data?.gradeIds || []
   );
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<AnnouncementSchema>({
     resolver: zodResolver(announcementSchema),
@@ -68,15 +81,33 @@ const AnnouncementForm = ({
     }
   }, [state, router, type, setOpen]);
 
-  const { classes } = relatedData || {};
+  const { classes, teachers, admins, grades } = relatedData || {};
+
+  // --- NEW: Combine teachers and admins for the multi-select ---
+  const teachersAndAdmins = [
+    ...(teachers || []).map((teacher: any) => ({ ...teacher, role: 'TEACHER' })),
+    ...(admins || []).map((admin: any) => ({ ...admin, role: 'ADMIN' }))
+  ];
 
   const onSubmit = handleSubmit((formData) => {
-    // --- NEW: Adjust data before submitting ---
-    const dataToSubmit = { ...formData };
+    // --- UPDATED: Handle all four audience types ---
+    const dataToSubmit: AnnouncementSchema & { userIds?: string[] | null; gradeIds?: number[] | null } = { ...formData };
     
-    // If 'everyone' is selected, ensure classId is null
     if (sendTo === 'everyone') {
       dataToSubmit.classId = null;
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = null;
+    } else if (sendTo === 'class') {
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = null;
+    } else if (sendTo === 'teachers-admins') {
+      dataToSubmit.classId = null;
+      dataToSubmit.gradeIds = null;
+      dataToSubmit.userIds = selectedUserIds;
+    } else if (sendTo === 'grades') {
+      dataToSubmit.classId = null;
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = selectedGradeIds;
     }
     
     startTransition(() => {
@@ -95,10 +126,10 @@ const AnnouncementForm = ({
         <InputField label="Description" name="description" register={register} error={errors?.description} />
         <InputField label="Date" name="date" register={register} error={errors?.date} type="date" />
         
-        {/* --- NEW: Radio buttons for audience selection --- */}
+        {/* --- UPDATED: Added grades and teachers-admins options --- */}
         <div className="w-full">
           <label className="text-sm font-medium">Send To</label>
-          <div className="flex gap-4 mt-2">
+          <div className="flex gap-4 mt-2 flex-wrap">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -121,10 +152,32 @@ const AnnouncementForm = ({
               />
               Specific Class
             </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="sendTo"
+                value="grades"
+                checked={sendTo === 'grades'}
+                onChange={() => setSendTo('grades')}
+                className="form-radio"
+              />
+              Grades
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="sendTo"
+                value="teachers-admins"
+                checked={sendTo === 'teachers-admins'}
+                onChange={() => setSendTo('teachers-admins')}
+                className="form-radio"
+              />
+              Teachers & Admins
+            </label>
           </div>
         </div>
 
-        {/* --- NEW: Conditionally render the class dropdown --- */}
+        {/* --- EXISTING: Conditionally render the class dropdown --- */}
         {sendTo === 'class' && (
           <InputField
             label="Class"
@@ -136,6 +189,26 @@ const AnnouncementForm = ({
               value: classItem.id,
               label: classItem.name,
             }))}
+          />
+        )}
+
+        {/* --- NEW: Conditionally render the grade multi-select --- */}
+        {sendTo === 'grades' && (
+          <GradeMultiSelect
+            grades={grades || []}
+            selectedGradeIds={selectedGradeIds}
+            onChange={setSelectedGradeIds}
+            error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
+          />
+        )}
+
+        {/* --- NEW: Conditionally render the user multi-select --- */}
+        {sendTo === 'teachers-admins' && (
+          <UserMultiSelect
+            users={teachersAndAdmins}
+            selectedUserIds={selectedUserIds}
+            onChange={setSelectedUserIds}
+            error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
           />
         )}
         

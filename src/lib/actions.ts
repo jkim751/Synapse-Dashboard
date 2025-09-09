@@ -1563,12 +1563,12 @@ export const deleteEvent = async (
 
 export const createAnnouncement = async (
   currentState: CurrentState,
-  data: AnnouncementSchema
+  data: AnnouncementSchema & { userIds?: string[] | null; gradeIds?: number[] | null }
 ) => {
   try {
     const validatedData = announcementSchema.parse(data);
 
-    await prisma.announcement.create({
+    const announcement = await prisma.announcement.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,
@@ -1576,6 +1576,28 @@ export const createAnnouncement = async (
         classId: validatedData.classId || undefined,
       },
     });
+
+    // Create AnnouncementUser relationships if userIds are provided
+    if (data.userIds && data.userIds.length > 0) {
+      await prisma.announcementUser.createMany({
+        data: data.userIds.map(userId => ({
+          announcementId: announcement.id,
+          userId: userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Create AnnouncementGrade relationships if gradeIds are provided
+    if (data.gradeIds && data.gradeIds.length > 0) {
+      await prisma.announcementGrade.createMany({
+        data: data.gradeIds.map(gradeId => ({
+          announcementId: announcement.id,
+          gradeId: gradeId,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     revalidatePath("/list/announcements");
     return { success: true, error: false, message: "Announcement created successfully!" };
@@ -1587,7 +1609,7 @@ export const createAnnouncement = async (
 
 export const updateAnnouncement = async (
   currentState: CurrentState,
-  data: AnnouncementSchema
+  data: AnnouncementSchema & { userIds?: string[] | null; gradeIds?: number[] | null }
 ) => {
   try {
     const validatedData = announcementSchema.parse(data);
@@ -1607,6 +1629,36 @@ export const updateAnnouncement = async (
         classId: validatedData.classId || undefined,
       },
     });
+
+    // Update AnnouncementUser relationships
+    await prisma.announcementUser.deleteMany({
+      where: { announcementId: validatedData.id },
+    });
+
+    if (data.userIds && data.userIds.length > 0) {
+      await prisma.announcementUser.createMany({
+        data: data.userIds.map(userId => ({
+          announcementId: validatedData.id!,
+          userId: userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Update AnnouncementGrade relationships
+    await prisma.announcementGrade.deleteMany({
+      where: { announcementId: validatedData.id },
+    });
+
+    if (data.gradeIds && data.gradeIds.length > 0) {
+      await prisma.announcementGrade.createMany({
+        data: data.gradeIds.map(gradeId => ({
+          announcementId: validatedData.id!,
+          gradeId: gradeId,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     revalidatePath("/list/announcements");
     return { success: true, error: false, message: "Announcement updated successfully!" };

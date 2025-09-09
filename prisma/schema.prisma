@@ -83,6 +83,7 @@ model Grade {
   classess    Class[]
   students    Student[]
   eventGrades EventGrade[]
+  announcementGrades AnnouncementGrade[]
 }
 
 model Class {
@@ -221,6 +222,30 @@ model Announcement {
   date        DateTime
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
+  announcementUsers  AnnouncementUser[]
+  announcementGrades AnnouncementGrade[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+}
+
+model AnnouncementUser {
+  id             Int    @id @default(autoincrement())
+  announcementId Int
+  userId         String
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+model AnnouncementGrade {
+  id             Int   @id @default(autoincrement())
+  announcementId Int
+  gradeId        Int
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  grade          Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, gradeId])
 }
 
 model XeroTokens {

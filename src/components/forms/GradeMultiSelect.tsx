@@ -78,7 +78,7 @@ const GradeMultiSelect = ({ grades, selectedGradeIds, onChange, error }: GradeMu
               />
               <span className="flex-1">Grade {grade.level}</span>
               <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                Level {grade.level}
+                Year {grade.level}
               </span>
             </label>
           ))}

@@ -226,5 +226,7 @@ export const announcementSchema = z.object({
   description: z.string().min(1, { message: "Description is required!" }),
   date: z.coerce.date({ message: "Date is required!" }),
   classId: z.coerce.number().optional().nullable(), // This allows a number, null, or undefined. Perfect!
+  userIds: z.array(z.string()).optional().nullable(),
+  gradeIds: z.array(z.coerce.number()).optional().nullable(),
 });
 export type AnnouncementSchema = z.infer<typeof announcementSchema>;
