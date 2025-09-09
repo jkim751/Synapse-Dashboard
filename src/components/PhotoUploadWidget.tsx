@@ -41,6 +41,8 @@ const PhotoUploadWidget = ({
 
     try {
       if (currentUserId && userRole) {
+        console.log("Starting photo sync for user:", currentUserId, userRole);
+        
         // Optimistically update the UI first
         onPhotoUploaded?.(photoUrl);
         
@@ -50,8 +52,6 @@ const PhotoUploadWidget = ({
         formData.append("userId", currentUserId);
         formData.append("userRole", userRole);
         
-        console.log("Calling server action with:", { photoUrl, currentUserId, userRole });
-        
         // Use startTransition to call the server action
         startTransition(async () => {
           try {
@@ -60,9 +60,10 @@ const PhotoUploadWidget = ({
             
             if (result.success) {
               toast.success(result.message || "Photo updated successfully!");
-              // Force a hard refresh to see the updated photo
-              window.location.reload();
+              // Don't reload, just refresh the router cache
+              router.refresh();
             } else {
+              console.error("Server action failed:", result.error);
               toast.error(result.error || "Failed to update photo");
               // Revert the optimistic update
               onPhotoUploaded?.(null);

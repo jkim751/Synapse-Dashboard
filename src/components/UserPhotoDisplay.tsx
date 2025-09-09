@@ -39,9 +39,22 @@ const UserPhotoDisplay = ({
   };
 
   const handlePhotoUpdate = (newUrl: string | null | undefined) => {
-    console.log("Photo updated in UserPhotoDisplay:", newUrl);
+    console.log("=== Photo Update Debug ===");
+    console.log("Current photo URL:", photoUrl);
+    console.log("New photo URL:", newUrl);
+    console.log("User:", userName);
+    console.log("User ID:", userId);
+    
     setPhotoUrl(newUrl || null);
   };
+
+  console.log("UserPhotoDisplay render:", {
+    currentPhotoUrl,
+    photoUrl,
+    userName,
+    userId,
+    userRole
+  });
 
   return (
     <div className="flex items-center gap-4">

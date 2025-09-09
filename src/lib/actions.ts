@@ -152,58 +152,84 @@ const updateUserPhotoInDatabase = async (
   photoUrl: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    console.log("Updating database for:", { userId, userRole, photoUrl });
+    console.log("=== Database Update Debug ===");
+    console.log("User ID:", userId);
+    console.log("User Role:", userRole);
+    console.log("Photo URL:", photoUrl);
     
     const normalizedRole = userRole.toLowerCase();
+    console.log("Normalized Role:", normalizedRole);
+    
+    let updateResult;
     
     switch (normalizedRole) {
       case "teacher":
-        await prisma.teacher.update({
+        console.log("Updating teacher...");
+        updateResult = await prisma.teacher.update({
           where: { id: userId },
           data: { img: photoUrl },
         });
-        console.log("Teacher photo updated in database");
+        console.log("Teacher update result:", updateResult);
         break;
       case "student":
-        await prisma.student.update({
+        console.log("Updating student...");
+        updateResult = await prisma.student.update({
           where: { id: userId },
           data: { img: photoUrl },
         });
-        console.log("Student photo updated in database");
+        console.log("Student update result:", updateResult);
         break;
       case "admin":
-        await prisma.admin.update({
+        console.log("Updating admin...");
+        updateResult = await prisma.admin.update({
           where: { id: userId },
           data: { img: photoUrl },
         });
-        console.log("Admin photo updated in database");
+        console.log("Admin update result:", updateResult);
         break;
       default:
         console.error("Invalid user role:", userRole);
         return { success: false, error: `Invalid user role: ${userRole}` };
     }
 
-    // Verify the update worked
-    let updatedRecord;
+    // Verify the update worked by fetching the record
+    let verificationRecord;
     switch (normalizedRole) {
       case "teacher":
-        updatedRecord = await prisma.teacher.findUnique({ where: { id: userId }, select: { img: true } });
+        verificationRecord = await prisma.teacher.findUnique({ 
+          where: { id: userId }, 
+          select: { img: true, name: true } 
+        });
         break;
       case "student":
-        updatedRecord = await prisma.student.findUnique({ where: { id: userId }, select: { img: true } });
+        verificationRecord = await prisma.student.findUnique({ 
+          where: { id: userId }, 
+          select: { img: true, name: true } 
+        });
         break;
       case "admin":
-        updatedRecord = await prisma.admin.findUnique({ where: { id: userId }, select: { img: true } });
+        verificationRecord = await prisma.admin.findUnique({ 
+          where: { id: userId }, 
+          select: { img: true, name: true } 
+        });
         break;
     }
     
-    console.log("Updated record verification:", updatedRecord);
+    console.log("Verification record:", verificationRecord);
     
-    if (!updatedRecord || updatedRecord.img !== photoUrl) {
-      console.error("Photo update verification failed");
+    if (!verificationRecord) {
+      console.error("User not found after update");
+      return { success: false, error: "User not found after update" };
+    }
+    
+    if (verificationRecord.img !== photoUrl) {
+      console.error("Photo URL mismatch after update");
+      console.error("Expected:", photoUrl);
+      console.error("Actual:", verificationRecord.img);
       return { success: false, error: "Photo update verification failed" };
     }
 
+    console.log("Database update successful and verified");
     return { success: true };
   } catch (error) {
     console.error("Database update error:", error);

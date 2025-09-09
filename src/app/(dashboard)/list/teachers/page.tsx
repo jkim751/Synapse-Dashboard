@@ -138,6 +138,15 @@ const TeacherListPage = async ({
     prisma.teacher.count({ where: query }),
   ]);
 
+  // Debug: Log the first teacher's image URL
+  if (data.length > 0) {
+    console.log("First teacher data:", {
+      id: data[0].id,
+      name: data[0].name,
+      img: data[0].img
+    });
+  }
+
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
