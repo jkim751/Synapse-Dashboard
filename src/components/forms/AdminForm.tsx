@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { CldUploadWidget } from "next-cloudinary";
 import { adminSchema, AdminSchema } from "@/lib/formValidationSchemas";
+import { useUser } from "@clerk/nextjs";
 
 const AdminForm = ({
   type,
@@ -42,6 +43,7 @@ const AdminForm = ({
   );
 
   const router = useRouter();
+  const { user } = useUser();
 
   useEffect(() => {
     if (state.success) {
@@ -54,6 +56,16 @@ const AdminForm = ({
     }
   }, [state, router, type, setOpen]);
 
+  const syncPhotoToClerk = async (photoUrl: string) => {
+    if (user && photoUrl) {
+      try {
+        await user.setProfileImage({ file: photoUrl });
+      } catch (error) {
+        console.log("Could not sync to Clerk profile:", error);
+      }
+    }
+  };
+
   const onSubmit = handleSubmit((formData) => {
     const formattedData = {
       ...formData,
@@ -62,6 +74,11 @@ const AdminForm = ({
       phone: formData.phone || undefined,
       password: type === "update" && formData.password === "" ? undefined : formData.password,
     };
+    
+    // Sync photo to Clerk if uploading new photo for current user
+    if (img?.secure_url && user?.id === data?.id) {
+      syncPhotoToClerk(img.secure_url);
+    }
     
     startTransition(() => {
       formAction(formattedData);

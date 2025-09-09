@@ -1,16 +1,19 @@
 import { UserButton } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server"; // Use currentUser for simplicity
+import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
 import NotificationButton from "./NotificationButton";
+import PhotoSyncButton from "./PhotoSyncButton";
+import { getUserPhoto } from "@/lib/utils";
 
-// Make the component async to use await inside it
 const Navbar = async () => {
-  // 1. Fetch the user data INSIDE the component
   const user = await currentUser();
-
-  // 2. Safely get the user's name and role. Provide fallbacks for when the user is not logged in.
   const userName = user?.firstName;
   const userRole = (user?.publicMetadata?.role as string);
+  const userId = user?.id;
+
+  // Get the user's photo (database first, then Clerk fallback)
+  const userPhoto = userId && userRole ? await getUserPhoto(userId, userRole) : null;
+  const clerkPhoto = user?.imageUrl;
 
   return (
     <div className="flex items-center justify-between p-4">
@@ -28,13 +31,37 @@ const Navbar = async () => {
         <div className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
           <NotificationButton />
         </div>
-        <div className="flex flex-col">
-          {/* 3. Use the derived variables */}
-          <span className="text-xs leading-3 font-medium">{userName}</span>
-          <span className="text-[10px] text-gray-500 text-right">
-            {userRole}
-          </span>
+        
+        {/* User Photo with Sync Option */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            {userPhoto && (
+              <Image
+                src={userPhoto}
+                alt="User"
+                width={32}
+                height={32}
+                className="rounded-full object-cover"
+              />
+            )}
+            {userId && userRole && (
+              <PhotoSyncButton
+                userPhoto={userPhoto}
+                clerkPhoto={clerkPhoto ?? null}
+                userId={userId}
+                userRole={userRole}
+              />
+            )}
+          </div>
+          
+          <div className="flex flex-col">
+            <span className="text-xs leading-3 font-medium">{userName}</span>
+            <span className="text-[10px] text-gray-500 text-right">
+              {userRole}
+            </span>
+          </div>
         </div>
+        
         <UserButton />
       </div>
     </div>

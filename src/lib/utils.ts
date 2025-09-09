@@ -1,4 +1,7 @@
 import prisma from "./prisma";
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+import { currentUser } from "@clerk/nextjs/server"
 
 export const adjustScheduleToCurrentWeek = (
   lessons: {
@@ -217,3 +220,80 @@ export const getEventsForUser = async (userId: string, role: string) => {
     }
   });
 };
+
+// Utility function to merge class names
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+// Function to get user's photo from database or Clerk
+export async function getUserPhoto(userId: string, userRole: string): Promise<string | null> {
+  try {
+    let dbPhoto = null;
+    
+    // Get photo from database based on role
+    switch (userRole) {
+      case "admin":
+        const admin = await prisma.admin.findUnique({
+          where: { id: userId },
+          select: { img: true }
+        });
+        dbPhoto = admin?.img;
+        break;
+      case "teacher":
+        const teacher = await prisma.teacher.findUnique({
+          where: { id: userId },
+          select: { img: true }
+        });
+        dbPhoto = teacher?.img;
+        break;
+      case "student":
+        const student = await prisma.student.findUnique({
+          where: { id: userId },
+          select: { img: true }
+        });
+        dbPhoto = student?.img;
+        break;
+    }
+    
+    // Return database photo if it exists
+    if (dbPhoto) {
+      return dbPhoto;
+    }
+    
+    // Fall back to Clerk photo
+    const user = await currentUser();
+    return user?.imageUrl || null;
+  } catch (error) {
+    console.error("Error getting user photo:", error);
+    return null;
+  }
+}
+
+// Function to sync Clerk photo to database
+export async function syncClerkPhotoToDatabase(userId: string, userRole: string, clerkPhotoUrl: string) {
+  try {
+    switch (userRole) {
+      case "admin":
+        await prisma.admin.update({
+          where: { id: userId },
+          data: { img: clerkPhotoUrl }
+        });
+        break;
+      case "teacher":
+        await prisma.teacher.update({
+          where: { id: userId },
+          data: { img: clerkPhotoUrl }
+        });
+        break;
+      case "student":
+        await prisma.student.update({
+          where: { id: userId },
+          data: { img: clerkPhotoUrl }
+        });
+        break;
+    }
+  } catch (error) {
+    console.error("Error syncing Clerk photo to database:", error);
+  }
+}

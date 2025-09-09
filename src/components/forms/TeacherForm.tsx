@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { CldUploadWidget } from "next-cloudinary";
 import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
+import { useUser } from "@clerk/nextjs";
 
 const TeacherForm = ({
   type,
@@ -44,6 +45,7 @@ const TeacherForm = ({
   );
 
   const router = useRouter();
+  const { user } = useUser();
 
   useEffect(() => {
     if (state.success) {
@@ -57,6 +59,16 @@ const TeacherForm = ({
   }, [state, router, type, setOpen]);
 
   const { subjects } = relatedData;
+
+  const syncPhotoToClerk = async (photoUrl: string) => {
+    if (user && photoUrl) {
+      try {
+        await user.setProfileImage({ file: photoUrl });
+      } catch (error) {
+        console.log("Could not sync to Clerk profile:", error);
+      }
+    }
+  };
 
   const onSubmit = handleSubmit((formData) => {
     console.log("Form data before submission:", formData);
@@ -77,6 +89,11 @@ const TeacherForm = ({
     };
     
     console.log("Formatted data:", formattedData);
+    
+    // Sync photo to Clerk if uploading new photo for current user
+    if (img?.secure_url && user?.id === data?.id) {
+      syncPhotoToClerk(img.secure_url);
+    }
     
     startTransition(() => {
       formAction(formattedData);
