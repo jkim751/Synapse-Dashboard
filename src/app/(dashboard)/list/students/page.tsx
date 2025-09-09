@@ -2,6 +2,7 @@ import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+import UserPhotoDisplay from "@/components/UserPhotoDisplay";
 
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
@@ -82,24 +83,28 @@ const StudentListPage = async ({
         className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
       >
         <td className="flex items-center gap-4 p-4">
-          <Image
-            src={item.img || "/noAvatar.png"}
-            alt=""
-            width={40}
-            height={40}
-            className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-          />
-          <div className="flex flex-col">
-            <h3 className="font-semibold">{item.name}</h3>
-            <div className="flex items-center gap-1">
-              <p className="text-xs text-gray-500">
-                {primaryClass?.name || "No class"}
-              </p>
-              {additionalClassesCount > 0 && (
-                <span className="text-xs text-gray-400">
-                  (+{additionalClassesCount} more)
-                </span>
-              )}
+          <div className="flex items-center gap-4">
+            <UserPhotoDisplay
+              currentPhotoUrl={item.img}
+              userId={item.id}
+              userRole="student"
+              userName={item.name}
+              userEmail={item.email}
+              canEdit={role === "admin"}
+              showInfo={false}
+            />
+            <div className="flex flex-col">
+              <h3 className="font-semibold">{item.name}</h3>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-gray-500">
+                  {primaryClass?.name || "No class"}
+                </p>
+                {additionalClassesCount > 0 && (
+                  <span className="text-xs text-gray-400">
+                    (+{additionalClassesCount} more)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </td>

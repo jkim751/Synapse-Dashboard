@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import UserPhotoDisplay from "@/components/UserPhotoDisplay";
 
 const AdminListPage = async ({
   searchParams,
@@ -55,17 +56,15 @@ const AdminListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">
-        <Image
-          src={item.img || "/noAvatar.png"}
-          alt=""
-          width={40}
-          height={40}
-          className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
+        <UserPhotoDisplay
+          currentPhotoUrl={item.img}
+          userId={item.id}
+          userRole="admin"
+          userName={`${item.name} ${item.surname}`}
+          userEmail={item.email}
+          canEdit={true}
+          showInfo={true}
         />
-        <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name} {item.surname}</h3>
-          <p className="text-xs text-gray-500">{item?.email}</p>
-        </div>
       </td>
       <td className="hidden md:table-cell">{item.username}</td>
       <td className="hidden md:table-cell">{item.phone}</td>
