@@ -36,7 +36,6 @@ const GradeMultiSelect = ({ grades, selectedGradeIds, onChange, error }: GradeMu
     onChange([]);
   };
 
-  // Sort grades by level for better UX
   const sortedGrades = filteredGrades.sort((a, b) => a.level - b.level);
 
   return (

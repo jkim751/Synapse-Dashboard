@@ -19,7 +19,6 @@ model Admin {
   phone    String?  @unique
   sex      UserSex
   surname  String
-  eventUsers  EventUser[]
 }
 
 model Student {
@@ -63,7 +62,6 @@ model Teacher {
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]
   subjects        Subject[]         @relation("SubjectToTeacher")
-  eventUsers      EventUser[]
 }
 
 model Parent {
@@ -200,9 +198,8 @@ model EventUser {
   id      Int    @id @default(autoincrement())
   eventId Int
   userId  String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teacher Teacher? @relation(fields: [userId], references: [id], onDelete: Cascade, map: "EventUser_teacherId_fkey")
-  admin   Admin?   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "EventUser_adminId_fkey")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
 }

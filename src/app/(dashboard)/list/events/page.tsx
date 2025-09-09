@@ -21,6 +21,7 @@ const EventListPage = async ({
   const role = (sessionClaims?.metadata as { role?: string })?.role;
   const resolvedSearchParams = await searchParams;
   const currentUserId = userId;
+  const { classId } = resolvedSearchParams;
 
   const columns = [
     {
@@ -132,20 +133,54 @@ const EventListPage = async ({
     ];
   }
 
-  const events = userId && role ? 
-    await getEventsForUser(userId, role) : 
-    await prisma.event.findMany({
-      include: {
-        class: true,
-        eventUsers: {
-          include: {
-            teacher: { select: { name: true, surname: true } },
-            admin: { select: { name: true, surname: true } }
-          }
+  const events = await prisma.event.findMany({
+    where: {
+      ...(classId && { classId: Number(classId) }),
+    },
+    include: {
+      class: true,
+      eventUsers: true, // Just fetch the basic eventUser data
+      eventGrades: {
+        include: {
+          grade: true
         }
-      },
-      orderBy: { startTime: 'asc' }
-    });
+      }
+    },
+    orderBy: {
+      startTime: 'desc'
+    }
+  });
+
+  // If we need user details, we'll need to fetch them separately
+  const eventsWithUserDetails = await Promise.all(
+    events.map(async (event) => {
+      const userDetails = await Promise.all(
+        event.eventUsers.map(async (eventUser) => {
+          // Try to find the user in different tables
+          const teacher = await prisma.teacher.findUnique({
+            where: { id: eventUser.userId },
+            select: { id: true, name: true, surname: true }
+          });
+          
+          if (teacher) return { ...teacher, role: 'teacher' as const };
+          
+          const admin = await prisma.admin.findUnique({
+            where: { id: eventUser.userId },
+            select: { id: true, name: true, surname: true }
+          });
+          
+          if (admin) return { ...admin, role: 'admin' as const };
+          
+          return null;
+        })
+      );
+
+      return {
+        ...event,
+        userDetails: userDetails.filter(Boolean)
+      };
+    })
+  );
 
   const [data, count] = await prisma.$transaction([
     prisma.event.findMany({

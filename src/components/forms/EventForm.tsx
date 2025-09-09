@@ -164,7 +164,7 @@ const EventForm = ({
                 onChange={() => setTargetAudience('grades')}
                 className="form-radio"
               />
-              Grade
+              Grades
             </label>
             <label className="flex items-center gap-2">
               <input

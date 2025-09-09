@@ -1,7 +1,3 @@
-// IT APPEARS THAT BIG CALENDAR SHOWS THE LAST WEEK WHEN THE CURRENT DAY IS A WEEKEND.
-// FOR THIS REASON WE'LL GET THE LAST WEEK AS THE REFERENCE WEEK.
-// IN THE TUTORIAL WE'RE TAKING THE NEXT WEEK AS THE REFERENCE WEEK.
-
 import prisma from "./prisma";
 
 export const adjustScheduleToCurrentWeek = (
@@ -81,96 +77,143 @@ export const adjustScheduleToCurrentWeek = (
 
 // Helper function to get events for a specific user
 export const getEventsForUser = async (userId: string, role: string) => {
-  const baseWhere: any = {
-    OR: [
-      // Global events (no class, no specific users, no specific grades)
-      { 
+  const currentDate = new Date();
+  
+  let baseWhere: any = {
+    startTime: {
+      gte: currentDate,
+    },
+  };
+
+  // Build the where clause based on user role
+  if (role === "teacher" || role === "admin") {
+    baseWhere.OR = [
+      // Events for everyone (no specific class, users, or grades)
+      {
         AND: [
           { classId: null },
           { eventUsers: { none: {} } },
           { eventGrades: { none: {} } }
         ]
       },
-    ]
-  };
+      // Events specifically assigned to this user
+      {
+        eventUsers: {
+          some: {
+            userId: userId
+          }
+        }
+      }
+    ];
 
-  // Add role-specific conditions
-  if (role === "student") {
-    // Students see global events + their class events + their grade events
+    // For teachers, also include events for classes they teach
+    if (role === "teacher") {
+      baseWhere.OR.push({
+        class: {
+          lessons: {
+            some: {
+              teacherId: userId
+            }
+          }
+        }
+      });
+    }
+  } else if (role === "student") {
+    // Get student's grade and classes
     const student = await prisma.student.findUnique({
       where: { id: userId },
-      include: { 
-        classes: true,
-        grade: true
+      include: {
+        grade: true,
+        classes: {
+          select: { classId: true }
+        }
       }
     });
 
-    if (student?.classes.length) {
-      baseWhere.OR.push({
-        classId: { in: student.classes.map(sc => sc.classId) }
-      });
-    }
+    if (!student) return [];
 
-    if (student?.gradeId) {
-      baseWhere.OR.push({
+    baseWhere.OR = [
+      // Events for everyone
+      {
+        AND: [
+          { classId: null },
+          { eventUsers: { none: {} } },
+          { eventGrades: { none: {} } }
+        ]
+      },
+      // Events for student's grade
+      {
         eventGrades: {
-          some: { gradeId: student.gradeId }
+          some: {
+            gradeId: student.gradeId
+          }
         }
-      });
-    }
-  } else if (role === "teacher" || role === "admin") {
-    // Teachers/Admins see global events + events specifically assigned to them + their class events + grade events
-    baseWhere.OR.push({
-      eventUsers: {
-        some: { userId: userId }
+      },
+      // Events for student's classes
+      {
+        classId: {
+          in: student.classes.map(sc => sc.classId)
+        }
+      }
+    ];
+  } else if (role === "parent") {
+    // Get children's grades and classes
+    const children = await prisma.student.findMany({
+      where: { parentId: userId },
+      include: {
+        grade: true,
+        classes: {
+          select: { classId: true }
+        }
       }
     });
 
-    if (role === "teacher") {
-      // Teachers also see events for classes they teach and grades of those classes
-      const teacherClasses = await prisma.class.findMany({
-        where: {
-          lessons: {
-            some: { teacherId: userId }
-          }
-        },
-        select: { id: true, gradeId: true }
-      });
+    if (children.length === 0) return [];
 
-      if (teacherClasses.length > 0) {
-        baseWhere.OR.push({
-          classId: { in: teacherClasses.map(c => c.id) }
-        });
+    const childGradeIds = [...new Set(children.map(child => child.gradeId))];
+    const childClassIds = [...new Set(children.flatMap(child => child.classes.map(sc => sc.classId)))];
 
-        // Also include grade events for grades they teach
-        const gradeIds = [...new Set(teacherClasses.map(c => c.gradeId))];
-        if (gradeIds.length > 0) {
-          baseWhere.OR.push({
-            eventGrades: {
-              some: { gradeId: { in: gradeIds } }
+    baseWhere.OR = [
+      // Events for everyone
+      {
+        AND: [
+          { classId: null },
+          { eventUsers: { none: {} } },
+          { eventGrades: { none: {} } }
+        ]
+      },
+      // Events for children's grades
+      {
+        eventGrades: {
+          some: {
+            gradeId: {
+              in: childGradeIds
             }
-          });
+          }
+        }
+      },
+      // Events for children's classes
+      {
+        classId: {
+          in: childClassIds
         }
       }
-    }
+    ];
   }
 
   return await prisma.event.findMany({
     where: baseWhere,
     include: {
       class: true,
-      eventUsers: {
-        include: {
-          teacher: { select: { name: true, surname: true } },
-          admin: { select: { name: true, surname: true } }
-        }
-      },
+      eventUsers: true,
       eventGrades: {
         include: {
-          grade: { select: { level: true } }
+          grade: true
         }
       }
     },
-    orderBy: { startTime: 'asc' }
+    orderBy: {
+      startTime: 'asc'
+    }
   });
 };

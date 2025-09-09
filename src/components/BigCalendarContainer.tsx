@@ -259,8 +259,8 @@ const BigCalendarContainer = async ({
       });
     })(),
 
-    // Fetch exams
-    prisma.exam.findMany({
+    // Fetch exams - exclude for admins
+    role === "admin" ? Promise.resolve([]) : prisma.exam.findMany({
       where: examsWhereClause,
       include: {
         lesson: {
@@ -280,8 +280,8 @@ const BigCalendarContainer = async ({
       }
     }),
 
-    // Fetch assignments
-    prisma.assignment.findMany({
+    // Fetch assignments - exclude for admins
+    role === "admin" ? Promise.resolve([]) : prisma.assignment.findMany({
       where: assignmentsWhereClause,
       include: {
         lesson: {
@@ -400,7 +400,7 @@ const BigCalendarContainer = async ({
     end: new Date(event.endTime),
     subject: undefined,
     teacher: undefined,
-    classroom: event.class?.name || 'School Wide',
+    classroom: undefined, // Remove classroom for events
     description: event.description || `${event.title} event`,
     eventId: event.id,
     type: 'event' as const,

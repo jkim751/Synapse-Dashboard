@@ -1213,6 +1213,7 @@ export const createEvent = async (
           eventId: event.id,
           userId: userId,
         })),
+        skipDuplicates: true,
       });
     }
 
@@ -1223,6 +1224,7 @@ export const createEvent = async (
           eventId: event.id,
           gradeId: gradeId,
         })),
+        skipDuplicates: true,
       });
     }
 
@@ -1269,6 +1271,7 @@ export const updateEvent = async (
           eventId: validatedData.id!,
           userId: userId,
         })),
+        skipDuplicates: true,
       });
     }
 
@@ -1283,6 +1286,7 @@ export const updateEvent = async (
           eventId: validatedData.id!,
           gradeId: gradeId,
         })),
+        skipDuplicates: true,
       });
     }
 
@@ -1299,17 +1303,53 @@ export const deleteEvent = async (
   data: FormData
 ) => {
   const id = data.get("id") as string;
+  
+  if (!id) {
+    return { success: false, error: true, message: "Event ID is required for deletion!" };
+  }
+
   try {
+    const eventId = parseInt(id);
+    
+    if (isNaN(eventId)) {
+      return { success: false, error: true, message: "Invalid event ID format!" };
+    }
+
+    // Check if the event exists before attempting to delete
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        eventUsers: true,
+        eventGrades: true,
+      },
+    });
+
+    if (!existingEvent) {
+      return { success: false, error: true, message: "Event not found!" };
+    }
+
+    // Delete the event (cascading deletes will handle related records)
     await prisma.event.delete({
       where: {
-        id: parseInt(id),
+        id: eventId,
       },
     });
 
     revalidatePath("/list/events");
     return { success: true, error: false, message: "Event deleted successfully!" };
   } catch (err) {
-    console.log(err);
+    console.error("Delete Event Error:", err);
+    
+    // Handle specific Prisma errors
+    if (err && typeof err === 'object' && 'code' in err) {
+      if (err.code === 'P2025') {
+        return { success: false, error: true, message: "Event not found or already deleted!" };
+      }
+      if (err.code === 'P2003') {
+        return { success: false, error: true, message: "Cannot delete event due to related records!" };
+      }
+    }
+    
     return { success: false, error: true, message: "Failed to delete event!" };
   }
 };

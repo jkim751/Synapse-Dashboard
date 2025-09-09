@@ -407,11 +407,9 @@ const BigCalendar = ({
                 </div>
               )}
 
-              {selectedEvent.classroom && (
+              {selectedEvent.classroom && selectedEvent.type !== 'event' && (
                 <div>
-                  <span className="font-semibold text-gray-700">
-                    {selectedEvent.type === 'event' ? 'Location' : 'Classroom'}:
-                  </span>
+                  <span className="font-semibold text-gray-700">Classroom:</span>
                   <p className="text-gray-600">{selectedEvent.classroom}</p>
                 </div>
               )}
