@@ -61,14 +61,8 @@ const ParentPage = async () => {
           {students.length > 0 ? (
             <div className="bg-white p-4 rounded-xl h-[850px]">
               <h1 className="text-xl font-semibold mb-4">
-                Their Schedules
-                {students.length > 1 && (
-                  <span className="text-sm text-gray-600 ml-2">
-                    ({students.map(s => s.name).join(", ")})
-                  </span>
-                )}
+                {students.map(s => s.name).join(",  ")}&apos;s Schedule{students.length > 1 && 's'}
               </h1>
-              <h1 className="mb-4">Parent&apos;s Schedule</h1>
               <div className="h-[calc(100%-3rem)]">
                 {students[0]?.classes?.length > 0 ? (
                   <BigCalendarContainer

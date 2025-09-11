@@ -202,73 +202,51 @@ const BigCalendarContainer = async ({
     (() => {
       const includeClause = {
         class: true,
-        eventUsers: { select: { userId: true } }, // Include user IDs
-        eventGrades: { select: { gradeId: true } }, // Include grade IDs
+        users: { select: { id: true } },
+        grades: { select: { id: true } },
       };
 
-      if (role !== "admin") {
-        if (role === "student") {
-          const studentClasses = prisma.studentClass.findMany({
-            where: { studentId: userId! },
-            select: { classId: true },
-          }).then(classes => classes.map(sc => sc.classId));
-          
-          const studentGrades = prisma.student.findUnique({
-            where: { id: userId! },
-            select: { gradeId: true }
-          }).then(student => student?.gradeId ? [student.gradeId] : []);
-
-          return Promise.all([studentClasses, studentGrades]).then(([studentClassIds, studentGradeIds]) => 
-            prisma.event.findMany({
-              where: {
-                OR: [
-                  { classId: null, eventUsers: { none: {} }, eventGrades: { none: {} } }, // Everyone
-                  { classId: { in: studentClassIds } }, // Their class
-                  { eventUsers: { some: { userId: userId! } } }, // Specifically for them
-                  { eventGrades: { some: { gradeId: { in: studentGradeIds } } } }, // Their grade
-                ]
-              },
-              include: includeClause,
-            })
-          );
-        } else if (role === "teacher") {
-          return prisma.event.findMany({
-            where: {
-              OR: [
-                { classId: null, eventUsers: { none: {} }, eventGrades: { none: {} } }, // Everyone
-                { eventUsers: { some: { userId: userId! } } }, // Specifically for them
-              ]
-            },
-            include: includeClause,
-          });
-        } else if (role === "parent") {
-          const child = prisma.student.findFirst({
-            where: { parentId: userId! },
-            select: { id: true, gradeId: true }
-          });
-
-          const parentClasses = prisma.studentClass.findMany({
-            where: { student: { parentId: userId! } },
-            select: { classId: true },
-          }).then(classes => classes.map(sc => sc.classId));
-
-          return Promise.all([child, parentClasses]).then(([childData, parentClassIds]) =>
-            prisma.event.findMany({
-              where: {
-                OR: [
-                  { classId: null, eventUsers: { none: {} }, eventGrades: { none: {} } }, // Everyone
-                  { classId: { in: parentClassIds } }, // Their child's class
-                  { eventUsers: { some: { userId: childData?.id } } }, // Specifically for their child
-                  { eventGrades: { some: { gradeId: childData?.gradeId } } }, // Their child's grade
-                ]
-              },
-              include: includeClause,
-            })
-          );
-        }
+      if (role === "admin") {
+        return prisma.event.findMany({ include: includeClause });
       }
-      // Default case for admin
+
+      const userSpecificClauses: any[] = [
+        { classId: null, userIds: { isEmpty: true }, gradeIds: { isEmpty: true } }, // Everyone
+        { userIds: { has: userId! } }, // Specifically for the user
+      ];
+
+      if (role === "student") {
+        return prisma.student.findUnique({
+          where: { id: userId! },
+          select: { gradeId: true, classes: { select: { classId: true } } },
+        }).then(student => {
+          if (student) {
+            if (student.gradeId) userSpecificClauses.push({ gradeIds: { has: student.gradeId } });
+            const classIds = student.classes.map(c => c.classId);
+            if (classIds.length > 0) userSpecificClauses.push({ classId: { in: classIds } });
+          }
+          return prisma.event.findMany({ where: { OR: userSpecificClauses }, include: includeClause });
+        });
+      }
+
+      if (role === "parent") {
+        return prisma.student.findFirst({
+          where: { parentId: userId! },
+          select: { id: true, gradeId: true, classes: { select: { classId: true } } },
+        }).then(child => {
+          if (child) {
+            userSpecificClauses.push({ userIds: { has: child.id } }); // For their child
+            if (child.gradeId) userSpecificClauses.push({ gradeIds: { has: child.gradeId } });
+            const classIds = child.classes.map(c => c.classId);
+            if (classIds.length > 0) userSpecificClauses.push({ classId: { in: classIds } });
+          }
+          return prisma.event.findMany({ where: { OR: userSpecificClauses }, include: includeClause });
+        });
+      }
+      
+      // For teachers and other roles
       return prisma.event.findMany({
+        where: { OR: userSpecificClauses },
         include: includeClause,
       });
     })(),
@@ -418,10 +396,11 @@ const BigCalendarContainer = async ({
     description: event.description || `${event.title} event`,
     eventId: event.id,
     type: 'event' as const,
-    // Pass the IDs to the calendar event object
+    // Pass the complete data to the calendar event object
+    id: event.id,
     classId: event.classId,
-    userIds: event.eventUsers.map((u: { userId: string }) => u.userId),
-    gradeIds: event.eventGrades.map((g: { gradeId: number }) => g.gradeId),
+    userIds: event.users.map((u: { id: string }) => u.id),
+    gradeIds: event.grades.map((g: { id: number }) => g.id),
   }));
 
   // Transform exams data
