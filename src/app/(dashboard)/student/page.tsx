@@ -71,6 +71,9 @@ const StudentPage = async () => {
           />
         </div>
       </div>
+      <div className="w-full lg:w-full flex flex-col gap-8">
+          <Announcements />
+        </div>
     </div>
   );
 };
