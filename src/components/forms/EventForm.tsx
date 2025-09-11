@@ -28,8 +28,8 @@ const EventForm = ({
     if (type === "create") return 'everyone'; // Default for new events
     
     // For existing events, check the actual data
-    if (data?.gradeIds && data.gradeIds.length > 0) return 'grades';
-    if (data?.userIds && data.userIds.length > 0) return 'teachers-admins';
+    if (data?.grades && data.grades.length > 0) return 'grades';
+    if (data?.users && data.users.length > 0) return 'teachers-admins';
     if (data?.classId) return 'class';
     return 'everyone';
   };
@@ -39,11 +39,11 @@ const EventForm = ({
   );
 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
-    data?.userIds || []
+    data?.users?.map((u: { id: string }) => u.id) || []
   );
 
   const [selectedGradeIds, setSelectedGradeIds] = useState<number[]>(
-    data?.gradeIds || []
+    data?.grades?.map((g: { id: number }) => g.id) || []
   );
 
   // Add validation state

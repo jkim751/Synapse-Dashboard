@@ -400,7 +400,7 @@ const BigCalendar = ({
                 </div>
               )}
 
-              {selectedEvent.teacher && (
+              {selectedEvent.teacher && selectedEvent.type !== 'event' && (
                 <div>
                   <span className="font-semibold text-gray-700">Teacher:</span>
                   <p className="text-gray-600">{selectedEvent.teacher}</p>

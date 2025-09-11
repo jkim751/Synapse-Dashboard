@@ -199,52 +199,71 @@ const BigCalendarContainer = async ({
     }),
 
     // Fetch events with role-based filtering
-    (() => {
+    (async () => {
       const includeClause = {
         class: true,
         users: { select: { id: true } },
         grades: { select: { id: true } },
       };
 
-      if (role === "admin") {
-        return prisma.event.findMany({ include: includeClause });
-      }
+      // Admins should not see all events on the calendar.
+      // They see events for 'everyone' or events they are specifically added to.
+      // The main event list page will show all events for management purposes.
+      if (!userId) return [];
 
       const userSpecificClauses: any[] = [
-        { classId: null, userIds: { isEmpty: true }, gradeIds: { isEmpty: true } }, // Everyone
-        { userIds: { has: userId! } }, // Specifically for the user
+        // Events for everyone
+        {
+          classId: null,
+          AND: [
+            { eventUsers: { none: {} } },
+            { eventGrades: { none: {} } },
+          ],
+        },
+        // Events specifically for the user
+        { eventUsers: { some: { userId: userId } } },
       ];
 
       if (role === "student") {
-        return prisma.student.findUnique({
-          where: { id: userId! },
+        const student = await prisma.student.findUnique({
+          where: { id: userId },
           select: { gradeId: true, classes: { select: { classId: true } } },
-        }).then(student => {
-          if (student) {
-            if (student.gradeId) userSpecificClauses.push({ gradeIds: { has: student.gradeId } });
-            const classIds = student.classes.map(c => c.classId);
-            if (classIds.length > 0) userSpecificClauses.push({ classId: { in: classIds } });
-          }
-          return prisma.event.findMany({ where: { OR: userSpecificClauses }, include: includeClause });
         });
-      }
-
-      if (role === "parent") {
-        return prisma.student.findFirst({
-          where: { parentId: userId! },
+        if (student) {
+          if (student.gradeId) {
+            userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
+          }
+          const classIds = student.classes.map(c => c.classId);
+          if (classIds.length > 0) {
+            userSpecificClauses.push({ classId: { in: classIds } });
+          }
+        }
+      } else if (role === "parent") {
+        const child = await prisma.student.findFirst({
+          where: { parentId: userId },
           select: { id: true, gradeId: true, classes: { select: { classId: true } } },
-        }).then(child => {
-          if (child) {
-            userSpecificClauses.push({ userIds: { has: child.id } }); // For their child
-            if (child.gradeId) userSpecificClauses.push({ gradeIds: { has: child.gradeId } });
-            const classIds = child.classes.map(c => c.classId);
-            if (classIds.length > 0) userSpecificClauses.push({ classId: { in: classIds } });
-          }
-          return prisma.event.findMany({ where: { OR: userSpecificClauses }, include: includeClause });
         });
+        if (child) {
+          userSpecificClauses.push({ eventUsers: { some: { userId: child.id } } }); // For their child
+          if (child.gradeId) {
+            userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
+          }
+          const classIds = child.classes.map(c => c.classId);
+          if (classIds.length > 0) {
+            userSpecificClauses.push({ classId: { in: classIds } });
+          }
+        }
+      } else if (role === "teacher") {
+        const teacher = await prisma.teacher.findUnique({
+          where: { id: userId },
+          select: { id: true }
+        });
+        if (teacher) {
+          // Teachers can see events for everyone, but not grade-specific events
+          // unless you have a different relationship structure
+        }
       }
       
-      // For teachers and other roles
       return prisma.event.findMany({
         where: { OR: userSpecificClauses },
         include: includeClause,

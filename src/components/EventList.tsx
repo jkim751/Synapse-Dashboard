@@ -1,15 +1,79 @@
 import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
 
 const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
   const date = dateParam ? new Date(dateParam) : new Date();
+  const { userId, sessionClaims } = await auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  const startTime = new Date(date.setHours(0, 0, 0, 0));
+  const endTime = new Date(date.setHours(23, 59, 59, 999));
+
+  let whereClause: any = {
+    startTime: {
+      gte: startTime,
+      lte: endTime,
+    },
+  };
+
+  if (role !== "admin") {
+    const userSpecificClauses: any[] = [
+      // Events for everyone
+      {
+        classId: null,
+        AND: [
+          { eventUsers: { none: {} } },
+          { eventGrades: { none: {} } },
+        ],
+      },
+      // Events specifically for the user
+      { eventUsers: { some: { userId: userId! } } },
+    ];
+
+    if (role === "student") {
+      const student = await prisma.student.findUnique({
+        where: { id: userId! },
+        select: { gradeId: true, classes: { select: { classId: true } } },
+      });
+      if (student) {
+        if (student.gradeId) {
+          userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
+        }
+        const classIds = student.classes.map(c => c.classId);
+        if (classIds.length > 0) {
+          userSpecificClauses.push({ classId: { in: classIds } });
+        }
+      }
+    } else if (role === "parent") {
+      const child = await prisma.student.findFirst({
+        where: { parentId: userId! },
+        select: { id: true, gradeId: true, classes: { select: { classId: true } } },
+      });
+      if (child) {
+        userSpecificClauses.push({ eventUsers: { some: { userId: child.id } } });
+        if (child.gradeId) {
+          userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
+        }
+        const classIds = child.classes.map(c => c.classId);
+        if (classIds.length > 0) {
+          userSpecificClauses.push({ classId: { in: classIds } });
+        }
+      }
+    } else if (role === "teacher") {
+      const teacher = await prisma.teacher.findUnique({
+        where: { id: userId! },
+        select: { id: true }
+      });
+      if (teacher) {
+        // Teachers can see all events - no additional filtering needed
+        // or add specific teacher-related event filtering logic here
+      }
+    }
+    whereClause.OR = userSpecificClauses;
+  }
 
   const data = await prisma.event.findMany({
-    where: {
-      startTime: {
-        gte: new Date(date.setHours(0, 0, 0, 0)),
-        lte: new Date(date.setHours(23, 59, 59, 999)),
-      },
-    },
+    where: whereClause,
   });
 
   return data.map((event) => (
