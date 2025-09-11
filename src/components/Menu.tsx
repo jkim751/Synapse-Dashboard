@@ -101,24 +101,24 @@ const menuItems = [
         href: "/list/announcements",
         visible: ["admin", "teacher", "student", "parent"],
       },
-      {
-        icon: "/finance.png",
-        label: "Payments",
-        href: "/list/invoices",
-        visible: ["parent"],
-      },
-      {
-        icon: "/finance.png",
-        label: "Xero Dashboard",
-        href: "/list/xero",
-        visible: ["admin"],
-      },
-      {
-        icon: "/finance.png",
-        label: "Payroll",
-        href: "/list/payroll",
-        visible: ["admin", "teacher"],
-      },
+      // {
+      //   icon: "/finance.png",
+      //   label: "Payments",
+      //   href: "/list/invoices",
+      //   visible: ["parent"],
+      // },
+      // {
+      //   icon: "/finance.png",
+      //   label: "Xero Dashboard",
+      //   href: "/list/xero",
+      //   visible: ["admin"],
+      // },
+      // {
+      //   icon: "/finance.png",
+      //   label: "Payroll",
+      //   href: "/list/payroll",
+      //   visible: ["admin", "teacher"],
+      // },
     ],  
   },
 ];
