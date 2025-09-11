@@ -38,7 +38,7 @@ const TeacherListPage = async ({
     {
       header: "Phone",
       accessor: "phone",
-      className: "hidden lg:table-cell pl-4",
+      className: "hidden lg:table-cell pl-4 whitespace-nowrap tabular-nums min-w-[14ch]",
     },
     ...(role === "admin"
       ? [
@@ -69,7 +69,7 @@ const TeacherListPage = async ({
       </td>
       <td className="hidden md:table-cell p-4">{item.subjects.map((subject) => subject.name).join(",  ")}</td>
       <td className="hidden md:table-cell p-4">{item.classes.map((classItem) => classItem.name).join(",  ")}</td>
-      <td className="hidden lg:table-cell p-4">{item.phone}</td>
+      <td className="hidden lg:table-cell p-4 whitespace-nowrap min-w-[12ch]">{item.phone}</td>
       <td className="p-4">
         <div className="flex items-center gap-2">
           <Link href={`/list/teachers/${item.id}`}>
