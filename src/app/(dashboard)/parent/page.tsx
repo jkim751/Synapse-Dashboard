@@ -61,7 +61,12 @@ const ParentPage = async () => {
           {students.length > 0 ? (
             <div className="bg-white p-4 rounded-xl h-[850px]">
               <h1 className="text-xl font-semibold mb-4">
-                {students.map(s => s.name).join(", ")}&apos;s Schedule{students.length > 1 && 's'}
+                Their Schedules
+                {students.length > 1 && (
+                  <span className="text-sm text-gray-600 ml-2">
+                    ({students.map(s => s.name).join(", ")})
+                  </span>
+                )}
               </h1>
               <div className="h-[calc(100%-3rem)]">
                 {students[0]?.classes?.length > 0 ? (
