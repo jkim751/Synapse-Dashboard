@@ -116,117 +116,119 @@ const AnnouncementForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new announcement" : "Update the announcement"}
-      </h1>
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new announcement" : "Update the announcement"}
+        </h1>
 
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField label="Title" name="title" register={register} error={errors?.title} />
-        <InputField label="Description" name="description" register={register} error={errors?.description} />
-        <InputField label="Date" name="date" register={register} error={errors?.date} type="date" />
-        
-        {/* --- UPDATED: Added grades and teachers-admins options --- */}
-        <div className="w-full">
-          <label className="text-sm font-medium">Send To</label>
-          <div className="flex gap-4 mt-2 flex-wrap">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="sendTo"
-                value="everyone"
-                checked={sendTo === 'everyone'}
-                onChange={() => setSendTo('everyone')}
-                className="form-radio"
-              />
-              Everyone
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="sendTo"
-                value="class"
-                checked={sendTo === 'class'}
-                onChange={() => setSendTo('class')}
-                className="form-radio"
-              />
-              Specific Class
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="sendTo"
-                value="grades"
-                checked={sendTo === 'grades'}
-                onChange={() => setSendTo('grades')}
-                className="form-radio"
-              />
-              Grades
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="sendTo"
-                value="teachers-admins"
-                checked={sendTo === 'teachers-admins'}
-                onChange={() => setSendTo('teachers-admins')}
-                className="form-radio"
-              />
-              Teachers & Admins
-            </label>
+        <div className="flex justify-between flex-wrap gap-4">
+          <InputField label="Title" name="title" register={register} error={errors?.title} />
+          <InputField label="Description" name="description" register={register} error={errors?.description} />
+          <InputField label="Date" name="date" register={register} error={errors?.date} type="date" />
+          
+          {/* --- UPDATED: Added grades and teachers-admins options --- */}
+          <div className="w-full">
+            <label className="text-sm font-medium">Send To</label>
+            <div className="flex gap-4 mt-2 flex-wrap">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sendTo"
+                  value="everyone"
+                  checked={sendTo === 'everyone'}
+                  onChange={() => setSendTo('everyone')}
+                  className="form-radio"
+                />
+                Everyone
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sendTo"
+                  value="class"
+                  checked={sendTo === 'class'}
+                  onChange={() => setSendTo('class')}
+                  className="form-radio"
+                />
+                Specific Class
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sendTo"
+                  value="grades"
+                  checked={sendTo === 'grades'}
+                  onChange={() => setSendTo('grades')}
+                  className="form-radio"
+                />
+                Grades
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sendTo"
+                  value="teachers-admins"
+                  checked={sendTo === 'teachers-admins'}
+                  onChange={() => setSendTo('teachers-admins')}
+                  className="form-radio"
+                />
+                Teachers & Admins
+              </label>
+            </div>
           </div>
+
+          {/* --- EXISTING: Conditionally render the class dropdown --- */}
+          {sendTo === 'class' && (
+            <InputField
+              label="Class"
+              name="classId"
+              register={register}
+              error={errors?.classId}
+              type="select"
+              options={classes?.map((classItem: { id: number; name: string }) => ({
+                value: classItem.id,
+                label: classItem.name,
+              }))}
+            />
+          )}
+
+          {/* --- NEW: Conditionally render the grade multi-select --- */}
+          {sendTo === 'grades' && (
+            <GradeMultiSelect
+              grades={grades || []}
+              selectedGradeIds={selectedGradeIds}
+              onChange={setSelectedGradeIds}
+              error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
+            />
+          )}
+
+          {/* --- NEW: Conditionally render the user multi-select --- */}
+          {sendTo === 'teachers-admins' && (
+            <UserMultiSelect
+              users={teachersAndAdmins}
+              selectedUserIds={selectedUserIds}
+              onChange={setSelectedUserIds}
+              error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
+            />
+          )}
+          
+          {data && (
+            <InputField label="Id" name="id" register={register} hidden />
+          )}
         </div>
 
-        {/* --- EXISTING: Conditionally render the class dropdown --- */}
-        {sendTo === 'class' && (
-          <InputField
-            label="Class"
-            name="classId"
-            register={register}
-            error={errors?.classId}
-            type="select"
-            options={classes?.map((classItem: { id: number; name: string }) => ({
-              value: classItem.id,
-              label: classItem.name,
-            }))}
-          />
+        {state.error && (
+          <span className="text-red-500">Something went wrong!</span>
         )}
-
-        {/* --- NEW: Conditionally render the grade multi-select --- */}
-        {sendTo === 'grades' && (
-          <GradeMultiSelect
-            grades={grades || []}
-            selectedGradeIds={selectedGradeIds}
-            onChange={setSelectedGradeIds}
-            error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
-          />
-        )}
-
-        {/* --- NEW: Conditionally render the user multi-select --- */}
-        {sendTo === 'teachers-admins' && (
-          <UserMultiSelect
-            users={teachersAndAdmins}
-            selectedUserIds={selectedUserIds}
-            onChange={setSelectedUserIds}
-            error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
-          />
-        )}
-        
-        {data && (
-          <InputField label="Id" name="id" register={register} hidden />
-        )}
-      </div>
-
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-      <button
-        className="bg-orange-400 text-white p-4 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+        <button
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
+        >
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

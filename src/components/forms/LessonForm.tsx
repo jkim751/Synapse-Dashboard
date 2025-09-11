@@ -175,65 +175,67 @@ const LessonForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">{type === "update" ? "Update lesson" : "Create a new lesson"}</h1>
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">{type === "update" ? "Update lesson" : "Create a new lesson"}</h1>
 
-      {/* ensure id is present on update */}
-      {type === "update" && data?.id && <input type="hidden" name="id" value={data.id} />}
+        {/* ensure id is present on update */}
+        {type === "update" && data?.id && <input type="hidden" name="id" value={data.id} />}
 
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField label="Lesson name" name="name" register={register} error={errors?.name} />
-        <InputField label="Subject" name="subjectId" type="select"
-          options={subjects?.map((s: any) => ({ value: s.id, label: s.name })) || []}
-          register={register} error={errors?.subjectId} />
-        <InputField label="Class" name="classId" type="select"
-          options={classes?.map((c: any) => ({ value: c.id, label: c.name })) || []}
-          register={register} error={errors?.classId} />
-        <InputField label="Teacher" name="teacherId" type="select"
-          options={teachers?.map((t: any) => ({ value: t.id, label: t.name })) || []}
-          register={register} error={errors?.teacherId} />
-        <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} />
-        <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime} />
+        <div className="flex justify-between flex-wrap gap-4">
+          <InputField label="Lesson name" name="name" register={register} error={errors?.name} />
+          <InputField label="Subject" name="subjectId" type="select"
+            options={subjects?.map((s: any) => ({ value: s.id, label: s.name })) || []}
+            register={register} error={errors?.subjectId} />
+          <InputField label="Class" name="classId" type="select"
+            options={classes?.map((c: any) => ({ value: c.id, label: c.name })) || []}
+            register={register} error={errors?.classId} />
+          <InputField label="Teacher" name="teacherId" type="select"
+            options={teachers?.map((t: any) => ({ value: t.id, label: t.name })) || []}
+            register={register} error={errors?.teacherId} />
+          <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} />
+          <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime} />
 
-        {/* unified repeats UI */}
-        <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats}
-          options={[{ value: "never", label: "Never" }, { value: "weekly", label: "Weekly" }]} />
+          {/* unified repeats UI */}
+          <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats}
+            options={[{ value: "never", label: "Never" }, { value: "weekly", label: "Weekly" }]} />
 
-        {repeatsValue === "weekly" && (
-          <>
-            <InputField label="On Day" name="day" type="select" register={register} error={errors?.day}
-              options={[
-                { value: "MO", label: "Monday" }, { value: "TU", label: "Tuesday" },
-                { value: "WE", label: "Wednesday" }, { value: "TH", label: "Thursday" },
-                { value: "FR", label: "Friday" }, { value: "SA", label: "Saturday" }, { value: "SU", label: "Sunday" },
-              ]} />
-            <InputField label="Until" name="endDate" type="date" register={register} error={errors?.endDate} />
-          </>
-        )}
-      </div>
-
-      {/* --- FIX: Add UI for selecting update scope --- */}
-      {type === 'update' && isRecurring && (
-        <div className="border-t pt-4">
-            <h3 className="font-semibold">Update recurring event</h3>
-            <div className="flex flex-col gap-2 mt-2">
-                <label className="flex items-center gap-2">
-                    <input type="radio" value="instance" {...register("updateScope")} />
-                    <span>Only this event</span>
-                </label>
-                <label className="flex items-center gap-2">
-                    <input type="radio" value="series" {...register("updateScope")} />
-                    <span>This and all events</span>
-                </label>
-            </div>
+          {repeatsValue === "weekly" && (
+            <>
+              <InputField label="On Day" name="day" type="select" register={register} error={errors?.day}
+                options={[
+                  { value: "MO", label: "Monday" }, { value: "TU", label: "Tuesday" },
+                  { value: "WE", label: "Wednesday" }, { value: "TH", label: "Thursday" },
+                  { value: "FR", label: "Friday" }, { value: "SA", label: "Saturday" }, { value: "SU", label: "Sunday" },
+                ]} />
+              <InputField label="Until" name="endDate" type="date" register={register} error={errors?.endDate} />
+            </>
+          )}
         </div>
-      )}
 
-      {state.error && <span className="text-red-500">{state.message || "Something went wrong!"}</span>}
-      <button className="bg-orange-400 text-white p-4 rounded-xl" disabled={isPending}>
-        {isPending ? "Loading..." : type === "update" ? "Update" : "Create"}
-      </button>
-    </form>
+        {/* --- FIX: Add UI for selecting update scope --- */}
+        {type === 'update' && isRecurring && (
+          <div className="border-t pt-4">
+              <h3 className="font-semibold">Update recurring event</h3>
+              <div className="flex flex-col gap-2 mt-2">
+                  <label className="flex items-center gap-2">
+                      <input type="radio" value="instance" {...register("updateScope")} />
+                      <span>Only this event</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                      <input type="radio" value="series" {...register("updateScope")} />
+                      <span>This and all events</span>
+                  </label>
+              </div>
+          </div>
+        )}
+
+        {state.error && <span className="text-red-500">{state.message || "Something went wrong!"}</span>}
+        <button className="bg-orange-400 text-white p-2 rounded-xl" disabled={isPending}>
+          {isPending ? "Loading..." : type === "update" ? "Update" : "Create"}
+        </button>
+      </form>
+    </div>
   );
 };
 

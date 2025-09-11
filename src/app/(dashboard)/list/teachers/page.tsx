@@ -28,23 +28,24 @@ const TeacherListPage = async ({
     {
       header: "Subjects",
       accessor: "subjects",
-      className: "hidden md:table-cell",
+      className: "hidden md:table-cell pl-4",
     },
     {
       header: "Classes",
       accessor: "classes",
-      className: "hidden md:table-cell",
+      className: "hidden md:table-cell pl-4",
     },
     {
       header: "Phone",
       accessor: "phone",
-      className: "hidden lg:table-cell",
+      className: "hidden lg:table-cell pl-4",
     },
     ...(role === "admin"
       ? [
           {
             header: "Actions",
             accessor: "action",
+            className: "pl-4",
           },
         ]
       : []),
@@ -66,14 +67,10 @@ const TeacherListPage = async ({
           showInfo={true}
         />
       </td>
-      <td className="p-2 hidden md:table-cell">
-        {item.subjects.map((subject) => subject.name).join(",  ")}
-      </td>
-      <td className="hidden md:table-cell">
-        {item.classes.map((classItem) => classItem.name).join(",  ")}
-      </td>
-      <td className="p-4 hidden md:table-cell">{item.phone}</td>
-      <td>
+      <td className="hidden md:table-cell p-4">{item.subjects.map((subject) => subject.name).join(",  ")}</td>
+      <td className="hidden md:table-cell p-4">{item.classes.map((classItem) => classItem.name).join(",  ")}</td>
+      <td className="hidden lg:table-cell p-4">{item.phone}</td>
+      <td className="p-4">
         <div className="flex items-center gap-2">
           <Link href={`/list/teachers/${item.id}`}>
             <button className="w-7 h-7 flex items-center justify-center rounded-full bg-orange-200">
@@ -81,9 +78,6 @@ const TeacherListPage = async ({
             </button>
           </Link>
           {role === "admin" && (
-            // <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaPurple">
-            //   <Image src="/delete.png" alt="" width={16} height={16} />
-            // </button>
             <FormContainer table="teacher" type="delete" id={item.id} />
           )}
         </div>
@@ -92,10 +86,9 @@ const TeacherListPage = async ({
   );
   const { page, ...queryParams } = resolvedSearchParams;
 
-
   const p = page ? parseInt(page) : 1;
 
-  // URL PARAMS CONDITION 
+  // URL PARAMS CONDITION
 
   const query: Prisma.TeacherWhereInput = {};
 
@@ -120,10 +113,10 @@ const TeacherListPage = async ({
     }
   }
 
- // Add condition to filter by teacherId if the user is a teacher
- if (role === "teacher" && userId) {
-  query.id = userId;
-}
+  // Add condition to filter by teacherId if the user is a teacher
+  if (role === "teacher" && userId) {
+    query.id = userId;
+  }
 
   const [data, count] = await prisma.$transaction([
     prisma.teacher.findMany({
@@ -143,7 +136,7 @@ const TeacherListPage = async ({
     console.log("First teacher data:", {
       id: data[0].id,
       name: data[0].name,
-      img: data[0].img
+      img: data[0].img,
     });
   }
 
@@ -154,7 +147,7 @@ const TeacherListPage = async ({
         <h1 className="hidden md:block text-lg font-semibold">Teachers</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
-          <div className="flex items-center gap-4 self-end">
+            <div className="flex items-center gap-4 self-end">
             {role === "admin" && (
               <FormContainer table="teacher" type="create" />
             )}

@@ -167,91 +167,93 @@ const ResultForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
- {type === "create" ? `Create a new ${selectedTitle.toLowerCase()} result` : `Update the ${selectedTitle.toLowerCase()} result`}
-      </h1>
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-8 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? `Create a new ${selectedTitle.toLowerCase()} result` : `Update the ${selectedTitle.toLowerCase()} result`}
+        </h1>
 
-      <div className="flex justify-between flex-wrap gap-4">
-      <InputField
-          label="Title"
-          name="title"
-          defaultValue={data?.title}
-          register={register}
-          error={errors?.title}
-        />
-        <InputField
-          label="Score"
-          name="score"
-          defaultValue={data?.score}
-          register={register}
-          error={errors?.score}
-          type="number"
-        />
-        <InputField
-          label="Student"
-          name="studentId"
-          defaultValue={data?.studentId}
-          register={register}
-          error={errors?.studentId}
-          type="select"
-          options={filteredStudents && filteredStudents.length > 0 ? filteredStudents.map((student: { id: string; name: string; surname: string }) => ({
-            value: student.id,
-            label: `${student.name} ${student.surname}`,
-          })) : []}
-        />
-        <InputField
-          label="Exam"
-          name="examId"
-          defaultValue={data?.examId}
-          register={register}
-          error={errors?.examId}
-          type="select"
-          options={exams && exams.length > 0 ? exams.map((exam: { id: number; title: string }) => ({
-            value: exam.id,
-            label: exam.title,
-          })) : []}
-        />
-        <InputField
-          label="Assignment"
-          name="assignmentId"
-          defaultValue={data?.assignmentId}
-          register={register}
-          error={errors?.assignmentId}
-          type="select"
-          options={assignments && assignments.length > 0 ? assignments.map((assignment: { id: number; title: string }) => ({
-            value: assignment.id,
-            label: assignment.title,
-          })) : []}
-        />
-           <FileUpload
-          label="Result Documents"
-          name="results"
-          existingFiles={documents}
-          onFilesChange={setDocuments}
-        />
-        {data && (
+        <div className="flex justify-between flex-wrap gap-4">
           <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
+            label="Title"
+            name="title"
+            defaultValue={data?.title}
             register={register}
-            error={errors?.id}
-            hidden
+            error={errors?.title}
           />
-        )}
-      </div>
+          <InputField
+            label="Score"
+            name="score"
+            defaultValue={data?.score}
+            register={register}
+            error={errors?.score}
+            type="number"
+          />
+          <InputField
+            label="Student"
+            name="studentId"
+            defaultValue={data?.studentId}
+            register={register}
+            error={errors?.studentId}
+            type="select"
+            options={filteredStudents && filteredStudents.length > 0 ? filteredStudents.map((student: { id: string; name: string; surname: string }) => ({
+              value: student.id,
+              label: `${student.name} ${student.surname}`,
+            })) : []}
+          />
+          <InputField
+            label="Exam"
+            name="examId"
+            defaultValue={data?.examId}
+            register={register}
+            error={errors?.examId}
+            type="select"
+            options={exams && exams.length > 0 ? exams.map((exam: { id: number; title: string }) => ({
+              value: exam.id,
+              label: exam.title,
+            })) : []}
+          />
+          <InputField
+            label="Assignment"
+            name="assignmentId"
+            defaultValue={data?.assignmentId}
+            register={register}
+            error={errors?.assignmentId}
+            type="select"
+            options={assignments && assignments.length > 0 ? assignments.map((assignment: { id: number; title: string }) => ({
+              value: assignment.id,
+              label: assignment.title,
+            })) : []}
+          />
+          <FileUpload
+            label="Result Documents"
+            name="results"
+            existingFiles={documents}
+            onFilesChange={setDocuments}
+          />
+          {data && (
+            <InputField
+              label="Id"
+              name="id"
+              defaultValue={data?.id}
+              register={register}
+              error={errors?.id}
+              hidden
+            />
+          )}
+        </div>
 
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-      <button
-        className="bg-orange-400 text-white p-4 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+        {state.error && (
+          <span className="text-red-500">Something went wrong!</span>
+        )}
+        <button
+          className="bg-orange-400 text-white p-3 rounded-xl"
+          disabled={isPending}
+        >
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

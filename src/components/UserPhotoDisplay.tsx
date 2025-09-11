@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import PhotoUploadWidget from "./PhotoUploadWidget";
+import PhotoDeleteButton from "./PhotoDeleteButton";
 
 interface UserPhotoDisplayProps {
   currentPhotoUrl?: string | null;
@@ -48,6 +49,10 @@ const UserPhotoDisplay = ({
     setPhotoUrl(newUrl || null);
   };
 
+  const handlePhotoDeleted = () => {
+    setPhotoUrl(null);
+  };
+
   console.log("UserPhotoDisplay render:", {
     currentPhotoUrl,
     photoUrl,
@@ -71,13 +76,21 @@ const UserPhotoDisplay = ({
         />
         {canEdit && (
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-all duration-200">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-2">
               <PhotoUploadWidget
                 currentUserId={userId}
                 userRole={userRole}
                 onPhotoUploaded={handlePhotoUpdate}
                 className="text-white text-xs flex items-center justify-center p-2 rounded-full hover:bg-white hover:bg-opacity-20"
               />
+              {photoUrl && (
+                <PhotoDeleteButton
+                  userId={userId}
+                  userRole={userRole}
+                  onPhotoDeleted={handlePhotoDeleted}
+                  className="text-white text-xs flex items-center justify-center p-2 rounded-full hover:bg-white hover:bg-opacity-20"
+                />
+              )}
             </div>
           </div>
         )}

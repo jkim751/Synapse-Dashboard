@@ -322,7 +322,7 @@ const BigCalendar = ({
                 }}
               >
                 {event.type === 'event' && (
-                  <span className="mr-1 opacity-90">📅</span>
+                  <span className="mr-1 opacity-90"></span>
                 )}
                 <span className="truncate">{event.title}</span>
               </div>

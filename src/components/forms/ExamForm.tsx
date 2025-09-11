@@ -88,100 +88,102 @@ const ExamForm = ({
   }, [state, router, type, setOpen]);
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new exam" : "Update the exam"}
-      </h1>
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Exam title"
-          name="title"
-          defaultValue={data?.title}
-          register={register}
-          error={errors?.title}
-        />
-        <InputField
-          label="Start Time"
-          name="startTime"
-          defaultValue={data?.startTime ? data.startTime.toISOString().slice(0, 16) : ""}
-          register={register}
-          error={errors?.startTime}
-          type="datetime-local"
-        />
-        <InputField
-          label="End Time"
-          name="endTime"
-          defaultValue={data?.endTime ? data.endTime.toISOString().slice(0, 16) : ""}
-          register={register}
-          error={errors?.endTime}
-          type="datetime-local"
-        />
-        {data && (
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new exam" : "Update the exam"}
+        </h1>
+        <div className="flex justify-between flex-wrap gap-4">
           <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
+            label="Exam title"
+            name="title"
+            defaultValue={data?.title}
             register={register}
-            error={errors?.id}
-            hidden
+            error={errors?.title}
           />
+          <InputField
+            label="Start Time"
+            name="startTime"
+            defaultValue={data?.startTime ? data.startTime.toISOString().slice(0, 16) : ""}
+            register={register}
+            error={errors?.startTime}
+            type="datetime-local"
+          />
+          <InputField
+            label="End Time"
+            name="endTime"
+            defaultValue={data?.endTime ? data.endTime.toISOString().slice(0, 16) : ""}
+            register={register}
+            error={errors?.endTime}
+            type="datetime-local"
+          />
+          {data && (
+            <InputField
+              label="Id"
+              name="id"
+              defaultValue={data?.id}
+              register={register}
+              error={errors?.id}
+              hidden
+            />
+          )}
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Link To</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              // We don't register this directly. We use an onChange handler.
+              onChange={handleLessonChange}
+              // The defaultValue will be something like "single-1" or "recurring-1"
+              defaultValue={
+                data?.lessonId ? `single-${data.lessonId}` : 
+                data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
+              }
+            >
+              <option value="">Select a Lesson</option>
+              {singleLessons?.length > 0 && (
+                <optgroup label="Single Lessons">
+                  {singleLessons.map((lesson: { id: number; name: string }) => (
+                    <option value={`single-${lesson.id}`} key={`single-${lesson.id}`}>
+                      {lesson.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {recurringLessons?.length > 0 && (
+                <optgroup label="Recurring Lessons">
+                  {recurringLessons.map((lesson: { id: number; name: string }) => (
+                    <option value={`recurring-${lesson.id}`} key={`recurring-${lesson.id}`}>
+                      {lesson.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {errors.lessonId?.message && (
+              <p className="text-xs text-red-400">
+                {errors.lessonId.message.toString()}
+              </p>
+            )}
+          </div>
+          <FileUpload
+            label="Exam Documents"
+            name="exams"
+            existingFiles={documents}
+            onFilesChange={setDocuments}
+          />
+        </div>
+        {state.error && (
+          <span className="text-red-500">Something went wrong!</span>
         )}
-       <div className="flex flex-col gap-2 w-full md:w-1/4">
-        <label className="text-xs text-gray-500">Link To</label>
-        <select
-          className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-          // We don't register this directly. We use an onChange handler.
-          onChange={handleLessonChange}
-          // The defaultValue will be something like "single-1" or "recurring-1"
-          defaultValue={
-            data?.lessonId ? `single-${data.lessonId}` : 
-            data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
-          }
+        <button
+          type="submit"
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
         >
-          <option value="">Select a Lesson</option>
-          {singleLessons?.length > 0 && (
-            <optgroup label="Single Lessons">
-              {singleLessons.map((lesson: { id: number; name: string }) => (
-                <option value={`single-${lesson.id}`} key={`single-${lesson.id}`}>
-                  {lesson.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {recurringLessons?.length > 0 && (
-            <optgroup label="Recurring Lessons">
-              {recurringLessons.map((lesson: { id: number; name: string }) => (
-                <option value={`recurring-${lesson.id}`} key={`recurring-${lesson.id}`}>
-                  {lesson.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-        {errors.lessonId?.message && (
-          <p className="text-xs text-red-400">
-            {errors.lessonId.message.toString()}
-          </p>
-        )}
-      </div>
-        <FileUpload
-          label="Exam Documents"
-          name="exams"
-          existingFiles={documents}
-          onFilesChange={setDocuments}
-        />
-      </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-      <button
-        type="submit"
-        className="bg-orange-400 text-white p-2 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

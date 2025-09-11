@@ -93,76 +93,78 @@ const AssignmentForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new assignment" : "Update the assignment"}
-      </h1>
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new assignment" : "Update the assignment"}
+        </h1>
 
-      <div className="flex justify-between flex-wrap gap-4">
-        {/* InputFields now correctly use defaultValues from useForm */}
-        <InputField label="Title" name="title" register={register} error={errors?.title} />
-        <InputField label="Start Date" name="startDate" type="datetime-local" register={register} error={errors?.startDate} />
-        <InputField label="Due Date" name="dueDate" type="datetime-local" register={register} error={errors?.dueDate} />
+        <div className="flex justify-between flex-wrap gap-4">
+          {/* InputFields now correctly use defaultValues from useForm */}
+          <InputField label="Title" name="title" register={register} error={errors?.title} />
+          <InputField label="Start Date" name="startDate" type="datetime-local" register={register} error={errors?.startDate} />
+          <InputField label="Due Date" name="dueDate" type="datetime-local" register={register} error={errors?.dueDate} />
+          
+          {data && <InputField label="Id" name="id" register={register} hidden />}
         
-        {data && <InputField label="Id" name="id" register={register} hidden />}
-       
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Link To</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-            onChange={handleLessonChange}
-            // --- FIX: The defaultValue is now set on the <select> element ---
-            defaultValue={
-              data?.lessonId ? `single-${data.lessonId}` : 
-              data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
-            }
-          >
-            <option value="">Select a Lesson or Series</option>
-            {/* The rest of this dropdown is perfect */}
-            {singleLessons?.length > 0 && (
-              <optgroup label="Single Lessons">
-                {singleLessons.map((lesson: { id: number; name: string }) => (
-                  <option value={`single-${lesson.id}`} key={`single-${lesson.id}`}>
-                    {lesson.name}
-                  </option>
-                ))}
-              </optgroup>
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Link To</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              onChange={handleLessonChange}
+              // --- FIX: The defaultValue is now set on the <select> element ---
+              defaultValue={
+                data?.lessonId ? `single-${data.lessonId}` : 
+                data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
+              }
+            >
+              <option value="">Select a Lesson or Series</option>
+              {/* The rest of this dropdown is perfect */}
+              {singleLessons?.length > 0 && (
+                <optgroup label="Single Lessons">
+                  {singleLessons.map((lesson: { id: number; name: string }) => (
+                    <option value={`single-${lesson.id}`} key={`single-${lesson.id}`}>
+                      {lesson.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {recurringLessons?.length > 0 && (
+                <optgroup label="Recurring Series">
+                  {recurringLessons.map((lesson: { id: number; name: string }) => (
+                    <option value={`recurring-${lesson.id}`} key={`recurring-${lesson.id}`}>
+                      {lesson.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {errors.lessonId?.message && (
+              <p className="text-xs text-red-400">
+                {errors.lessonId.message.toString()}
+              </p>
             )}
-            {recurringLessons?.length > 0 && (
-              <optgroup label="Recurring Series">
-                {recurringLessons.map((lesson: { id: number; name: string }) => (
-                  <option value={`recurring-${lesson.id}`} key={`recurring-${lesson.id}`}>
-                    {lesson.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-          {errors.lessonId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.lessonId.message.toString()}
-            </p>
-          )}
+          </div>
+
+          <FileUpload
+            label="Assignment Documents"
+            name="assignments"
+            existingFiles={documents}
+            onFilesChange={setDocuments}
+          />
         </div>
 
-        <FileUpload
-          label="Assignment Documents"
-          name="assignments"
-          existingFiles={documents}
-          onFilesChange={setDocuments}
-        />
-      </div>
-
-      {state.error && (
-        <span className="text-red-500">{state.message || "Something went wrong!"}</span>
-      )}
-      <button
-        className="bg-orange-400 text-white p-4 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+        {state.error && (
+          <span className="text-red-500">{state.message || "Something went wrong!"}</span>
+        )}
+        <button
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
+        >
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

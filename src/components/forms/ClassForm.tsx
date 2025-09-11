@@ -62,85 +62,87 @@ const ClassForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new class" : "Update the class"}
-      </h1>
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField
-          label="Class name"
-          name="name"
-          defaultValue={data?.name}
-          register={register}
-          error={errors?.name}
-        />
-        <InputField
-          label="Capacity"
-          name="capacity"
-          defaultValue={data?.capacity}
-          register={register}
-          error={errors?.capacity}
-        />
-        {data && (
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new class" : "Update the class"}
+        </h1>
+        <div className="flex justify-between flex-wrap gap-4">
           <InputField
-            label="Id"
-            name="id"
-            defaultValue={data?.id}
+            label="Class name"
+            name="name"
+            defaultValue={data?.name}
             register={register}
-            error={errors?.id}
-            hidden
+            error={errors?.name}
           />
+          <InputField
+            label="Capacity"
+            name="capacity"
+            defaultValue={data?.capacity}
+            register={register}
+            error={errors?.capacity}
+          />
+          {data && (
+            <InputField
+              label="Id"
+              name="id"
+              defaultValue={data?.id}
+              register={register}
+              error={errors?.id}
+              hidden
+            />
+          )}
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Supervisor</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("supervisorId")}
+              defaultValue={data?.supervisorId}
+            >
+              {teachers.map((teacher: { id: string; name: string; surname: string }) => (
+                <option value={teacher.id} key={teacher.id}>
+                  {teacher.name + " " + teacher.surname}
+                </option>
+              ))}
+            </select>
+            {errors.supervisorId?.message && (
+              <p className="text-xs text-red-400">
+                {errors.supervisorId.message.toString()}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Grade</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("gradeId")}
+              defaultValue={data?.gradeId}
+            >
+              {grades.map((grade: { id: number; level: number }) => (
+                <option value={grade.id} key={grade.id}>
+                  {grade.level}
+                </option>
+              ))}
+            </select>
+            {errors.gradeId?.message && (
+              <p className="text-xs text-red-400">
+                {errors.gradeId.message.toString()}
+              </p>
+            )}
+          </div>
+        </div>
+        {state.error && (
+          <span className="text-red-500">Something went wrong!</span>
         )}
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Supervisor</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-            {...register("supervisorId")}
-            defaultValue={data?.supervisorId}
-          >
-            {teachers.map((teacher: { id: string; name: string; surname: string }) => (
-              <option value={teacher.id} key={teacher.id}>
-                {teacher.name + " " + teacher.surname}
-              </option>
-            ))}
-          </select>
-          {errors.supervisorId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.supervisorId.message.toString()}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Grade</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-            {...register("gradeId")}
-            defaultValue={data?.gradeId}
-          >
-            {grades.map((grade: { id: number; level: number }) => (
-              <option value={grade.id} key={grade.id}>
-                {grade.level}
-              </option>
-            ))}
-          </select>
-          {errors.gradeId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.gradeId.message.toString()}
-            </p>
-          )}
-        </div>
-      </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-    <button 
-        type="submit" 
-        className="bg-orange-400 text-white p-2 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+        <button 
+          type="submit" 
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
+        >
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

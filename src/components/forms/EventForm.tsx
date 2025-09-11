@@ -118,118 +118,120 @@ const EventForm = ({
   });
 
   return (
-    <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new event" : "Update the event"}
-      </h1>
+    <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
+      <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+        <h1 className="text-xl font-semibold">
+          {type === "create" ? "Create a new event" : "Update the event"}
+        </h1>
 
-      <div className="flex justify-between flex-wrap gap-4">
-        <InputField label="Title" name="title" register={register} error={errors?.title} />
-        <InputField label="Description" name="description" register={register} error={errors?.description} />
-        <InputField label="Start Time" name="startTime" register={register} error={errors?.startTime} type="datetime-local" />
-        <InputField label="End Time" name="endTime" register={register} error={errors?.endTime} type="datetime-local" />
-        
-        {/* --- UPDATED: Added grades option --- */}
-        <div className="w-full">
-          <label className="text-sm font-medium">Event For</label>
-          <div className="flex gap-4 mt-2 flex-wrap">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="targetAudience"
-                value="everyone"
-                checked={targetAudience === 'everyone'}
-                onChange={() => setTargetAudience('everyone')}
-                className="form-radio"
-              />
-              Everyone 
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="targetAudience"
-                value="class"
-                checked={targetAudience === 'class'}
-                onChange={() => setTargetAudience('class')}
-                className="form-radio"
-              />
-              Class
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="targetAudience"
-                value="grades"
-                checked={targetAudience === 'grades'}
-                onChange={() => setTargetAudience('grades')}
-                className="form-radio"
-              />
-              Grades
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="targetAudience"
-                value="teachers-admins"
-                checked={targetAudience === 'teachers-admins'}
-                onChange={() => setTargetAudience('teachers-admins')}
-                className="form-radio"
-              />
-              Teachers & Admins
-            </label>
+        <div className="flex justify-between flex-wrap gap-4">
+          <InputField label="Title" name="title" register={register} error={errors?.title} />
+          <InputField label="Description" name="description" register={register} error={errors?.description} />
+          <InputField label="Start Time" name="startTime" register={register} error={errors?.startTime} type="datetime-local" />
+          <InputField label="End Time" name="endTime" register={register} error={errors?.endTime} type="datetime-local" />
+          
+          {/* --- UPDATED: Added grades option --- */}
+          <div className="w-full">
+            <label className="text-sm font-medium">Event For</label>
+            <div className="flex gap-4 mt-2 flex-wrap">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="targetAudience"
+                  value="everyone"
+                  checked={targetAudience === 'everyone'}
+                  onChange={() => setTargetAudience('everyone')}
+                  className="form-radio"
+                />
+                Everyone 
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="targetAudience"
+                  value="class"
+                  checked={targetAudience === 'class'}
+                  onChange={() => setTargetAudience('class')}
+                  className="form-radio"
+                />
+                Class
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="targetAudience"
+                  value="grades"
+                  checked={targetAudience === 'grades'}
+                  onChange={() => setTargetAudience('grades')}
+                  className="form-radio"
+                />
+                Grades
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="targetAudience"
+                  value="teachers-admins"
+                  checked={targetAudience === 'teachers-admins'}
+                  onChange={() => setTargetAudience('teachers-admins')}
+                  className="form-radio"
+                />
+                Teachers & Admins
+              </label>
+            </div>
           </div>
+
+          {/* --- EXISTING: Conditionally render the class dropdown --- */}
+          {targetAudience === 'class' && (
+            <InputField
+              label="Class"
+              name="classId"
+              register={register}
+              error={errors?.classId}
+              type="select"
+              options={classes?.map((classItem: { id: number; name: string }) => ({
+                value: classItem.id,
+                label: classItem.name,
+              }))}
+            />
+          )}
+
+          {/* --- NEW: Conditionally render the grade multi-select --- */}
+          {targetAudience === 'grades' && (
+            <GradeMultiSelect
+              grades={grades || []}
+              selectedGradeIds={selectedGradeIds}
+              onChange={setSelectedGradeIds}
+              error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
+            />
+          )}
+
+          {/* --- EXISTING: Conditionally render the user multi-select --- */}
+          {targetAudience === 'teachers-admins' && (
+            <UserMultiSelect
+              users={teachersAndAdmins}
+              selectedUserIds={selectedUserIds}
+              onChange={setSelectedUserIds}
+              error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
+            />
+          )}
+          
+          {data && (
+            <InputField label="Id" name="id" register={register} hidden />
+          )}
         </div>
 
-        {/* --- EXISTING: Conditionally render the class dropdown --- */}
-        {targetAudience === 'class' && (
-          <InputField
-            label="Class"
-            name="classId"
-            register={register}
-            error={errors?.classId}
-            type="select"
-            options={classes?.map((classItem: { id: number; name: string }) => ({
-              value: classItem.id,
-              label: classItem.name,
-            }))}
-          />
+        {state.error && (
+          <span className="text-red-500">Something went wrong!</span>
         )}
-
-        {/* --- NEW: Conditionally render the grade multi-select --- */}
-        {targetAudience === 'grades' && (
-          <GradeMultiSelect
-            grades={grades || []}
-            selectedGradeIds={selectedGradeIds}
-            onChange={setSelectedGradeIds}
-            error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
-          />
-        )}
-
-        {/* --- EXISTING: Conditionally render the user multi-select --- */}
-        {targetAudience === 'teachers-admins' && (
-          <UserMultiSelect
-            users={teachersAndAdmins}
-            selectedUserIds={selectedUserIds}
-            onChange={setSelectedUserIds}
-            error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
-          />
-        )}
-        
-        {data && (
-          <InputField label="Id" name="id" register={register} hidden />
-        )}
-      </div>
-
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
-      <button
-        className="bg-orange-400 text-white p-4 rounded-xl"
-        disabled={isPending}
-      >
-        {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
-      </button>
-    </form>
+        <button
+          className="bg-orange-400 text-white p-2 rounded-xl"
+          disabled={isPending}
+        >
+          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+        </button>
+      </form>
+    </div>
   );
 };
 

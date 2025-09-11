@@ -30,6 +30,7 @@ import {
 import prisma from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { RRule } from "rrule";
+import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete } from "./photoSync";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
@@ -107,6 +108,34 @@ export const handlePhotoUpload = async (
       success: false, 
       error: error instanceof Error ? error.message : "Photo upload failed" 
     };
+  }
+};
+
+export const deleteUserPhoto = async (
+  prevState: { success: boolean; error: string; message: string },
+  formData: FormData
+) => {
+  try {
+    const userId = formData.get("userId") as string;
+    const userRole = formData.get("userRole") as string;
+
+    if (!userId || !userRole) {
+      return { success: false, error: "Missing user ID or role", message: "" };
+    }
+
+    const result = await handlePhotoDelete(userId, userRole);
+    
+    if (result.success) {
+      revalidatePath("/list/teachers");
+      revalidatePath("/list/students");
+      revalidatePath("/list/admins");
+      return { success: true, error: "", message: "Photo removed successfully!" };
+    } else {
+      return { success: false, error: result.error || "Failed to remove photo", message: "" };
+    }
+  } catch (error) {
+    console.error("Delete photo action error:", error);
+    return { success: false, error: "Failed to remove photo", message: "" };
   }
 };
 

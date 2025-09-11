@@ -40,7 +40,7 @@ const AdminListPage = async ({
       className: "hidden lg:table-cell",
     },
     {
-      header: "Address",
+      header: "Branch",
       accessor: "address",
       className: "hidden lg:table-cell",
     },
