@@ -23,10 +23,13 @@ const EventForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  // Determine initial target audience based on existing data
+  // Fix the initial target audience detection
   const getInitialTargetAudience = () => {
-    if (data?.gradeIds?.length > 0) return 'grades';
-    if (data?.userIds?.length > 0) return 'teachers-admins';
+    if (type === "create") return 'everyone'; // Default for new events
+    
+    // For existing events, check the actual data
+    if (data?.gradeIds && data.gradeIds.length > 0) return 'grades';
+    if (data?.userIds && data.userIds.length > 0) return 'teachers-admins';
     if (data?.classId) return 'class';
     return 'everyone';
   };

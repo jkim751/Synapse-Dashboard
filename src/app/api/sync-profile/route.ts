@@ -24,13 +24,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const updateData = {
-      name: userData.name || '',
-      surname: userData.surname || '',
-      email: userData.email || '',
-      phone: userData.phone || '',
-      img: userData.img || null,
-    };
+    // Only include fields that have actual values
+    const updateData: any = {}
+    
+    if (userData.name) updateData.name = userData.name
+    if (userData.surname) updateData.surname = userData.surname
+    if (userData.email) updateData.email = userData.email
+    if (userData.phone) updateData.phone = userData.phone
+    if (userData.img !== undefined) updateData.img = userData.img // Allow null to clear image
+
+    // Only update if there's something to update
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
 
     let updatedUser;
 

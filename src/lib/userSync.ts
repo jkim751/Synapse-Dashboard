@@ -6,12 +6,19 @@ export async function syncUserProfile(userId: string, role: string) {
     const clerk = await clerkClient()
     const user = await clerk.users.getUser(userId)
     
-    const updateData = {
-      name: user.firstName || '',
-      surname: user.lastName || '',
-      email: user.emailAddresses?.[0]?.emailAddress || '',
-      phone: user.phoneNumbers?.[0]?.phoneNumber || '',
-      img: user.imageUrl || null,
+    // Only include fields that have actual values
+    const updateData: any = {}
+    
+    if (user.firstName) updateData.name = user.firstName
+    if (user.lastName) updateData.surname = user.lastName
+    if (user.emailAddresses?.[0]?.emailAddress) updateData.email = user.emailAddresses[0].emailAddress
+    if (user.phoneNumbers?.[0]?.phoneNumber) updateData.phone = user.phoneNumbers[0].phoneNumber
+    if (user.imageUrl) updateData.img = user.imageUrl
+
+    // Only update if there's something to update
+    if (Object.keys(updateData).length === 0) {
+      console.log('No fields to update for user:', userId)
+      return null
     }
 
     switch (role) {

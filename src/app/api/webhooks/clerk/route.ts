@@ -58,12 +58,19 @@ export async function POST(req: Request) {
         return new Response('No role found', { status: 200 })
       }
 
-      const updateData = {
-        name: userData.first_name || '',
-        surname: userData.last_name || '',
-        email: userData.email_addresses?.[0]?.email_address || '',
-        phone: userData.phone_numbers?.[0]?.phone_number || '',
-        img: userData.image_url || null,
+      // Only include fields that have actual values
+      const updateData: any = {}
+      
+      if (userData.first_name) updateData.name = userData.first_name
+      if (userData.last_name) updateData.surname = userData.last_name
+      if (userData.email_addresses?.[0]?.email_address) updateData.email = userData.email_addresses[0].email_address
+      if (userData.phone_numbers?.[0]?.phone_number) updateData.phone = userData.phone_numbers[0].phone_number
+      if (userData.image_url) updateData.img = userData.image_url
+
+      // Only update if there's something to update
+      if (Object.keys(updateData).length === 0) {
+        console.log('No fields to update for user:', id)
+        return new Response('No fields to update', { status: 200 })
       }
 
       // Update based on role
