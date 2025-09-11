@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useUser } from '@clerk/nextjs';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import PhotoUploadWidget from "./PhotoUploadWidget";
 import PhotoDeleteButton from "./PhotoDeleteButton";
 
@@ -26,12 +27,60 @@ const UserPhotoDisplay = ({
   canEdit = false,
   showInfo = true,
 }: UserPhotoDisplayProps) => {
+  const { user } = useUser();
   const [photoUrl, setPhotoUrl] = useState(currentPhotoUrl);
+  const [userInfo, setUserInfo] = useState({ name: userName, email: userEmail });
 
   // Update photo URL when prop changes (after page refresh)
   useEffect(() => {
     setPhotoUrl(currentPhotoUrl);
   }, [currentPhotoUrl]);
+
+  // Update photo and info if this is the current user and they've updated their profile
+  useEffect(() => {
+    if (user && user.id === userId) {
+      // Use the latest image from Clerk
+      const latestImage = user.imageUrl;
+      if (latestImage !== photoUrl) {
+        setPhotoUrl(latestImage);
+      }
+
+      // Update name and email from Clerk
+      const latestName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+      const latestEmail = user.emailAddresses?.[0]?.emailAddress || null;
+      
+      if (latestName !== userInfo.name || latestEmail !== userInfo.email) {
+        setUserInfo({ name: latestName, email: latestEmail });
+        
+        // Sync to database
+        syncProfileToDatabase(userId, user);
+      }
+    }
+  }, [user, userId, photoUrl, userInfo.name, userInfo.email]);
+
+  const syncProfileToDatabase = async (userId: string, clerkUser: any) => {
+    try {
+      await fetch('/api/sync-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          userData: {
+            name: clerkUser.firstName || '',
+            surname: clerkUser.lastName || '',
+            email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+            phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || '',
+            img: clerkUser.imageUrl || null,
+          },
+          role: userRole,
+        }),
+      });
+    } catch (error) {
+      console.error('Error syncing profile:', error);
+    }
+  };
 
   const sizeClasses = {
     small: "w-10 h-10",
@@ -97,8 +146,8 @@ const UserPhotoDisplay = ({
       </div>
       {showInfo && (
         <div className="flex flex-col">
-          <h3 className="font-semibold">{userName}</h3>
-          {userEmail && <p className="text-xs text-gray-500">{userEmail}</p>}
+          <h3 className="font-semibold">{userInfo.name}</h3>
+          {userInfo.email && <p className="text-xs text-gray-500">{userInfo.email}</p>}
         </div>
       )}
     </div>
