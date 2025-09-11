@@ -31,6 +31,7 @@ import prisma from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { RRule } from "rrule";
 import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete } from "./photoSync";
+import { safeDeleteClerkUser } from "@/lib/clerkSafe";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
@@ -542,8 +543,9 @@ export const deleteTeacher = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    const clerk = await clerkClient();
-    await clerk.users.deleteUser(id);
+    // Best-effort delete in Clerk (ignore 404)
+    await safeDeleteClerkUser(id);
+
     await prisma.teacher.delete({
       where: {
         id: id,
@@ -645,8 +647,9 @@ export const deleteAdmin = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    const clerk = await clerkClient();
-    await clerk.users.deleteUser(id);
+    // Best-effort delete in Clerk (ignore 404)
+    await safeDeleteClerkUser(id);
+
     await prisma.admin.delete({
       where: {
         id: id,
@@ -789,8 +792,9 @@ export const deleteStudent = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    const clerk = await clerkClient();
-    await clerk.users.deleteUser(id);
+    // Best-effort delete in Clerk (ignore 404)
+    await safeDeleteClerkUser(id);
+
     await prisma.student.delete({
       where: {
         id: id,
@@ -1245,8 +1249,9 @@ export const deleteParent = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    const clerk = await clerkClient();
-    await clerk.users.deleteUser(id);
+    // Best-effort delete in Clerk (ignore 404)
+    await safeDeleteClerkUser(id);
+
     await prisma.parent.delete({
       where: {
         id: id,
