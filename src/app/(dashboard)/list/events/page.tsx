@@ -117,80 +117,90 @@ const EventListPage = async ({
   // ROLE CONDITIONS
 
   if (role !== "admin") {
-    const roleConditions = {
-      teacher: { lessons: { some: { teacherId: userId! } } },
-      student: { students: { some: { student: { id: userId! } } } }, // Note: through StudentClass
-      parent: { students: { some: { student: { parentId: userId! } } } },
-    };
-    
-    query.OR = [
-      { classId: null }, // This stays the same for Event/Announcement (they still have direct classId)
+    const userSpecificClauses: any[] = [
+      // Events for everyone
       {
-        class: roleConditions[role as keyof typeof roleConditions] || {},
+        classId: null,
+        AND: [
+          { eventUsers: { none: {} } },
+          { eventGrades: { none: {} } },
+        ],
       },
+      // Events specifically for the user
+      { eventUsers: { some: { userId: userId! } } },
     ];
-  }
 
-  const events = await prisma.event.findMany({
-    where: {
-      ...(classId && { classId: Number(classId) }),
-    },
-    include: {
-      class: true,
-      eventUsers: true, // Just fetch the basic eventUser data
-      eventGrades: {
-        include: {
-          grade: true
+    if (role === "student") {
+      const student = await prisma.student.findUnique({
+        where: { id: userId! },
+        select: { gradeId: true, classes: { select: { classId: true } } },
+      });
+      if (student) {
+        if (student.gradeId) {
+          userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
+        }
+        const classIds = student.classes.map(c => c.classId);
+        if (classIds.length > 0) {
+          userSpecificClauses.push({ classId: { in: classIds } });
         }
       }
-    },
-    orderBy: {
-      startTime: 'desc'
+    } else if (role === "parent") {
+      const child = await prisma.student.findFirst({
+        where: { parentId: userId! },
+        select: { id: true, gradeId: true, classes: { select: { classId: true } } },
+      });
+      if (child) {
+        userSpecificClauses.push({ eventUsers: { some: { userId: child.id } } }); // For their child
+        if (child.gradeId) {
+          userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
+        }
+        const classIds = child.classes.map(c => c.classId);
+        if (classIds.length > 0) {
+          userSpecificClauses.push({ classId: { in: classIds } });
+        }
+      }
+    } else if (role === "teacher") {
+      const teacher = await prisma.teacher.findUnique({
+        where: { id: userId! },
+        select: { id: true }
+      });
+      if (teacher) {
+        // Teachers can see events for everyone, but not grade-specific events
+      }
     }
-  });
-
-  // If we need user details, we'll need to fetch them separately
-  const eventsWithUserDetails = await Promise.all(
-    events.map(async (event) => {
-      const userDetails = await Promise.all(
-        event.eventUsers.map(async (eventUser) => {
-          // Try to find the user in different tables
-          const teacher = await prisma.teacher.findUnique({
-            where: { id: eventUser.userId },
-            select: { id: true, name: true, surname: true }
-          });
-          
-          if (teacher) return { ...teacher, role: 'teacher' as const };
-          
-          const admin = await prisma.admin.findUnique({
-            where: { id: eventUser.userId },
-            select: { id: true, name: true, surname: true }
-          });
-          
-          if (admin) return { ...admin, role: 'admin' as const };
-          
-          return null;
-        })
-      );
-
-      return {
-        ...event,
-        userDetails: userDetails.filter(Boolean)
-      };
-    })
-  );
+    query.OR = userSpecificClauses;
+  }
 
   const [data, count] = await prisma.$transaction([
     prisma.event.findMany({
       where: query,
       include: {
         class: true,
+        eventUsers: { select: { userId: true } },
+        eventGrades: { select: { gradeId: true } },
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
+      orderBy: {
+        startTime: 'desc'
+      }
     }),
     prisma.event.count({ where: query }),
   ]);
+
+  const dataWithDetails = data.map(event => ({
+    ...event,
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    classId: event.classId,
+    class: event.class,
+    // Pass users and grades to FormContainer for editing
+    users: event.eventUsers.map(eu => ({ id: eu.userId })),
+    grades: event.eventGrades.map(eg => ({ id: eg.gradeId })),
+  }));
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
@@ -205,7 +215,7 @@ const EventListPage = async ({
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={data} />
+      <Table columns={columns} renderRow={renderRow} data={dataWithDetails} />
       {/* PAGINATION */}
       <Pagination page={p} count={count} />
     </div>

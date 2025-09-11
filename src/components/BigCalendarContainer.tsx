@@ -202,8 +202,8 @@ const BigCalendarContainer = async ({
     (async () => {
       const includeClause = {
         class: true,
-        users: { select: { id: true } },
-        grades: { select: { id: true } },
+        eventUsers: { select: { userId: true } },
+        eventGrades: { select: { gradeId: true } },
       };
 
       // Admins should not see all events on the calendar.
@@ -418,8 +418,8 @@ const BigCalendarContainer = async ({
     // Pass the complete data to the calendar event object
     id: event.id,
     classId: event.classId,
-    userIds: event.users.map((u: { id: string }) => u.id),
-    gradeIds: event.grades.map((g: { id: number }) => g.id),
+    userIds: event.eventUsers.map((u: { userId: string }) => u.userId),
+    gradeIds: event.eventGrades.map((g: { gradeId: number }) => g.gradeId),
   }));
 
   // Transform exams data
