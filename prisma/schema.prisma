@@ -166,7 +166,7 @@ model Result {
   studentId    String
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   exam         Exam?       @relation(fields: [examId], references: [id])
-  student      Student     @relation(fields: [studentId], references: [id])
+  student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {
