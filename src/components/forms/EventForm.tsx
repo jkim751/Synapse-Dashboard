@@ -23,36 +23,43 @@ const EventForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  // --- UPDATED: Extended state to include grades option ---
+  // Determine initial target audience based on existing data
+  const getInitialTargetAudience = () => {
+    if (data?.gradeIds?.length > 0) return 'grades';
+    if (data?.userIds?.length > 0) return 'teachers-admins';
+    if (data?.classId) return 'class';
+    return 'everyone';
+  };
+
   const [targetAudience, setTargetAudience] = useState<'everyone' | 'class' | 'teachers-admins' | 'grades'>(
-    // Determine initial value based on existing data
-    data?.gradeIds?.length > 0 ? 'grades' :
-    data?.userIds?.length > 0 ? 'teachers-admins' :
-    data?.classId ? 'class' : 'everyone'
+    getInitialTargetAudience()
   );
 
-  // --- EXISTING: State for selected user IDs ---
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
     data?.userIds || []
   );
 
-  // --- NEW: State for selected grade IDs ---
   const [selectedGradeIds, setSelectedGradeIds] = useState<number[]>(
     data?.gradeIds || []
   );
+
+  // Add validation state
+  const [validationErrors, setValidationErrors] = useState<{
+    users?: string;
+    grades?: string;
+  }>({});
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<EventSchema>({
     resolver: zodResolver(eventSchema),
-    // Pre-populate the form with existing data for updates
     defaultValues: {
       id: data?.id,
       title: data?.title || '',
       description: data?.description || '',
-      // Keep dates as Date objects for the schema
       startTime: data?.startTime ? new Date(data.startTime) : undefined,
       endTime: data?.endTime ? new Date(data.endTime) : undefined,
       classId: data?.classId || null,
@@ -85,14 +92,48 @@ const EventForm = ({
 
   const { classes, teachers, admins, grades } = relatedData;
 
-  // --- EXISTING: Combine teachers and admins for the multi-select ---
   const teachersAndAdmins = [
     ...(teachers || []).map((teacher: any) => ({ ...teacher, role: 'TEACHER' })),
     ...(admins || []).map((admin: any) => ({ ...admin, role: 'ADMIN' }))
   ];
 
+  // Handle target audience change
+  const handleTargetAudienceChange = (newTargetAudience: 'everyone' | 'class' | 'teachers-admins' | 'grades') => {
+    setTargetAudience(newTargetAudience);
+    
+    // Clear validation errors when switching
+    setValidationErrors({});
+    
+    // Reset form values based on new target
+    if (newTargetAudience === 'everyone') {
+      setValue('classId', null);
+    } else if (newTargetAudience === 'class') {
+      // Don't clear class selection, let user choose
+    }
+    // Don't clear selectedUserIds or selectedGradeIds - let user maintain their selections
+  };
+
+  const validateTargetAudience = () => {
+    const errors: { users?: string; grades?: string } = {};
+    
+    if (targetAudience === 'teachers-admins' && selectedUserIds.length === 0) {
+      errors.users = "Please select at least one teacher or admin";
+    }
+    
+    if (targetAudience === 'grades' && selectedGradeIds.length === 0) {
+      errors.grades = "Please select at least one grade";
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const onSubmit = handleSubmit((formData) => {
-    // --- UPDATED: Handle all four audience types ---
+    // Validate target audience selections
+    if (!validateTargetAudience()) {
+      return;
+    }
+
     const dataToSubmit: EventSchema & { userIds?: string[] | null; gradeIds?: number[] | null } = { ...formData };
     
     if (targetAudience === 'everyone') {
@@ -102,6 +143,7 @@ const EventForm = ({
     } else if (targetAudience === 'class') {
       dataToSubmit.userIds = null;
       dataToSubmit.gradeIds = null;
+      // classId will be set from form data
     } else if (targetAudience === 'teachers-admins') {
       dataToSubmit.classId = null;
       dataToSubmit.gradeIds = null;
@@ -111,6 +153,8 @@ const EventForm = ({
       dataToSubmit.userIds = null;
       dataToSubmit.gradeIds = selectedGradeIds;
     }
+
+    console.log('Submitting data:', dataToSubmit); // Debug log
 
     startTransition(() => {
       formAction(dataToSubmit);
@@ -130,50 +174,49 @@ const EventForm = ({
           <InputField label="Start Time" name="startTime" register={register} error={errors?.startTime} type="datetime-local" />
           <InputField label="End Time" name="endTime" register={register} error={errors?.endTime} type="datetime-local" />
           
-          {/* --- UPDATED: Added grades option --- */}
           <div className="w-full">
             <label className="text-sm font-medium">Event For</label>
             <div className="flex gap-4 mt-2 flex-wrap">
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="targetAudience"
                   value="everyone"
                   checked={targetAudience === 'everyone'}
-                  onChange={() => setTargetAudience('everyone')}
+                  onChange={() => handleTargetAudienceChange('everyone')}
                   className="form-radio"
                 />
                 Everyone 
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="targetAudience"
                   value="class"
                   checked={targetAudience === 'class'}
-                  onChange={() => setTargetAudience('class')}
+                  onChange={() => handleTargetAudienceChange('class')}
                   className="form-radio"
                 />
                 Class
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="targetAudience"
                   value="grades"
                   checked={targetAudience === 'grades'}
-                  onChange={() => setTargetAudience('grades')}
+                  onChange={() => handleTargetAudienceChange('grades')}
                   className="form-radio"
                 />
                 Grades
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="targetAudience"
                   value="teachers-admins"
                   checked={targetAudience === 'teachers-admins'}
-                  onChange={() => setTargetAudience('teachers-admins')}
+                  onChange={() => handleTargetAudienceChange('teachers-admins')}
                   className="form-radio"
                 />
                 Teachers & Admins
@@ -181,7 +224,6 @@ const EventForm = ({
             </div>
           </div>
 
-          {/* --- EXISTING: Conditionally render the class dropdown --- */}
           {targetAudience === 'class' && (
             <InputField
               label="Class"
@@ -196,24 +238,26 @@ const EventForm = ({
             />
           )}
 
-          {/* --- NEW: Conditionally render the grade multi-select --- */}
           {targetAudience === 'grades' && (
-            <GradeMultiSelect
-              grades={grades || []}
-              selectedGradeIds={selectedGradeIds}
-              onChange={setSelectedGradeIds}
-              error={selectedGradeIds.length === 0 ? { message: "Please select at least one grade" } : undefined}
-            />
+            <div className="w-full">
+              <GradeMultiSelect
+                grades={grades || []}
+                selectedGradeIds={selectedGradeIds}
+                onChange={setSelectedGradeIds}
+                error={validationErrors.grades ? { message: validationErrors.grades } : undefined}
+              />
+            </div>
           )}
 
-          {/* --- EXISTING: Conditionally render the user multi-select --- */}
           {targetAudience === 'teachers-admins' && (
-            <UserMultiSelect
-              users={teachersAndAdmins}
-              selectedUserIds={selectedUserIds}
-              onChange={setSelectedUserIds}
-              error={selectedUserIds.length === 0 ? { message: "Please select at least one user" } : undefined}
-            />
+            <div className="w-full">
+              <UserMultiSelect
+                users={teachersAndAdmins}
+                selectedUserIds={selectedUserIds}
+                onChange={setSelectedUserIds}
+                error={validationErrors.users ? { message: validationErrors.users } : undefined}
+              />
+            </div>
           )}
           
           {data && (
@@ -224,8 +268,19 @@ const EventForm = ({
         {state.error && (
           <span className="text-red-500">Something went wrong!</span>
         )}
+        
+        {/* Show validation errors */}
+        {Object.keys(validationErrors).length > 0 && (
+          <div className="text-red-500 text-sm">
+            {Object.values(validationErrors).map((error, index) => (
+              <div key={index}>{error}</div>
+            ))}
+          </div>
+        )}
+
         <button
-          className="bg-orange-400 text-white p-2 rounded-xl"
+          type="submit"
+          className="bg-orange-400 text-white p-2 rounded-xl hover:bg-orange-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
           disabled={isPending}
         >
           {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
