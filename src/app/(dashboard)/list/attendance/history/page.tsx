@@ -55,18 +55,40 @@ const AttendanceHistoryPage = async ({
 
   // If user is a teacher, only show attendance for their classes
   if (role === "teacher" && userId) {
-    query.lesson = {
-      teacherId: userId,
-    };
+    query.OR = [
+      {
+        lesson: {
+          teacherId: userId,
+        },
+      },
+      {
+        recurringLesson: {
+          teacherId: userId,
+        },
+      },
+    ];
   }
 
   if (queryParams.search) {
-    query.OR = [
-      { student: { name: { contains: queryParams.search, mode: "insensitive" } } },
-      { student: { surname: { contains: queryParams.search, mode: "insensitive" } } },
-      { lesson: { subject: { name: { contains: queryParams.search, mode: "insensitive" } } } },
-      { lesson: { class: { name: { contains: queryParams.search, mode: "insensitive" } } } },
+    const searchConditions: Prisma.AttendanceWhereInput[] = [
+      { student: { name: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } },
+      { student: { surname: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } },
+      { lesson: { subject: { name: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } } },
+      { lesson: { class: { name: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } } },
+      { recurringLesson: { subject: { name: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } } },
+      { recurringLesson: { class: { name: { contains: queryParams.search, mode: "insensitive" as Prisma.QueryMode } } } },
     ];
+
+    if (query.OR) {
+      // If we already have teacher filtering, combine with search
+      query.AND = [
+        { OR: query.OR },
+        { OR: searchConditions },
+      ];
+      delete query.OR;
+    } else {
+      query.OR = searchConditions;
+    }
   }
 
   const [attendanceRecords, count] = await prisma.$transaction([

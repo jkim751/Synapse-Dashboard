@@ -160,6 +160,7 @@ model Result {
   id           Int         @id @default(autoincrement())
   score        Int
   title        String
+  documents    String[]    @default([])
   examId       Int?
   assignmentId Int?
   studentId    String

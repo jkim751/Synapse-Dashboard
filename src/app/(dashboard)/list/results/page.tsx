@@ -146,7 +146,9 @@ const renderRow = (item: ResultList) => (
     case "teacher":
       query.OR = [
         { exam: { lesson: { teacherId: currentUserId! } } },
+        { exam: { recurringLesson: { teacherId: currentUserId! } } },
         { assignment: { lesson: { teacherId: currentUserId! } } },
+        { assignment: { recurringLesson: { teacherId: currentUserId! } } },
       ];
       break;
 
@@ -176,11 +178,23 @@ const renderRow = (item: ResultList) => (
                 teacher: { select: { name: true, surname: true } },
               },
             },
+            recurringLesson: {
+              select: {
+                class: { select: { name: true } },
+                teacher: { select: { name: true, surname: true } },
+              },
+            },
           },
         },
         assignment: {
           include: {
             lesson: {
+              select: {
+                class: { select: { name: true } },
+                teacher: { select: { name: true, surname: true } },
+              },
+            },
+            recurringLesson: {
               select: {
                 class: { select: { name: true } },
                 teacher: { select: { name: true, surname: true } },
@@ -198,8 +212,24 @@ const renderRow = (item: ResultList) => (
   const data = dataRes.map((item) => {
     const assessment = item.exam || item.assignment;
 
-    if (!assessment) return null;
+    if (!assessment) {
+      // Handle results without assessments (manual results)
+      return {
+        id: item.id,
+        title: item.title || "Manual Result",
+        studentName: item.student.name,
+        studentSurname: item.student.surname,
+        teacherName: "",
+        teacherSurname: "",
+        score: item.score,
+        className: "",
+        startTime: new Date(),
+        documents: item.documents || [],
+      };
+    }
 
+    // Get lesson data from either lesson or recurringLesson
+    const lessonData = assessment.lesson || assessment.recurringLesson;
     const isExam = "startTime" in assessment;
 
     return {
@@ -207,14 +237,17 @@ const renderRow = (item: ResultList) => (
       title: assessment.title,
       studentName: item.student.name,
       studentSurname: item.student.surname,
-      teacherName: assessment.lesson?.teacher?.name || "",
-      teacherSurname: assessment.lesson?.teacher?.surname || "",
+      teacherName: lessonData?.teacher?.name || "",
+      teacherSurname: lessonData?.teacher?.surname || "",
       score: item.score,
-      className: assessment.lesson?.class?.name || "",
+      className: lessonData?.class?.name || "",
       startTime: isExam ? assessment.startTime : assessment.startDate,
-      documents: assessment.documents || [],
+      documents: item.documents || [],
     };
   });
+
+  console.log("Results data:", data);
+  console.log("Results count:", count);
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">

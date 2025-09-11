@@ -1349,58 +1349,56 @@ export const deleteAssignment = async (
 };
 
 export const createResult = async (
-  currentState: CurrentState,
-  data: ResultSchema
+  currentState: { success: boolean; error: boolean; message: string },
+  data: any
 ) => {
   try {
-    const validatedData = resultSchema.parse(data);
-
-    await prisma.result.create({
+    console.log("Creating result with data:", data);
+    
+    const result = await prisma.result.create({
       data: {
-        title: validatedData.title,
-        score: validatedData.score,
-        examId: validatedData.examId || undefined,
-        assignmentId: validatedData.assignmentId || undefined,
-        studentId: validatedData.studentId,
+        title: data.title,
+        score: parseInt(data.score),
+        studentId: data.studentId,
+        ...(data.examId && { examId: parseInt(data.examId) }),
+        ...(data.assignmentId && { assignmentId: parseInt(data.assignmentId) }),
+        documents: data.documents || [],
       },
     });
 
+    console.log("Created result:", result);
     revalidatePath("/list/results");
     return { success: true, error: false, message: "Result created successfully!" };
   } catch (err) {
-    console.log(err);
+    console.error("Error creating result:", err);
     return { success: false, error: true, message: "Failed to create result!" };
   }
 };
 
 export const updateResult = async (
-  currentState: CurrentState,
-  data: ResultSchema
+  currentState: { success: boolean; error: boolean; message: string },
+  data: any
 ) => {
   try {
-    const validatedData = resultSchema.parse(data);
-
-    if (!validatedData.id) {
-      return { success: false, error: true, message: "Result ID is required for update!" };
-    }
-
-    await prisma.result.update({
-      where: {
-        id: validatedData.id,
-      },
+    console.log("Updating result with data:", data);
+    
+    const result = await prisma.result.update({
+      where: { id: parseInt(data.id) },
       data: {
-        title: validatedData.title,
-        score: validatedData.score,
-        examId: validatedData.examId || undefined,
-        assignmentId: validatedData.assignmentId || undefined,
-        studentId: validatedData.studentId,
+        title: data.title,
+        score: parseInt(data.score),
+        studentId: data.studentId,
+        ...(data.examId && { examId: parseInt(data.examId) }),
+        ...(data.assignmentId && { assignmentId: parseInt(data.assignmentId) }),
+        documents: data.documents || [],
       },
     });
 
+    console.log("Updated result:", result);
     revalidatePath("/list/results");
     return { success: true, error: false, message: "Result updated successfully!" };
   } catch (err) {
-    console.log(err);
+    console.error("Error updating result:", err);
     return { success: false, error: true, message: "Failed to update result!" };
   }
 };

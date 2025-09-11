@@ -161,6 +161,7 @@ const ResultForm = ({
   }, [watchedAssignmentId, assignments, setValue, allTeacherStudents, watchedExamId, watch]);
 
   const onSubmit = handleSubmit((data) => {
+    console.log("Submitting result data:", { ...data, documents });
     startTransition(() => {
       formAction({ ...data, documents });
     });
