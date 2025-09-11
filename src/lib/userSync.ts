@@ -13,7 +13,7 @@ export async function syncUserProfile(userId: string, role: string) {
     if (user.lastName) updateData.surname = user.lastName
     if (user.emailAddresses?.[0]?.emailAddress) updateData.email = user.emailAddresses[0].emailAddress
     if (user.phoneNumbers?.[0]?.phoneNumber) updateData.phone = user.phoneNumbers[0].phoneNumber
-    if (user.imageUrl) updateData.img = user.imageUrl
+    if (user.imageUrl && role !== 'parent') updateData.img = user.imageUrl
 
     // Only update if there's something to update
     if (Object.keys(updateData).length === 0) {
