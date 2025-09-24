@@ -48,76 +48,85 @@ export interface ActionResult {
   message?: string;
 }
 
-export const handlePhotoUpload = async (
-  currentState: ActionResult,
+export async function handlePhotoUpload(
+  prevState: ActionResult,
   formData: FormData
-): Promise<ActionResult> => {
+): Promise<ActionResult> {
   try {
     const photoUrl = formData.get("photoUrl") as string;
     const userId = formData.get("userId") as string;
     const userRole = formData.get("userRole") as string;
 
     if (!photoUrl || !userId || !userRole) {
-      return { success: false, error: "Missing required fields" };
+      return {
+        success: false,
+        error: "Missing required fields"
+      };
     }
 
-    // Use the sync function which handles both database and Clerk updates
-    const result = await handlePhotoUploadSync(
-      { secure_url: photoUrl },
-      userId,
-      userRole
-    );
-
+    // Mock cloudinary result for the library function
+    const cloudinaryResult = { secure_url: photoUrl };
+    
+    const result = await handlePhotoUploadSync(cloudinaryResult, userId, userRole);
+    
     if (result.success) {
-      // Force refresh of any cached data
       revalidatePath("/");
-      return { 
-        success: true, 
-        message: "Photo updated successfully!" 
+      return {
+        success: true,
+        message: "Photo updated successfully!"
       };
     } else {
-      return { 
-        success: false, 
-        error: result.error || "Failed to update photo" 
+      return {
+        success: false,
+        error: result.error || "Failed to update photo"
       };
     }
   } catch (error) {
     console.error("Photo upload action error:", error);
-    return { success: false, error: "Failed to upload photo" };
+    return {
+      success: false,
+      error: "Failed to upload photo"
+    };
   }
-};
+}
 
-export const deleteUserPhoto = async (
-  currentState: ActionResult,
+export async function deleteUserPhoto(
+  prevState: ActionResult,
   formData: FormData
-): Promise<ActionResult> => {
+): Promise<ActionResult> {
   try {
     const userId = formData.get("userId") as string;
     const userRole = formData.get("userRole") as string;
 
     if (!userId || !userRole) {
-      return { success: false, error: "Missing required fields" };
+      return {
+        success: false,
+        error: "Missing required fields"
+      };
     }
 
     const result = await handlePhotoDeleteSync(userId, userRole);
-
+    
     if (result.success) {
       revalidatePath("/");
-      return { 
-        success: true, 
-        message: "Photo removed successfully!" 
+      return {
+        success: true,
+        message: "Photo removed successfully!"
       };
     } else {
-      return { 
-        success: false, 
-        error: result.error || "Failed to remove photo" 
+      return {
+        success: false,
+        error: result.error || "Failed to remove photo"
       };
     }
   } catch (error) {
     console.error("Photo delete action error:", error);
-    return { success: false, error: "Failed to remove photo" };
+    return {
+      success: false,
+      error: "Failed to remove photo"
+    };
   }
-};
+}
 
 const syncPhotoToClerk = async (
   photoUrl: string,

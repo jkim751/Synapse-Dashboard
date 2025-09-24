@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import { deleteUserPhoto } from "@/lib/actions";
-import { useRouter } from "next/navigation";
 
 interface PhotoDeleteButtonProps {
   userId: string;
@@ -23,7 +22,6 @@ const PhotoDeleteButton = ({
 }: PhotoDeleteButtonProps) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
 
   const handleDelete = () => {
     if (disabled || isPending) return;
@@ -34,12 +32,18 @@ const PhotoDeleteButton = ({
         formData.append("userId", userId);
         formData.append("userRole", userRole);
         
-        const result = await deleteUserPhoto({ success: false, error: "", message: "" }, formData);
+        const result = await deleteUserPhoto(
+          { success: false, error: "", message: "" }, 
+          formData
+        );
         
         if (result.success) {
           toast.success(result.message || "Photo removed successfully!");
           onPhotoDeleted?.();
-          router.refresh();
+          // Small delay before refresh
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
         } else {
           toast.error(result.error || "Failed to remove photo");
         }

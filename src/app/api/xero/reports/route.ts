@@ -1,93 +1,60 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getXeroClient } from '@/lib/xero';
-// The Report type is what's inside the 'reports' array of a ReportWithRows
-import { Report, ReportWithRows, RowType } from 'xero-node'; 
-
-// --- CORRECTED Helper Function ---
-function findReportValue(reportWithRows: ReportWithRows | undefined, sectionTitle: string, rowTitle: string): number {
-  // 1. Get the actual Report object, which is nested inside.
-  const report = reportWithRows?.reports?.[0];
-
-  if (!report || !report.rows) return 0;
-
-  const section = report.rows.find(row => row.rowType === RowType.Section && row.title === sectionTitle);
-  if (!section || !section.rows) return 0;
-
-  const summaryRow = section.rows.find(row => row.rowType === RowType.SummaryRow || row.title === rowTitle);
-  const value = summaryRow?.cells?.[1]?.value;
-  
-  return typeof value === 'string' ? parseFloat(value) || 0 : 0;
-}
+import { getXeroReports } from '@/lib/xeroActions';
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const xero = await getXeroClient(userId);
-    if (!xero) {
-      return NextResponse.json({ error: 'Failed to initialize Xero client. Please re-authenticate.' }, { status: 500 });
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    if (role !== "admin") {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const activeTenantId = xero.tenants[0]?.tenantId;
-    if (!activeTenantId) {
-      return NextResponse.json({ error: 'No active Xero tenant found. Please re-authenticate.' }, { status: 500 });
-    }
-
-    const profitAndLossResponse = await xero.accountingApi.getReportProfitAndLoss(activeTenantId);
+    const reports = await getXeroReports();
     
-    // --- Parse the response ---
-    const profitAndLossReportWithRows = profitAndLossResponse.body; // The top-level object
+    // Extract financial summary from reports
+    const profitLossRows = reports.profitLoss.reports?.[0]?.rows || [];
+    let totalIncome = 0;
+    let totalExpenses = 0;
 
-    // Use our corrected helper function
-    const totalIncome = findReportValue(profitAndLossReportWithRows, "Revenue", "Total Revenue");
-    const totalExpenses = findReportValue(profitAndLossReportWithRows, "Operating Expenses", "Total Operating Expenses");
-    const netProfit = findReportValue(profitAndLossReportWithRows, "Result", "Net Profit");
-
-    // Fetch monthly data for the chart
-    const monthlyPnlResponse = await xero.accountingApi.getReportProfitAndLoss(activeTenantId, undefined, undefined, 11);
-    const monthlyReportWithRows = monthlyPnlResponse.body;
-    
-    // --- CORRECTED Chart Data Transformation ---
-    // 2. Get the nested Report object here as well.
-    const monthlyReport = monthlyReportWithRows?.reports?.[0];
-    const chartData = [];
-    const reportColumns = monthlyReport?.rows?.[0]?.cells?.slice(1) || []; 
-
-    for (let i = 0; i < reportColumns.length; i++) {
-        const monthName = reportColumns[i].value || `Period ${i + 1}`;
+    // Parse Profit & Loss report structure
+    for (const row of profitLossRows) {
+      if (row.rowType?.toString() === 'Section') {
+        const title = row.title?.toLowerCase() || '';
+        const cells = row.cells || [];
+        const amount = parseFloat(cells[1]?.value || '0');
         
-        const monthIncome = monthlyReport?.rows
-            ?.find(r => r.title === 'Total Revenue')?.cells?.[i + 1]?.value || 0;
-        const monthExpense = monthlyReport?.rows
-            ?.find(r => r.title === 'Total Operating Expenses')?.cells?.[i + 1]?.value || 0;
-            
-        chartData.push({
-            name: monthName,
-            income: monthIncome,
-            expense: monthExpense,
-        });
+        if (title.includes('income') || title.includes('revenue')) {
+          totalIncome += amount;
+        } else if (title.includes('expense') || title.includes('cost')) {
+          totalExpenses += Math.abs(amount);
+        }
+      }
     }
 
-    // Return everything in one payload
-    return NextResponse.json({
-      summary: {
-        totalIncome,
-        totalExpenses,
-        netProfit,
-      },
-      chartData: chartData.reverse(),
+    const netProfit = totalIncome - totalExpenses;
+
+    const summary = {
+      totalIncome,
+      totalExpenses,
+      netProfit
+    };
+
+    return NextResponse.json({ 
+      summary,
+      profitLoss: reports.profitLoss,
+      balanceSheet: reports.balanceSheet
     });
 
   } catch (error: any) {
-    if (error.message.includes('refresh')) {
-      console.error('Xero token refresh failed. Prompting re-authentication:', error);
-      return NextResponse.json({ error: 'Xero token refresh failed. Please re-authenticate.' }, { status: 401 });
-    }
-    console.error('Error fetching Xero reports:', error.response?.body || error.message);
-    return NextResponse.json({ error: 'Failed to fetch Xero reports', details: error.message }, { status: 500 });
+    console.error('Error fetching Xero reports:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch reports' },
+      { status: 500 }
+    );
   }
 }

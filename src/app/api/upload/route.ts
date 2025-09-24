@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`Uploading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
-    const blob = await put(`uploads/${folder}/${Date.now()}-${file.name}`, file, {
+    const blob = await put(`uploads/${folder}/${file.name}`, file, {
       access: "public",
     });
 

@@ -1,45 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
-import xero, { storeTokens } from '@/lib/xero';
 import { auth } from '@clerk/nextjs/server';
+import xero, { storeTokens } from '@/lib/xero';
 
-// Initiate OAuth flow
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const consentUrl = await xero.buildConsentUrl();
-    return NextResponse.redirect(consentUrl);
-  } catch (error) {
-    console.error('Error building consent URL:', error);
-    return NextResponse.json({ error: 'Failed to initiate OAuth' }, { status: 500 });
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+
+    if (!code) {
+      return NextResponse.json({ error: 'Authorization code not found' }, { status: 400 });
+    }
+
+    // Exchange the code for tokens
+    const tokenSet = await xero.apiCallback(request.url);
+    
+    // Store the tokens
+    await storeTokens(userId, tokenSet);
+
+    // Redirect to the Xero admin page
+    return NextResponse.redirect(new URL('/admin/xero', request.url));
+    
+  } catch (error: any) {
+    console.error('Xero callback error:', error);
+    return NextResponse.redirect(
+      new URL('/admin/xero?error=' + encodeURIComponent(error.message), request.url)
+    );
   }
 }
-
-// Handle OAuth callback from our frontend page
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'User is not authenticated' }, { status: 401 });
+      return NextResponse.json({ error: 'User not authenticated', success: false }, { status: 401 });
     }
 
-    // 1. Read the full callback URL from the request body
-    const { callbackUrl } = await request.json(); 
-
+    const { callbackUrl } = await request.json();
+    
     if (!callbackUrl) {
-      return NextResponse.json({ error: 'No callback URL provided' }, { status: 400 });
+      return NextResponse.json({ error: 'Callback URL is required', success: false }, { status: 400 });
     }
 
-    // 2. Pass the entire URL directly to the apiCallback function
+    // Exchange the code for tokens using the full callback URL
     const tokenSet = await xero.apiCallback(callbackUrl);
     
-    // 3. Store the tokens against the logged-in user
+    // Store the tokens
     await storeTokens(userId, tokenSet);
 
-    return NextResponse.json({ success: true });
-
+    return NextResponse.json({ success: true, message: 'Authentication successful' });
+    
   } catch (error: any) {
-    console.error('Error in OAuth callback:', error);
-    // This is where your log is coming from. Now it will show the real underlying error.
-    return NextResponse.json({ error: 'OAuth callback failed', details: error.message }, { status: 500 });
+    console.error('Xero callback error:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Authentication failed', 
+      success: false 
+    }, { status: 500 });
   }
 }

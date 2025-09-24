@@ -25,24 +25,33 @@ export const syncPhotoToClerk = async (
       return { success: true };
     }
 
-    // For updating with new photo - convert URL to File
-    const response = await fetch(photoUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    // For updating with new photo - use the URL directly with Clerk's API
+    try {
+      await (await clerkClient()).users.updateUser(userId, {
+        profileImageID: photoUrl,
+      });
+      return { success: true };
+    } catch (clerkError: any) {
+      // If direct URL update fails, try the file upload approach
+      console.log("Direct URL update failed, trying file upload:", clerkError.message);
+      
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const filename = photoUrl.split('/').pop() || 'profile-image.jpg';
+      
+      // Create a File object from the blob
+      const file = new File([blob], filename, { type: blob.type });
+
+      await (await clerkClient()).users.updateUserProfileImage(userId, {
+        file: file,
+      });
+
+      return { success: true };
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
-    const filename = photoUrl.split('/').pop() || 'profile-image.jpg';
-    
-    // Create a File object from the array buffer
-    const file = new File([arrayBuffer], filename, { type: mimeType });
-
-    await (await clerkClient()).users.updateUserProfileImage(userId, {
-      file: file,
-    });
-
-    return { success: true };
   } catch (error) {
     console.error("Failed to sync photo to Clerk:", error);
     return { success: false, error: `Failed to sync photo to Clerk: ${error}` };

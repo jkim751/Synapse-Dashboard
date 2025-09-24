@@ -6,9 +6,14 @@ import { Contact, Phone } from 'xero-node';
 
 export async function POST() {
   try {
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    if (role !== "admin") {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // Get an authenticated Xero client

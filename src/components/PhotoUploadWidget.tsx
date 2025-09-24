@@ -52,14 +52,19 @@ const PhotoUploadWidget = ({
         // Use startTransition to call the server action
         startTransition(async () => {
           try {
-            const result = await handlePhotoUpload({ success: false, error: "", message: "" }, formData);
+            const result = await handlePhotoUpload(
+              { success: false, error: "", message: "" }, 
+              formData
+            );
             console.log("Server action result:", result);
             
             if (result.success) {
               toast.success(result.message || "Photo updated successfully!");
               onPhotoUploaded?.(photoUrl);
-              // Force a page refresh to update Clerk's UserButton
-              window.location.reload();
+              // Small delay before refresh to ensure state updates
+              setTimeout(() => {
+                window.location.reload();
+              }, 500);
             } else {
               console.error("Server action failed:", result.error);
               toast.error(result.error || "Failed to update photo");
@@ -67,17 +72,19 @@ const PhotoUploadWidget = ({
           } catch (error) {
             console.error("Server action error:", error);
             toast.error("Failed to update photo");
+          } finally {
+            setUploading(false);
           }
         });
       } else {
         // For form uploads - just pass the URL
         toast.success("Photo uploaded successfully!");
         onPhotoUploaded?.(photoUrl);
+        setUploading(false);
       }
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Failed to upload photo");
-    } finally {
       setUploading(false);
     }
   };
