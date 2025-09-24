@@ -10,8 +10,17 @@ declare const globalThis: {
   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
 } & typeof global;
 
-const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
+export const prisma =
+  globalForPrisma.prisma ??     
+  new PrismaClient({
+    log: ['query'],
+  })
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+// Make sure we export as default as well
 export default prisma
-
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma

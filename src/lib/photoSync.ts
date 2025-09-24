@@ -19,17 +19,33 @@ export const syncPhotoToClerk = async (
       userId = currentUserId;
     }
 
+    // For deleting photo (reverting to default)
+    if (photoUrl === "/noAvatar.png") {
+      await (await clerkClient()).users.deleteUserProfileImage(userId);
+      return { success: true };
+    }
+
+    // For updating with new photo - convert URL to File
     const response = await fetch(photoUrl);
-    const imageBlob = await response.blob();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const mimeType = response.headers.get('content-type') || 'image/jpeg';
+    const filename = photoUrl.split('/').pop() || 'profile-image.jpg';
+    
+    // Create a File object from the array buffer
+    const file = new File([arrayBuffer], filename, { type: mimeType });
 
     await (await clerkClient()).users.updateUserProfileImage(userId, {
-      file: imageBlob,
+      file: file,
     });
 
     return { success: true };
   } catch (error) {
     console.error("Failed to sync photo to Clerk:", error);
-    return { success: false, error: "Failed to sync photo to Clerk" };
+    return { success: false, error: `Failed to sync photo to Clerk: ${error}` };
   }
 };
 
@@ -120,16 +136,22 @@ export const handlePhotoUpload = async (
   try {
     const photoUrl = cloudinaryResult.secure_url;
     
-    // Update database
+    // Update database first
     const dbResult = await updateUserPhotoInDatabase(userId, userRole, photoUrl);
     if (!dbResult.success) {
       return { success: false, error: dbResult.error };
     }
 
-    // Sync to Clerk
+    // Sync to Clerk - this is critical for the UserButton to show the image
     const clerkResult = await syncPhotoToClerk(photoUrl, userId);
     if (!clerkResult.success) {
-      console.warn("Database updated but Clerk sync failed:", clerkResult.error);
+      console.error("Database updated but Clerk sync failed:", clerkResult.error);
+      // Don't fail the entire operation, but log the error
+      return { 
+        success: true, 
+        cloudinaryUrl: photoUrl,
+        error: `Photo saved but may not appear in navbar: ${clerkResult.error}`
+      };
     }
 
     return { 
@@ -156,7 +178,7 @@ export const handlePhotoDelete = async (
     // Reset Clerk profile image to default
     const clerkResult = await syncPhotoToClerk("/noAvatar.png", userId);
     if (!clerkResult.success) {
-      console.warn("Database updated but Clerk sync failed:", clerkResult.error);
+      console.error("Database updated but Clerk sync failed:", clerkResult.error);
     }
 
     return { 

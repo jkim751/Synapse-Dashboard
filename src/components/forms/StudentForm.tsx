@@ -34,6 +34,7 @@ const StudentForm = ({
     defaultValues: {
       classIds: data?.classes?.map((c: any) => c.classId) || [],
       school: data?.school || "",
+      status: data?.status || "CURRENT", // NEW
     }
   });
 
@@ -95,6 +96,7 @@ const StudentForm = ({
       email: data.email || undefined,
       phone: data.phone || undefined,
       school: data.school || undefined,
+      status: data.status, // NEW
     };
     
     console.log("Formatted data:", formattedData);
@@ -206,6 +208,26 @@ const StudentForm = ({
               label: grade.level.toString(),
             })) || []}
           />
+          
+          {/* NEW: Status selector */}
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">
+              Status <span className="text-red-500">*</span>
+            </label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("status")}
+              defaultValue={data?.status || "CURRENT"}
+            >
+              <option value="CURRENT">Current</option>
+              <option value="TRIAL">Trial</option>
+              <option value="DISENROLLED">Disenrolled</option>
+            </select>
+            {errors.status && (
+              <p className="text-xs text-red-400">{errors.status.message?.toString()}</p>
+            )}
+          </div>
+          {/* Existing multiple class selection below */}
           
           {/* Multiple Class Selection */}
           <div className="flex flex-col gap-2 w-full">

@@ -10,7 +10,11 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "cleanup-attendance": "npx tsx scripts/cleanupAttendance.ts",
-    "cleanup-attendance-delete": "npx tsx scripts/cleanupAttendance.ts --delete"
+    "cleanup-attendance-delete": "npx tsx scripts/cleanupAttendance.ts --delete",
+    "db:reset": "npx prisma migrate reset --force && npx prisma migrate dev --name init",
+    "db:push": "npx prisma db push",
+    "db:generate": "npx prisma generate",
+    "db:fresh": "npx prisma db push --force-reset && npx prisma generate"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5",
@@ -28,6 +32,7 @@
     "next-cloudinary": "^6.13.0",
     "next-sitemap": "^4.2.3",
     "prisma": "^5.19.1",
+    "quill": "^1.3.7",
     "react": "^18",
     "react-big-calendar": "^1.13.2",
     "react-calendar": "^5.0.0",
@@ -43,6 +48,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/quill": "^2.0.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",

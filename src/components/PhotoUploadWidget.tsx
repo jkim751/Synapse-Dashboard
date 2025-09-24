@@ -43,9 +43,6 @@ const PhotoUploadWidget = ({
       if (currentUserId && userRole) {
         console.log("Starting photo sync for user:", currentUserId, userRole);
         
-        // Optimistically update the UI first
-        onPhotoUploaded?.(photoUrl);
-        
         // Create FormData for the server action
         const formData = new FormData();
         formData.append("photoUrl", photoUrl);
@@ -60,19 +57,16 @@ const PhotoUploadWidget = ({
             
             if (result.success) {
               toast.success(result.message || "Photo updated successfully!");
-              // Don't reload, just refresh the router cache
-              router.refresh();
+              onPhotoUploaded?.(photoUrl);
+              // Force a page refresh to update Clerk's UserButton
+              window.location.reload();
             } else {
               console.error("Server action failed:", result.error);
               toast.error(result.error || "Failed to update photo");
-              // Revert the optimistic update
-              onPhotoUploaded?.(null);
             }
           } catch (error) {
             console.error("Server action error:", error);
             toast.error("Failed to update photo");
-            // Revert the optimistic update
-            onPhotoUploaded?.(null);
           }
         });
       } else {

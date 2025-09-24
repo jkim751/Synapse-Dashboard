@@ -150,6 +150,21 @@ const ParentForm = ({
             register={register}
             error={errors.address}
           />
+          <div className="flex flex-col gap-2 w-full md:w-[48%]">
+            <label className="text-xs text-gray-500">Payment Type</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 rounded-md text-sm p-2"
+              {...register("paymentType")}
+              defaultValue={data?.paymentType || "CASH"}
+            >
+              <option value="XERO">Xero</option>
+              <option value="BANK_TRANSFER">Bank transfer</option>
+              <option value="CASH">Cash</option>
+            </select>
+            {errors.paymentType?.message && (
+              <p className="text-xs text-red-400">{errors.paymentType.message.toString()}</p>
+            )}
+          </div>
           {data && (
             <InputField
               label="Id"

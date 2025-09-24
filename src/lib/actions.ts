@@ -30,7 +30,7 @@ import {
 import prisma from "./prisma";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { RRule } from "rrule";
-import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete } from "./photoSync";
+import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete as handlePhotoDeleteSync } from "./photoSync";
 import { safeDeleteClerkUser } from "@/lib/clerkSafe";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
@@ -42,101 +42,80 @@ export interface PhotoUploadResult {
   message?: string;
 }
 
+export interface ActionResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 export const handlePhotoUpload = async (
-  prevState: PhotoUploadResult,
+  currentState: ActionResult,
   formData: FormData
-): Promise<PhotoUploadResult> => {
+): Promise<ActionResult> => {
   try {
     const photoUrl = formData.get("photoUrl") as string;
     const userId = formData.get("userId") as string;
     const userRole = formData.get("userRole") as string;
 
-    console.log("=== Photo Upload Server Action ===");
-    console.log("Photo URL:", photoUrl);
-    console.log("User ID:", userId);
-    console.log("User Role:", userRole);
-
     if (!photoUrl || !userId || !userRole) {
-      console.error("Missing required data:", { photoUrl: !!photoUrl, userId: !!userId, userRole: !!userRole });
-      return { success: false, error: "Missing required data" };
+      return { success: false, error: "Missing required fields" };
     }
 
-    // Validate the photo URL
-    try {
-      new URL(photoUrl);
-    } catch (urlError) {
-      console.error("Invalid photo URL:", photoUrl);
-      return { success: false, error: "Invalid photo URL" };
+    // Use the sync function which handles both database and Clerk updates
+    const result = await handlePhotoUploadSync(
+      { secure_url: photoUrl },
+      userId,
+      userRole
+    );
+
+    if (result.success) {
+      // Force refresh of any cached data
+      revalidatePath("/");
+      return { 
+        success: true, 
+        message: "Photo updated successfully!" 
+      };
+    } else {
+      return { 
+        success: false, 
+        error: result.error || "Failed to update photo" 
+      };
     }
-
-    // Update database first
-    console.log("Updating database...");
-    const dbResult = await updateUserPhotoInDatabase(userId, userRole, photoUrl);
-    if (!dbResult.success) {
-      console.error("Database update failed:", dbResult.error);
-      return { success: false, error: dbResult.error || "Database update failed" };
-    }
-
-    console.log("Database updated successfully");
-
-    // Sync to Clerk (non-blocking - if it fails, we still consider the operation successful)
-    console.log("Syncing to Clerk...");
-    try {
-      const clerkResult = await syncPhotoToClerk(photoUrl, userId);
-      if (clerkResult.success) {
-        console.log("Clerk sync successful");
-      } else {
-        console.warn("Clerk sync failed (non-blocking):", clerkResult.error);
-      }
-    } catch (clerkError) {
-      console.warn("Clerk sync error (non-blocking):", clerkError);
-    }
-
-    // Revalidate the relevant pages
-    console.log("Revalidating pages...");
-    revalidatePath(`/list/${userRole}s`);
-    revalidatePath(`/list/${userRole}s/${userId}`);
-    revalidatePath('/');
-
-    console.log("Photo upload completed successfully");
-    return { 
-      success: true, 
-      message: "Photo updated successfully" 
-    };
   } catch (error) {
-    console.error("Photo upload failed with error:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Photo upload failed" 
-    };
+    console.error("Photo upload action error:", error);
+    return { success: false, error: "Failed to upload photo" };
   }
 };
 
 export const deleteUserPhoto = async (
-  prevState: { success: boolean; error: string; message: string },
+  currentState: ActionResult,
   formData: FormData
-) => {
+): Promise<ActionResult> => {
   try {
     const userId = formData.get("userId") as string;
     const userRole = formData.get("userRole") as string;
 
     if (!userId || !userRole) {
-      return { success: false, error: "Missing user ID or role", message: "" };
+      return { success: false, error: "Missing required fields" };
     }
 
-    const result = await handlePhotoDelete(userId, userRole);
-    
+    const result = await handlePhotoDeleteSync(userId, userRole);
+
     if (result.success) {
-      revalidatePath("/list/teachers");
-      revalidatePath("/list/students");
-      revalidatePath("/list/admins");
-      return { success: true, error: "", message: "Photo removed successfully!" };
+      revalidatePath("/");
+      return { 
+        success: true, 
+        message: "Photo removed successfully!" 
+      };
     } else {
-      return { success: false, error: result.error || "Failed to remove photo", message: "" };
+      return { 
+        success: false, 
+        error: result.error || "Failed to remove photo" 
+      };
     }
   } catch (error) {
-    console.error("Delete photo action error:", error);
-    return { success: false, error: "Failed to remove photo", message: "" };
+    console.error("Photo delete action error:", error);
+    return { success: false, error: "Failed to remove photo" };
   }
 };
 
@@ -704,6 +683,7 @@ export const createStudent = async (
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
         school: validatedData.school || undefined,
+        status: validatedData.status, // NEW
       },
     });
 
@@ -760,6 +740,7 @@ export const updateStudent = async (
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
         school: validatedData.school || undefined,
+        status: validatedData.status, // NEW
       },
     });
 
@@ -1146,6 +1127,8 @@ export const createParent = async (
         email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
+        // NEW: persist payment type
+        paymentType: validatedData.paymentType,
       },
     });
 
@@ -1204,6 +1187,8 @@ export const updateParent = async (
         email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
+        // NEW: persist payment type
+        paymentType: validatedData.paymentType,
       },
     });
 

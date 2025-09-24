@@ -38,6 +38,7 @@ model Student {
   xeroContactId String?
   school        String?
   updatedAt     DateTime       @updatedAt
+  status        StudentStatus  @default(CURRENT)
   attendances   Attendance[]
   results       Result[]
   grade         Grade          @relation(fields: [gradeId], references: [id])
@@ -65,25 +66,26 @@ model Teacher {
 }
 
 model Parent {
-  id            String    @id
-  username      String    @unique
+  id            String      @id
+  username      String      @unique
   name          String
   surname       String
-  email         String?   @unique
-  phone         String    @unique
+  email         String?     @unique
+  phone         String      @unique
   address       String
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime    @default(now())
   xeroContactId String?
+  paymentType   PaymentType @default(CASH)
   students      Student[]
 }
 
 model Grade {
-  id          Int          @id @default(autoincrement())
-  level       Int          @unique
-  classess    Class[]
-  students    Student[]
-  eventGrades EventGrade[]
+  id                 Int                 @id @default(autoincrement())
+  level              Int                 @unique
   announcementGrades AnnouncementGrade[]
+  classess           Class[]
+  eventGrades        EventGrade[]
+  students           Student[]
 }
 
 model Class {
@@ -160,10 +162,10 @@ model Result {
   id           Int         @id @default(autoincrement())
   score        Int
   title        String
-  documents    String[]    @default([])
   examId       Int?
   assignmentId Int?
   studentId    String
+  documents    String[]    @default([])
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   exam         Exam?       @relation(fields: [examId], references: [id])
   student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -183,25 +185,24 @@ model Attendance {
 }
 
 model Event {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   title       String
   description String
   startTime   DateTime
   endTime     DateTime
   classId     Int?
-  class       Class?   @relation(fields: [classId], references: [id])
-  eventUsers  EventUser[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now())
+  class       Class?       @relation(fields: [classId], references: [id])
   eventGrades EventGrade[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  eventUsers  EventUser[]
 }
 
 model EventUser {
   id      Int    @id @default(autoincrement())
   eventId Int
   userId  String
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
 }
@@ -217,34 +218,33 @@ model EventGrade {
 }
 
 model Announcement {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String
-  date        DateTime
-  classId     Int?
-  class       Class?   @relation(fields: [classId], references: [id])
-  announcementUsers  AnnouncementUser[]
+  id                 Int                 @id @default(autoincrement())
+  title              String
+  description        String
+  date               DateTime
+  classId            Int?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @default(now())
+  class              Class?              @relation(fields: [classId], references: [id])
   announcementGrades AnnouncementGrade[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  announcementUsers  AnnouncementUser[]
 }
 
 model AnnouncementUser {
-  id             Int    @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   announcementId Int
   userId         String
-
-  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, userId])
 }
 
 model AnnouncementGrade {
-  id             Int   @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   announcementId Int
   gradeId        Int
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  grade          Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  grade          Grade        @relation(fields: [gradeId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, gradeId])
 }
@@ -309,6 +309,21 @@ model RecurringLesson {
   teacher         Teacher      @relation(fields: [teacherId], references: [id])
 }
 
+model Note {
+  id        String   @id @default(cuid())
+  title     String?
+  content   String
+  author    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  date      DateTime // The date this note is associated with
+  userId    String   // Link to user who created the note
+
+  @@index([date])
+  @@index([userId])
+  @@map("notes")
+}
+
 enum UserSex {
   MALE
   FEMALE
@@ -322,4 +337,16 @@ enum Day {
   FRIDAY
   SATURDAY
   SUNDAY
+}
+
+enum PaymentType {
+  XERO
+  BANK_TRANSFER
+  CASH
+}
+
+enum StudentStatus {
+  CURRENT
+  TRIAL
+  DISENROLLED
 }

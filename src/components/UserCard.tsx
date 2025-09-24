@@ -16,9 +16,9 @@ const UserCard = async ({
   const data = await modelMap[type].count();
 
   return (
-    <div className="rounded-2xl odd:bg-lamaPurple/40 even:bg-lamaYellow/75 p-4 flex-1 min-w-[130px]">
+    <div className="bg-white border-2 border-lamaYellow/75 rounded-2xl p-4 flex-1 min-w-[130px]">
       <div className="flex justify-between items-center">
-        <span className="text-[12px] px-2 py-1 rounded-full text-black">
+        <span className="text-[12px] bg-lamaYellow/75 px-2 py-1 rounded-full text-black">
         {new Date().getFullYear()}
         </span>
       </div>

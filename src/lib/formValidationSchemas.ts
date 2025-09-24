@@ -106,6 +106,7 @@ export const studentSchema = z.object({
   classIds: z.array(z.coerce.number()).min(1, { message: "At least one class is required!" }), // Changed from classId to classIds array
   parentId: z.string().optional(),
   school: z.string().optional(),
+  status: z.enum(["CURRENT","TRIAL","DISENROLLED"], { message: "Status is required!" }), // NEW
 });
 export type StudentSchema = z.infer<typeof studentSchema>;
 
@@ -172,6 +173,7 @@ export const parentSchema = z.object({
     }),
   phone: z.string().min(1, { message: "Phone is required!" }),
   address: z.string().min(1, { message: "Address is required!" }),
+  paymentType: z.enum(["XERO", "BANK_TRANSFER", "CASH"]),
   students: z.array(z.string()).optional(),
 });
 export type ParentSchema = z.infer<typeof parentSchema>;

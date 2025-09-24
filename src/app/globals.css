@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Quill CSS */
+@import 'quill/dist/quill.snow.css';
+
 /* ==========================================================================
    React Big Calendar — Cleaned Theme
    Goals:

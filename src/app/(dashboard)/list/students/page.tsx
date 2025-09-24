@@ -13,7 +13,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
 // Updated type to handle multiple classes
-type StudentList = Student & { 
+type StudentList = Student & {
   classes: Array<{
     classId: number;
     isPrimary: boolean;
@@ -38,8 +38,8 @@ const StudentListPage = async ({
       accessor: "info",
     },
     {
-      header: "Student ID",
-      accessor: "studentId",
+      header: "Status",
+      accessor: "status",
       className: "hidden md:table-cell",
     },
     {
@@ -64,11 +64,11 @@ const StudentListPage = async ({
     },
     ...(role === "admin"
       ? [
-          {
-            header: "Actions",
-            accessor: "action",
-          },
-        ]
+        {
+          header: "Actions",
+          accessor: "action",
+        },
+      ]
       : []),
   ];
 
@@ -76,7 +76,7 @@ const StudentListPage = async ({
     // Get primary class or first class
     const primaryClass = item.classes.find(c => c.isPrimary)?.class || item.classes[0]?.class;
     const additionalClassesCount = item.classes.length - 1;
-    
+
     return (
       <tr
         key={item.id}
@@ -108,7 +108,13 @@ const StudentListPage = async ({
             </div>
           </div>
         </td>
-        <td className="hidden md:table-cell">{item.username}</td>
+        <td className="hidden md:table-cell">
+          {item.status === "CURRENT"
+            ? "Current"
+            : item.status === "TRIAL"
+              ? "Trial"
+              : "Disenrolled"}
+        </td>
         <td className="hidden md:table-cell">{item.grade.level}</td>
         <td className="hidden lg:table-cell">{item.school || "-"}</td>
         <td className="hidden md:table-cell">{item.phone}</td>
@@ -135,7 +141,7 @@ const StudentListPage = async ({
 
   // URL PARAMS CONDITION
   const query: Prisma.StudentWhereInput = {};
-  
+
   // ROLE CONDITIONS
   if (role === "teacher") {
     query.classes = {
@@ -178,6 +184,8 @@ const StudentListPage = async ({
               { surname: { contains: value, mode: "insensitive" } },
               { username: { contains: value, mode: "insensitive" } },
               { email: { contains: value, mode: "insensitive" } },
+              { phone: { contains: value, mode: "insensitive" } },
+              { school: { contains: value, mode: "insensitive" } },
             ];
             break;
           default:
