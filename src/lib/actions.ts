@@ -32,7 +32,6 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { RRule } from "rrule";
 import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete as handlePhotoDeleteSync } from "./photoSync";
 import { safeDeleteClerkUser } from "@/lib/clerkSafe";
-import { createClerkUserWithRollback } from "./clerkUtils";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
@@ -415,23 +414,18 @@ export const createTeacher = async (
   currentState: CurrentState,
   data: TeacherSchema
 ) => {
-  let clerkRollback: (() => Promise<void>) | null = null;
-  
   try {
     const validatedData = teacherSchema.parse(data);
 
-    // Create user in Clerk with rollback capability
-    const { user, rollback } = await createClerkUserWithRollback({
+    const clerk = await clerkClient();
+    const user = await clerk.users.createUser({
       username: validatedData.username,
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
       publicMetadata: { role: "teacher" }
     });
-    
-    clerkRollback = rollback;
 
-    // Create teacher in database
     await prisma.teacher.create({
       data: {
         id: user.id,
@@ -456,12 +450,6 @@ export const createTeacher = async (
     return { success: true, error: false, message: "Teacher created successfully!" };
   } catch (err) {
     console.error("Create Teacher Error:", err);
-    
-    // Rollback Clerk user if it was created
-    if (clerkRollback) {
-      await clerkRollback();
-    }
-    
     return { success: false, error: true, message: "Failed to create teacher!" };
   }
 };
@@ -555,21 +543,17 @@ export const createAdmin = async (
   currentState: CurrentState,
   data: AdminSchema
 ) => {
-  let clerkRollback: (() => Promise<void>) | null = null;
-  
   try {
     const validatedData = adminSchema.parse(data);
 
-    // Create user in Clerk with rollback capability
-    const { user, rollback } = await createClerkUserWithRollback({
+    const clerk = await clerkClient();
+    const user = await clerk.users.createUser({
       username: validatedData.username,
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
       publicMetadata: { role: "admin" }
     });
-    
-    clerkRollback = rollback;
 
     await prisma.admin.create({
       data: {
@@ -590,12 +574,6 @@ export const createAdmin = async (
     return { success: true, error: false, message: "Admin created successfully!" };
   } catch (err) {
     console.error("Create Admin Error:", err);
-    
-    // Rollback Clerk user if it was created
-    if (clerkRollback) {
-      await clerkRollback();
-    }
-    
     return { success: false, error: true, message: "Failed to create admin!" };
   }
 };
@@ -669,8 +647,6 @@ export const createStudent = async (
   currentState: CurrentState,
   data: StudentSchema
 ) => {
-  let clerkRollback: (() => Promise<void>) | null = null;
-  
   try {
     const validatedData = studentSchema.parse(data);
 
@@ -683,16 +659,14 @@ export const createStudent = async (
       return { success: false, error: true, message: "Class capacity reached!" };
     }
 
-    // Create user in Clerk with rollback capability
-    const { user, rollback } = await createClerkUserWithRollback({
+    const clerk = await clerkClient();
+    const user = await clerk.users.createUser({
       username: validatedData.username,
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
       publicMetadata: { role: "student" }
     });
-    
-    clerkRollback = rollback;
 
     const student = await prisma.student.create({
       data: {
@@ -709,7 +683,7 @@ export const createStudent = async (
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
         school: validatedData.school || undefined,
-        status: validatedData.status,
+        status: validatedData.status, // NEW
       },
     });
 
@@ -718,7 +692,7 @@ export const createStudent = async (
       data: validatedData.classIds.map((classId, index) => ({
         studentId: student.id,
         classId: classId,
-        isPrimary: index === 0,
+        isPrimary: index === 0, // First class is primary
       })),
     });
 
@@ -726,12 +700,6 @@ export const createStudent = async (
     return { success: true, error: false, message: "Student created successfully!" };
   } catch (err) {
     console.error("Create Student Error:", err);
-    
-    // Rollback Clerk user if it was created
-    if (clerkRollback) {
-      await clerkRollback();
-    }
-    
     return { success: false, error: true, message: "Failed to create student!" };
   }
 };
@@ -822,12 +790,316 @@ export const deleteStudent = async (
   }
 };
 
+export const createExam = async (
+  currentState: CurrentState,
+  data: ExamSchema
+) => {
+  try {
+    const validatedData = examSchema.parse(data);
+
+    await prisma.exam.create({
+      data: {
+        title: validatedData.title,
+        startTime: validatedData.startTime,
+        endTime: validatedData.endTime,
+        // --- NEW: Conditionally set the correct ID ---
+        lessonId: validatedData.lessonId || undefined,
+        recurringLessonId: validatedData.recurringLessonId || undefined,
+      },
+    });
+
+    revalidatePath("/list/exams");
+    return { success: true, error: false, message: "Exam created successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to create exam!" };
+  }
+};
+
+export const updateExam = async (
+  currentState: CurrentState,
+  data: ExamSchema
+) => {
+  try {
+    const validatedData = examSchema.parse(data);
+
+    await prisma.exam.update({
+      where: {
+        id: validatedData.id,
+      },
+      data: {
+        title: validatedData.title,
+        startTime: validatedData.startTime,
+        endTime: validatedData.endTime,
+        documents: validatedData.documents || [],
+        // --- NEW: Conditionally set the correct ID ---
+        lessonId: validatedData.lessonId || undefined,
+        recurringLessonId: validatedData.recurringLessonId || undefined,
+      },
+    });
+    revalidatePath("/list/exams");
+    return { success: true, error: false, message: "Exam updated successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to update exam!" };
+  }
+};
+
+export const deleteExam = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    await prisma.exam.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    revalidatePath("/list/exams");
+    return { success: true, error: false, message: "Exam deleted successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to delete exam!" };
+  }
+};
+
+// The form now passes an extra 'rrule' property
+interface LessonFormData extends LessonSchema {
+  rrule: string | null;
+}
+
+// CREATE — recurring (series)
+export async function createRecurringLesson(payload: {
+  name: string;
+  subjectId: number;
+  classId: number;
+  teacherId: string;
+  startTime: string;
+  endTime: string;
+  rrule: string; // required for weekly
+}) {
+  try {
+    console.log("Creating recurring lesson with payload:", payload);
+    
+    const startDate = new Date(payload.startTime);
+    const endDate = new Date(payload.endTime);
+    
+    // Validate the RRule
+    try {
+      const testRule = RRule.fromString(payload.rrule);
+      console.log("RRule validation successful:", testRule.toString());
+    } catch (rruleError) {
+      console.error("Invalid RRule:", payload.rrule, rruleError);
+      return { success: false, error: true, message: "Invalid recurrence rule" };
+    }
+
+    const recurringLesson = await prisma.recurringLesson.create({
+      data: {
+        name: payload.name,
+        subjectId: Number(payload.subjectId),
+        classId: Number(payload.classId),
+        teacherId: payload.teacherId,
+        startTime: startDate,
+        endTime: endDate,
+        rrule: payload.rrule,
+      },
+    });
+    
+    console.log("Recurring lesson created:", recurringLesson);
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Recurring lesson created" };
+  } catch (e: any) {
+    console.error("Error creating recurring lesson:", e);
+    return { success: false, error: true, message: e.message || "Create failed" };
+  }
+}
+
+// UPDATE — single
+export async function updateLesson(payload: {
+  id: number;
+  name?: string;
+  subjectId?: number;
+  classId?: number;
+  teacherId?: string;
+  startTime?: string;
+  endTime?: string;
+}) {
+  try {
+    const { id, ...rest } = payload;
+    const existing = await prisma.lesson.findUnique({ where: { id: Number(id) } });
+    if (!existing) return { success: false, error: true, message: `Update failed: Lesson with ID ${id} not found.` };
+
+    const updateData: any = {};
+    if (rest.name !== undefined) updateData.name = rest.name;
+    if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
+    if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
+    if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
+    if (rest.startTime !== undefined) {
+      updateData.startTime = new Date(rest.startTime);
+      // Update day based on new start time
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+      updateData.day = dayNames[new Date(rest.startTime).getDay()];
+    }
+    if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
+
+    await prisma.lesson.update({
+      where: { id: Number(id) },
+      data: updateData,
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Lesson updated" };
+  } catch (e: any) {
+    return { success: false, error: true, message: e.message || "Update failed" };
+  }
+}
+
+// UPDATE — recurring
+export async function updateRecurringLesson(payload: {
+  id: number; // series id
+  updateScope?: "series" | "instance";
+  originalDate?: string; // when updating a single occurrence
+  name?: string;
+  subjectId?: number;
+  classId?: number;
+  teacherId?: string;
+  startTime?: string;
+  endTime?: string;
+  rrule?: string | null;
+}) {
+  try {
+    const { id, updateScope = "series", originalDate, ...rest } = payload;
+    const series = await prisma.recurringLesson.findUnique({ where: { id: Number(id) } });
+    if (!series) return { success: false, error: true, message: `Update failed: Recurring series with ID ${id} not found.` };
+
+    if (updateScope === "series") {
+      const updateData: any = {};
+      if (rest.name !== undefined) updateData.name = rest.name;
+      if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
+      if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
+      if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
+      if (rest.startTime !== undefined) updateData.startTime = new Date(rest.startTime);
+      if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
+      if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
+
+      await prisma.recurringLesson.update({
+        where: { id: Number(id) },
+        data: updateData,
+      });
+
+      revalidatePath("/list/lessons");
+      return { success: true, error: false, message: "Recurring series updated" };
+    }
+
+    // updateScope === "instance" → copy-on-write an occurrence as a single lesson
+    if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
+
+    const startDate = new Date(rest.startTime ?? originalDate);
+    const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+    const dayOfWeek = dayNames[startDate.getDay()];
+
+    await prisma.lesson.create({
+      data: {
+        name: rest.name ?? series.name,
+        subjectId: Number(rest.subjectId ?? series.subjectId),
+        classId: Number(rest.classId ?? series.classId),
+        teacherId: rest.teacherId ?? series.teacherId,
+        startTime: startDate,
+        endTime: new Date(rest.endTime ?? originalDate),
+        day: dayOfWeek,
+        recurringLessonId: Number(id), // link to series
+      },
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "This instance updated (exception created)" };
+  } catch (e: any) {
+    return { success: false, error: true, message: e.message || "Update failed" };
+  }
+}
+
+// DELETE — single
+export async function deleteLesson(
+  currentState: CurrentState,
+  data: FormData
+) {
+  const id = data.get("id") as string;
+  try {
+    await prisma.lesson.delete({ 
+      where: { id: parseInt(id) } 
+    });
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Lesson deleted successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to delete lesson!" };
+  }
+}
+
+// DELETE — recurring (cascades children first)
+export async function deleteRecurringLesson(
+  currentState: CurrentState,
+  data: FormData
+) {
+  const id = data.get("id") as string;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.lesson.deleteMany({ where: { recurringLessonId: parseInt(id) } });
+      await tx.recurringLesson.delete({ where: { id: parseInt(id) } });
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Recurring lesson deleted successfully!" };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true, message: "Failed to delete recurring lesson!" };
+  }
+}
+
+// The form now passes an extra 'rrule' property
+interface LessonFormData extends LessonSchema {
+  rrule: string | null;
+}
+
+export async function createLesson(payload: {
+  name: string;
+  subjectId: number;
+  classId: number;
+  teacherId: string;
+  startTime: string;
+  endTime: string;
+}) {
+  try {
+    const startDate = new Date(payload.startTime);
+    const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+    const dayOfWeek = dayNames[startDate.getDay()];
+    
+    await prisma.lesson.create({
+      data: {
+        name: payload.name,
+        subjectId: Number(payload.subjectId),
+        classId: Number(payload.classId),
+        teacherId: payload.teacherId,
+        startTime: startDate,
+        endTime: new Date(payload.endTime),
+        day: dayOfWeek,
+        recurringLessonId: null,
+      },
+    });
+    return { success: true, error: false, message: "Lesson created" };
+  } catch (e: any) {
+    return { success: false, error: true, message: e.message || "Create failed" };
+  }
+}
+
+
+
 export const createParent = async (
   currentState: CurrentState,
   data: ParentSchema
 ) => {
-  let clerkRollback: (() => Promise<void>) | null = null;
-  
   try {
     const validatedData = parentSchema.parse(data);
 
@@ -837,16 +1109,14 @@ export const createParent = async (
       return { success: false, error: true, message: "Password is required for creating a new parent" };
     }
 
-    // Create user in Clerk with rollback capability
-    const { user, rollback } = await createClerkUserWithRollback({
+    const clerk = await clerkClient();
+    const user = await clerk.users.createUser({
       username: validatedData.username,
       password: validatedData.password,
       firstName: validatedData.name,
       lastName: validatedData.surname,
-      publicMetadata: { role: "parent" }
+      publicMetadata: { role: "parent" },
     });
-    
-    clerkRollback = rollback;
 
     const parent = await prisma.parent.create({
       data: {
@@ -857,6 +1127,7 @@ export const createParent = async (
         email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
+        // NEW: persist payment type
         paymentType: validatedData.paymentType,
       },
     });
@@ -879,12 +1150,6 @@ export const createParent = async (
     return { success: true, error: false, message: "Parent created successfully!" };
   } catch (err) {
     console.error("Create Parent Error:", err);
-    
-    // Rollback Clerk user if it was created
-    if (clerkRollback) {
-      await clerkRollback();
-    }
-    
     if (err && typeof err === 'object' && 'errors' in err) {
       console.error("Clerk validation errors:", err.errors);
     }
