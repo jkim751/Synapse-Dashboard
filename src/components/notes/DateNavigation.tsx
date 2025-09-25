@@ -51,6 +51,11 @@ export default function DateNavigation({
     setIsEditing(false)
   }
 
+  const goToToday = () => {
+    setSelectedDate(new Date())
+    setIsEditing(false)
+  }
+
   const handleEdit = () => {
     setIsEditing(true)
     // Combine HTML content with line breaks for editing
@@ -72,18 +77,27 @@ export default function DateNavigation({
           ← Previous Day
         </button>
         
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isClient ? selectedDate.toLocaleDateString('en-GB', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }) : 'Loading...'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {currentNotes.length} note{currentNotes.length !== 1 ? 's' : ''}
-          </p>
+        <div className="text-center flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isClient ? selectedDate.toLocaleDateString('en-GB', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }) : 'Loading...'}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {currentNotes.length} note{currentNotes.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          
+          <button
+            onClick={goToToday}
+            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Today
+          </button>
         </div>
         
         <div className="flex gap-2">
