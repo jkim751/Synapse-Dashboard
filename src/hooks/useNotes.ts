@@ -2,14 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
-
-interface Note {
-  id: string
-  title: string
-  content: string
-  author: string
-  createdAt: Date
-}
+import { Note, Comment, ActionItem } from '@/types/notes'
 
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -31,7 +24,16 @@ export function useNotes() {
         const loadedNotes = await response.json()
         setNotes(loadedNotes.map((note: any) => ({
           ...note,
-          createdAt: new Date(note.createdAt)
+          createdAt: new Date(note.createdAt),
+          comments: note.comments?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt)
+          })) || [],
+          actionItems: note.actionItems?.map((a: any) => ({
+            ...a,
+            createdAt: new Date(a.createdAt),
+            completedAt: a.completedAt ? new Date(a.completedAt) : undefined
+          })) || []
         })))
       } else {
         console.error('Failed to load notes:', response.statusText)
@@ -131,12 +133,98 @@ export function useNotes() {
     }
   }
 
+  const addComment = async (noteId: string, content: string) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      })
+
+      if (response.ok) {
+        await loadNotes()
+      }
+    } catch (error) {
+      console.error('Failed to add comment:', error)
+      throw error
+    }
+  }
+
+  const deleteComment = async (noteId: string, commentId: string) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}/comments/${commentId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await loadNotes()
+      }
+    } catch (error) {
+      console.error('Failed to delete comment:', error)
+      throw error
+    }
+  }
+
+  const addActionItem = async (noteId: string, title: string, description?: string) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description })
+      })
+
+      if (response.ok) {
+        await loadNotes()
+      }
+    } catch (error) {
+      console.error('Failed to add action item:', error)
+      throw error
+    }
+  }
+
+  const toggleActionItem = async (noteId: string, actionId: string, completed: boolean) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}/actions/${actionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed })
+      })
+
+      if (response.ok) {
+        await loadNotes()
+      }
+    } catch (error) {
+      console.error('Failed to toggle action item:', error)
+      throw error
+    }
+  }
+
+  const deleteActionItem = async (noteId: string, actionId: string) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}/actions/${actionId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await loadNotes()
+      }
+    } catch (error) {
+      console.error('Failed to delete action item:', error)
+      throw error
+    }
+  }
+
   return {
     notes,
     isLoaded: isLoaded && userLoaded,
     isLoading,
     saveNotesForDate,
     deleteNote,
-    refreshNotes: loadNotes
+    refreshNotes: loadNotes,
+    addComment,
+    deleteComment,
+    addActionItem,
+    toggleActionItem,
+    deleteActionItem
   }
 }

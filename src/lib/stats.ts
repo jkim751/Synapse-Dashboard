@@ -1,5 +1,5 @@
 import prisma from "./prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, PaymentType } from "@prisma/client";
 
 interface DateFilter {
   startDate: Date;
@@ -144,12 +144,6 @@ export async function getPaymentTypeStats(filters: DateFilter) {
     where.gradeId = gradeId;
   }
 
-  const paymentTypes = await prisma.student.groupBy({
-    by: ["parentId"],
-    where,
-    _count: true,
-  });
-
   // Get actual payment type data by joining with parent
   const paymentTypeData = await prisma.parent.groupBy({
     by: ["paymentType"],
@@ -158,15 +152,20 @@ export async function getPaymentTypeStats(filters: DateFilter) {
         some: where,
       },
     },
-    _count: true,
-  });
+    _count: {
+      _all: true,
+    },
+  }) as Array<{
+    paymentType: PaymentType;
+    _count: { _all: number };
+  }>;
 
-  const total = paymentTypeData.reduce((sum, item) => sum + item._count, 0);
+  const total = paymentTypeData.reduce((sum, item) => sum + item._count._all, 0);
 
   return paymentTypeData.map(item => ({
     paymentType: item.paymentType,
-    count: item._count,
-    percentage: total > 0 ? (item._count / total) * 100 : 0,
+    count: item._count._all,
+    percentage: total > 0 ? (item._count._all / total) * 100 : 0,
   }));
 }
 

@@ -314,16 +314,48 @@ model RecurringLesson {
 model Note {
   id        String   @id @default(cuid())
   title     String?
-  content   String
+  content   String   @db.Text
   author    String
+  date      DateTime
+  userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  date      DateTime // The date this note is associated with
-  userId    String   // Link to user who created the note
+  comments  Comment[]
+  actionItems ActionItem[]
 
-  @@index([date])
   @@index([userId])
+  @@index([date])
   @@map("notes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  author    String
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([noteId])
+  @@index([userId])
+}
+
+model ActionItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  completed   Boolean  @default(false)
+  noteId      String
+  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+
+  @@index([noteId])
+  @@index([userId])
 }
 
 model StudentStatusHistory {

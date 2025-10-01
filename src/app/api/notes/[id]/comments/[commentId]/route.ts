@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -13,18 +13,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { commentId } = await params
 
-    await prisma.note.deleteMany({
+    await prisma.comment.delete({
       where: {
-        id,
-        userId // Ensure user can only delete their own notes
+        id: commentId,
+        userId
       }
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Failed to delete note:', error)
+    console.error('Failed to delete comment:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

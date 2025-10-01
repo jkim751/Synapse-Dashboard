@@ -72,6 +72,7 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
       [{ 'indent': '-1'}, { 'indent': '+1' }],
       [{ 'align': [] }],
       ['image'],
+      ['clean']
     ]
 
     try {
@@ -79,9 +80,38 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
         theme: 'snow',
         placeholder: placeholder || 'Start typing your notes...',
         modules: {
-          toolbar: toolbarOptions,
+          toolbar: {
+            container: toolbarOptions,
+            handlers: {
+              table: function() {
+                const tableModule = (this as any).quill.getModule('table')
+                tableModule.insertTable(3, 3)
+              }
+            }
+          },
+          table: true
         },
       })
+
+      // Add custom table button
+      const toolbar = quill.getModule('toolbar')
+      const tableButton = document.createElement('button')
+      tableButton.innerHTML = '⊞'
+      tableButton.title = 'Insert Table'
+      tableButton.type = 'button'
+      tableButton.className = 'ql-table'
+      tableButton.addEventListener('click', () => {
+        const rows = prompt('Number of rows:', '3')
+        const cols = prompt('Number of columns:', '3')
+        if (rows && cols) {
+          insertTable(quill, parseInt(rows), parseInt(cols))
+        }
+      })
+      
+      const toolbarElement = editorRef.current.previousSibling as HTMLElement
+      if (toolbarElement) {
+        toolbarElement.appendChild(tableButton)
+      }
 
       // Set initial content
       if (value) {
@@ -118,6 +148,24 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
       }
     }
   }, [value])
+
+  const insertTable = (quill: any, rows: number, cols: number) => {
+    const range = quill.getSelection()
+    if (!range) return
+
+    let tableHTML = '<table style="border-collapse: collapse; width: 100%;"><tbody>'
+    for (let i = 0; i < rows; i++) {
+      tableHTML += '<tr>'
+      for (let j = 0; j < cols; j++) {
+        tableHTML += '<td style="border: 1px solid #ddd; padding: 8px; min-width: 50px;">&nbsp;</td>'
+      }
+      tableHTML += '</tr>'
+    }
+    tableHTML += '</tbody></table><p><br></p>'
+
+    quill.clipboard.dangerouslyPasteHTML(range.index, tableHTML)
+    quill.setSelection(range.index + 1)
+  }
 
   if (!isClient || !isQuillLoaded) {
     return (
@@ -247,6 +295,29 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
         .ql-picker.ql-size .ql-picker-label::before,
         .ql-picker.ql-size .ql-picker-item::before {
           content: attr(data-value) !important;
+        }
+
+        /* Table styles */
+        .ql-editor table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 1em 0;
+        }
+        
+        .ql-editor table td,
+        .ql-editor table th {
+          border: 1px solid #ddd;
+          padding: 8px;
+          min-width: 50px;
+        }
+        
+        .ql-editor table th {
+          background-color: #f3f4f6;
+          font-weight: bold;
+        }
+        
+        .ql-editor table tr:nth-child(even) {
+          background-color: #f9fafb;
         }
       `}</style>
     </>
