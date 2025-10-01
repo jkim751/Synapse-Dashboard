@@ -6,18 +6,19 @@ interface StatsCardsProps {
     disenrolledStudents: number;
     disenrollmentRate: number;
     averageGrade: number;
+    trialConversionRate: number;
   };
 }
 
 const StatsCards = ({ stats }: StatsCardsProps) => {
   const cards = [
     {
-      title: "Current Students",
-      value: stats.currentStudents, 
-    },
-    {
       title: "Trial Students",
       value: stats.trialStudents,
+    },
+    {
+      title: "Trial Conversion Rate",
+      value: `${stats.trialConversionRate.toFixed(1)}%`,
     },
     {
       title: "Disenrolled",

@@ -7,6 +7,77 @@ interface DateFilter {
   gradeId?: number;
 }
 
+export async function getTrialConversionRate(filters: DateFilter) {
+  const { startDate, endDate, gradeId } = filters;
+
+  try {
+    // Check if StudentStatusHistory table exists and has data
+    const historyExists = await prisma.studentStatusHistory.findFirst();
+    
+    if (!historyExists) {
+      // If no history data exists, return zero conversion rate
+      return {
+        trialCount: 0,
+        convertedCount: 0,
+        conversionRate: 0,
+      };
+    }
+
+    // Get students who converted from TRIAL to CURRENT in the period
+    const conversions = await prisma.studentStatusHistory.count({
+      where: {
+        fromStatus: "TRIAL",
+        toStatus: "CURRENT",
+        changedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        ...(gradeId && {
+          student: {
+            gradeId: gradeId,
+          },
+        }),
+      },
+    });
+
+    // Get total number of students who were TRIAL at some point in the period
+    const totalTrialStudents = await prisma.studentStatusHistory.groupBy({
+      by: ['studentId'],
+      where: {
+        toStatus: "TRIAL",
+        changedAt: {
+          lte: endDate, // Started as trial before or during period
+        },
+        ...(gradeId && {
+          student: {
+            gradeId: gradeId,
+          },
+        }),
+      },
+      _count: {
+        studentId: true,
+      },
+    });
+
+    const trialCount = totalTrialStudents.length;
+    const conversionRate = trialCount > 0 ? (conversions / trialCount) * 100 : 0;
+
+    return {
+      trialCount,
+      convertedCount: conversions,
+      conversionRate,
+    };
+  } catch (error) {
+    console.error('Error getting trial conversion rate:', error);
+    // Return fallback values if there's an error
+    return {
+      trialCount: 0,
+      convertedCount: 0,
+      conversionRate: 0,
+    };
+  }
+}
+
 export async function getStudentStats(filters: DateFilter) {
   const { startDate, endDate, gradeId } = filters;
 
@@ -34,6 +105,9 @@ export async function getStudentStats(filters: DateFilter) {
   // Calculate disenrollment rate
   const disenrollmentRate = totalStudents > 0 ? (disenrolledStudents / totalStudents) * 100 : 0;
 
+  // Get trial conversion rate
+  const trialConversion = await getTrialConversionRate(filters);
+
   // Get average grade
   const gradeAvg = await prisma.student.aggregate({
     where,
@@ -49,6 +123,7 @@ export async function getStudentStats(filters: DateFilter) {
     disenrolledStudents,
     disenrollmentRate,
     averageGrade: gradeAvg._avg.gradeId || 0,
+    trialConversionRate: trialConversion.conversionRate,
   };
 }
 

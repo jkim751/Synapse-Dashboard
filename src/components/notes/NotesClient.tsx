@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNotes } from '@/hooks/useNotes'
 import DateNavigation from './DateNavigation'
 import SearchBar from './SearchBar'
@@ -21,6 +21,53 @@ export default function NotesClient() {
   const [isEditing, setIsEditing] = useState(false)
   const [editableContent, setEditableContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResultDate, setSearchResultDate] = useState<Date | null>(null)
+
+  // Handle search query changes
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const parsedDate = parseDateFromSearch(searchQuery.toLowerCase())
+      if (parsedDate) {
+        setSearchResultDate(parsedDate)
+      } else {
+        setSearchResultDate(null)
+      }
+    } else {
+      setSearchResultDate(null)
+    }
+  }, [searchQuery])
+
+  // Add keyboard navigation
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (isEditing || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+      return
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      const previousDay = new Date(selectedDate)
+      previousDay.setDate(previousDay.getDate() - 1)
+      setSelectedDate(previousDay)
+      setSearchQuery('')
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      const nextDay = new Date(selectedDate)
+      nextDay.setDate(nextDay.getDate() + 1)
+      setSelectedDate(nextDay)
+      setSearchQuery('')
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setSelectedDate(new Date())
+      setSearchQuery('')
+    }
+  }, [selectedDate, isEditing])
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyPress)
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [handleKeyPress])
 
   // Function to strip HTML tags for search
   const stripHtml = (html: string) => {
@@ -30,79 +77,73 @@ export default function NotesClient() {
     return tmp.textContent || tmp.innerText || ''
   }
 
+  // Parse date from search query
+  const parseDateFromSearch = (query: string): Date | null => {
+    const lowerQuery = query.toLowerCase().trim()
+    
+    if (lowerQuery === 'today') {
+      return new Date()
+    } else if (lowerQuery === 'yesterday') {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      return yesterday
+    }
+    
+    try {
+      if (query.includes('/')) {
+        const parts = query.split('/')
+        if (parts.length === 2) {
+          const day = parseInt(parts[0])
+          const month = parseInt(parts[1]) - 1
+          return new Date(new Date().getFullYear(), month, day)
+        } else if (parts.length === 3) {
+          const day = parseInt(parts[0])
+          const month = parseInt(parts[1]) - 1
+          const year = parseInt(parts[2])
+          return new Date(year, month, day)
+        }
+      }
+      
+      if (query.includes('-') && /^\d{4}-\d{1,2}-\d{1,2}$/.test(query)) {
+        return new Date(query)
+      }
+      
+      const parsed = new Date(query)
+      if (!isNaN(parsed.getTime())) {
+        return parsed
+      }
+    } catch (error) {}
+    
+    return null
+  }
+
   const getCurrentNotes = () => {
     let dayNotes = notes
     
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       
-      // Check if search query is a date format
-      const isDateSearch = /^\d{1,2}\/\d{1,2}\/\d{4}$|^\d{4}-\d{1,2}-\d{1,2}$|^\d{1,2}\/\d{1,2}$/.test(query) ||
-                          query.includes('today') || query.includes('yesterday') ||
-                          /^(january|february|march|april|may|june|july|august|september|october|november|december)/i.test(query) ||
-                          /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(query)
-      
-      if (isDateSearch) {
-        // Handle special date keywords
-        if (query === 'today') {
-          const today = new Date().toDateString()
-          dayNotes = notes.filter(note => note.createdAt.toDateString() === today)
-        } else if (query === 'yesterday') {
-          const yesterday = new Date()
-          yesterday.setDate(yesterday.getDate() - 1)
-          dayNotes = notes.filter(note => note.createdAt.toDateString() === yesterday.toDateString())
-        } else {
-          // Try to parse the date and find notes for that date
-          try {
-            let searchDate
-            if (query.includes('/')) {
-              const parts = query.split('/')
-              if (parts.length === 2) {
-                // DD/MM format - assume current year (British format)
-                searchDate = new Date(new Date().getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]))
-              } else if (parts.length === 3) {
-                // DD/MM/YYYY format (British format)
-                searchDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-              }
-            } else if (query.includes('-')) {
-              // YYYY-MM-DD format
-              searchDate = new Date(query)
-            } else {
-              // Month name search
-              dayNotes = notes.filter(note => {
-                const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
-                const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
-                return noteMonth.includes(query) || noteMonthShort.includes(query)
-              })
-              return dayNotes
-            }
-            
-            if (searchDate && !isNaN(searchDate.getTime())) {
-              dayNotes = notes.filter(note => note.createdAt.toDateString() === searchDate.toDateString())
-            } else {
-              // If date parsing fails, fall back to regular text search
-              dayNotes = notes.filter(note => 
-                note.title.toLowerCase().includes(query) ||
-                stripHtml(note.content).toLowerCase().includes(query) ||
-                note.author.toLowerCase().includes(query)
-              )
-            }
-          } catch (error) {
-            // If date parsing fails, fall back to regular text search
-            dayNotes = notes.filter(note => 
-              note.title.toLowerCase().includes(query) ||
-              stripHtml(note.content).toLowerCase().includes(query) ||
-              note.author.toLowerCase().includes(query)
-            )
-          }
-        }
+      if (searchResultDate) {
+        // Date search - filter by the parsed date
+        dayNotes = notes.filter(note => note.createdAt.toDateString() === searchResultDate.toDateString())
       } else {
-        // Regular text search across all notes
-        dayNotes = notes.filter(note => 
-          note.title.toLowerCase().includes(query) ||
-          stripHtml(note.content).toLowerCase().includes(query) ||
-          note.author.toLowerCase().includes(query)
-        )
+        // Check for month name search
+        const monthMatch = notes.filter(note => {
+          const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
+          const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
+          return noteMonth.includes(query) || noteMonthShort.includes(query)
+        })
+        
+        if (monthMatch.length > 0) {
+          dayNotes = monthMatch
+        } else {
+          // Regular text search across all notes
+          dayNotes = notes.filter(note => 
+            note.title.toLowerCase().includes(query) ||
+            stripHtml(note.content).toLowerCase().includes(query) ||
+            note.author.toLowerCase().includes(query)
+          )
+        }
       }
     } else {
       // No search query - show notes for selected date
@@ -117,12 +158,18 @@ export default function NotesClient() {
 
   const handleSave = async (content: string) => {
     try {
-      await saveNotesForDate(content, selectedDate)
+      const targetDate = searchResultDate || selectedDate
+      await saveNotesForDate(content, targetDate)
       setIsEditing(false)
     } catch (error) {
       console.error('Failed to save notes:', error)
-      // You could add a toast notification here
     }
+  }
+
+  const handleDateNavigation = (newDate: Date) => {
+    setSelectedDate(newDate)
+    setSearchQuery('')
+    setIsEditing(false)
   }
 
   if (!isLoaded) {
@@ -145,15 +192,20 @@ export default function NotesClient() {
         </div>
       )}
       
+      <div className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs opacity-75">
+        ← → arrows: Navigate days | Home: Today
+      </div>
+      
       <DateNavigation
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
+        selectedDate={searchResultDate || selectedDate}
+        setSelectedDate={handleDateNavigation}
         currentNotes={currentNotes}
         isEditing={isEditing}
         setIsEditing={setIsEditing}
         editableContent={editableContent}
         setEditableContent={setEditableContent}
         onSave={handleSave}
+        isSearchResult={!!searchResultDate}
       />
 
       <SearchBar
@@ -175,10 +227,8 @@ export default function NotesClient() {
                paddingTop: '40px'
              }}>
           
-          {/* Red margin line */}
           <div className="absolute left-16 top-0 bottom-0 w-px bg-red-300"></div>
           
-          {/* Notes content */}
           <div className="relative z-10 px-20 py-4">
             {isEditing ? (
               <NotesEditor

@@ -6,6 +6,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model Admin {
@@ -44,6 +45,7 @@ model Student {
   grade         Grade          @relation(fields: [gradeId], references: [id])
   parent        Parent?        @relation(fields: [parentId], references: [id])
   classes       StudentClass[]
+  statusHistory StudentStatusHistory[]
 }
 
 model Teacher {
@@ -322,6 +324,20 @@ model Note {
   @@index([date])
   @@index([userId])
   @@map("notes")
+}
+
+model StudentStatusHistory {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  fromStatus StudentStatus?
+  toStatus   StudentStatus
+  changedAt  DateTime @default(now())
+  changedBy  String?
+  reason     String?
+  
+  @@map("student_status_history")
 }
 
 enum UserSex {

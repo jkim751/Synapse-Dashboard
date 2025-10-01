@@ -19,6 +19,7 @@ interface DateNavigationProps {
   editableContent: string
   setEditableContent: (content: string) => void
   onSave: (content: string) => void
+  isSearchResult?: boolean
 }
 
 export default function DateNavigation({
@@ -29,7 +30,8 @@ export default function DateNavigation({
   setIsEditing,
   editableContent,
   setEditableContent,
-  onSave
+  onSave,
+  isSearchResult = false
 }: DateNavigationProps) {
   const [isClient, setIsClient] = useState(false)
 
@@ -68,11 +70,12 @@ export default function DateNavigation({
   }
 
   return (
-    <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className={`mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${isSearchResult ? 'border-blue-300 bg-blue-50' : ''}`}>
       <div className="flex items-center justify-between">
         <button
           onClick={goToPreviousDay}
-          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+          className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2"
+          title="Previous day (← arrow key)"
         >
           ← Previous Day
         </button>
@@ -87,14 +90,17 @@ export default function DateNavigation({
                 day: 'numeric'
               }) : 'Loading...'}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className={`text-sm mt-1 ${isSearchResult ? 'text-blue-600' : 'text-gray-500'}`}>
+              {isSearchResult && '🔍 '}
               {currentNotes.length} note{currentNotes.length !== 1 ? 's' : ''}
+              {isSearchResult && ' (search result)'}
             </p>
           </div>
           
           <button
             onClick={goToToday}
-            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="px-3 py-1 text-sm bg-orange-400 text-white rounded hover:bg-orange-500 transition-colors"
+            title="Go to today (Home key)"
           >
             Today
           </button>
@@ -118,7 +124,8 @@ export default function DateNavigation({
           )}
           <button
             onClick={goToNextDay}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2"
+            title="Next day (→ arrow key)"
           >
             Next Day →
           </button>

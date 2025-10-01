@@ -22,6 +22,8 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useActionState } from "react";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
+import { updateStudentStatus } from "@/lib/studentActions";
+import { StudentStatus } from "@prisma/client";
 
 type DeleteAction = (
   currentState: any,
@@ -354,6 +356,19 @@ const FormModal = ({
       }
       // --- FIX: Follow linter advice for this specific hook ---
     }, [state, router]);
+
+    const handleStudentUpdate = async (formData: FormData) => {
+      const studentId = formData.get("id") as string;
+      const newStatus = formData.get("status") as StudentStatus;
+      
+      if (newStatus) {
+        // TODO: Get userId from authentication context or props
+        const userId = ""; // Replace with actual userId
+        await updateStudentStatus(studentId, newStatus, userId, "Manual update");
+      }
+      
+      // ...rest of update logic...
+    };
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">

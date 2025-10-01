@@ -71,9 +71,7 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
       [{ 'indent': '-1'}, { 'indent': '+1' }],
       [{ 'align': [] }],
-      ['blockquote', 'code-block'],
-      ['link', 'image'],
-      ['clean']
+      ['image'],
     ]
 
     try {
