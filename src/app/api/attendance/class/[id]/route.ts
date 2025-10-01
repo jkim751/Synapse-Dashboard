@@ -120,6 +120,8 @@ export async function GET(
   }
 }
 
+
+
 // Helper function to get day of week for Prisma enum
 function getDayOfWeek(date: Date): "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" {
   const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
