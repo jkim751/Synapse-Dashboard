@@ -158,15 +158,21 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
         ]);
 
+        // Fetch complete lesson data when updating
+        let lessonData = data;
         if (type === "update" && id) {
-          const existing = await prisma.lesson.findUnique({
+          lessonData = await prisma.lesson.findUnique({
             where: { id: Number(id) },
-            include: { subject: true, class: true, teacher: true },
+            include: { 
+              subject: { select: { id: true, name: true } }, 
+              class: { select: { id: true, name: true } }, 
+              teacher: { select: { id: true, name: true, surname: true } } 
+            },
           });
-          if (existing) data = existing;
         }
 
         relatedData = { subjects, classes, teachers, variant: "single" };
+        data = lessonData;
         break;
       }
 
@@ -177,15 +183,21 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
         ]);
 
+        // Fetch complete recurring lesson data when updating
+        let recurringData = data;
         if (type === "update" && id) {
-          const existing = await prisma.recurringLesson.findUnique({
+          recurringData = await prisma.recurringLesson.findUnique({
             where: { id: Number(id) },
-            include: { subject: true, class: true, teacher: true },
+            include: { 
+              subject: { select: { id: true, name: true } }, 
+              class: { select: { id: true, name: true } }, 
+              teacher: { select: { id: true, name: true, surname: true } } 
+            },
           });
-          if (existing) data = existing;
         }
 
         relatedData = { subjects, classes, teachers, variant: "recurring" };
+        data = recurringData;
         break;
       }
 

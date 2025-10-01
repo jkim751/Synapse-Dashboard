@@ -56,8 +56,7 @@ const LessonForm = ({
         teacherId: data.teacherId ?? data.teacher?.id,
         startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
         endTime:   data.endTime   ? new Date(data.endTime).toISOString().slice(0, 16)   : undefined,
-        repeats: "never", // you can infer weekly if data has rrule; keep "never" by default
-        // --- FIX: Add default values for recurring updates ---
+        repeats: data.rrule ? "weekly" : "never",
         updateScope: isRecurring ? "instance" : undefined,
         originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
       }
@@ -83,14 +82,13 @@ const LessonForm = ({
         teacherId: data.teacherId ?? data.teacher?.id,
         startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
         endTime: data.endTime ? new Date(data.endTime).toISOString().slice(0, 16) : undefined,
-        repeats: "never" as const,
+        repeats: data.rrule ? ("weekly" as const) : ("never" as const),
         updateScope: isRecurring ? ("instance" as const) : undefined,
         originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
       };
       reset(defaults as any);
     }
-    // --- FIX: Add missing dependencies ---
-  }, [data, reset, isRecurring]); // Assuming 'reset' is from useForm and 'data' is the prop. Adjust if needed.
+  }, [data, reset, isRecurring]);
 
   useEffect(() => {
     if (state.success) {
