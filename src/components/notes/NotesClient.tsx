@@ -193,7 +193,7 @@ export default function NotesClient() {
       )}
       
       <div className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs opacity-75">
-        ← → arrows: Navigate days | Home: Today
+        ← → use arrows to Navigate days
       </div>
       
       <DateNavigation
