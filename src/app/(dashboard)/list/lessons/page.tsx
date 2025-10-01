@@ -53,13 +53,13 @@ const LessonListPage = async ({
         <div className="flex items-center gap-2">
           {role === "admin" && item.kind === "single" && (
             <>
-              <FormContainer table="lesson" type="update" data={{ id: item.lessonId }} />
+              <FormContainer table="lesson" type="update" id={item.lessonId!} />
               <FormContainer table="lesson" type="delete" id={item.lessonId!} />
             </>
           )}
           {role === "admin" && item.kind === "recurring" && (
             <>
-              <FormContainer table="recurringLesson" type="update" data={{ id: item.recurringId }} />
+              <FormContainer table="recurringLesson" type="update" id={item.recurringId!} />
               <FormContainer table="recurringLesson" type="delete" id={item.recurringId!} />
             </>
           )}

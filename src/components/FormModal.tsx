@@ -178,6 +178,7 @@ const forms: {
   ),
   lesson: (setOpen, type, data, relatedData) => (
     <LessonForm
+      key={data?.id || 'new-lesson'}
       type={type}
       data={data}
       setOpen={setOpen}
@@ -186,6 +187,7 @@ const forms: {
   ),
   lessons: (setOpen, type, data, relatedData) => (
     <LessonForm
+      key={data?.id || 'new-lesson'}
       type={type}
       data={data}
       setOpen={setOpen}
@@ -194,6 +196,7 @@ const forms: {
   ),
   recurringLesson: (setOpen, type, data, relatedData) => (
     <LessonForm
+      key={data?.id || 'new-recurring-lesson'}
       type={type}
       data={data}
       setOpen={setOpen}
@@ -201,6 +204,7 @@ const forms: {
   ),
   recurringLessons: (setOpen, type, data, relatedData) => (
     <LessonForm
+      key={data?.id || 'new-recurring-lesson'}
       type={type}
       data={data}
       setOpen={setOpen}

@@ -51,16 +51,19 @@ const LessonForm = ({
   const defaults: Partial<LessonSchema> = data
     ? {
         name: data.name ?? "",
-        subjectId: data.subjectId ?? data.subject?.id,
-        classId: data.classId ?? data.class?.id,
-        teacherId: data.teacherId ?? data.teacher?.id,
+        subjectId: Number(data.subjectId || data.subject?.id) || undefined,
+        classId: Number(data.classId || data.class?.id) || undefined,
+        teacherId: String(data.teacherId || data.teacher?.id || ""),
         startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
-        endTime:   data.endTime   ? new Date(data.endTime).toISOString().slice(0, 16)   : undefined,
+        endTime: data.endTime ? new Date(data.endTime).toISOString().slice(0, 16) : undefined,
         repeats: data.rrule ? "weekly" : "never",
         updateScope: isRecurring ? "instance" : undefined,
         originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
       }
     : { repeats: "never" };
+
+  console.log("LessonForm mounting with data:", data);
+  console.log("LessonForm defaults:", defaults);
 
   const {
     register,
@@ -74,23 +77,6 @@ const LessonForm = ({
   });
 
   useEffect(() => {
-    if (data) {
-      const defaults = {
-        name: data.name ?? "",
-        subjectId: data.subjectId ?? data.subject?.id,
-        classId: data.classId ?? data.class?.id,
-        teacherId: data.teacherId ?? data.teacher?.id,
-        startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
-        endTime: data.endTime ? new Date(data.endTime).toISOString().slice(0, 16) : undefined,
-        repeats: data.rrule ? ("weekly" as const) : ("never" as const),
-        updateScope: isRecurring ? ("instance" as const) : undefined,
-        originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
-      };
-      reset(defaults as any);
-    }
-  }, [data, reset, isRecurring]);
-
-  useEffect(() => {
     if (state.success) {
       toast.success(state.message || (type === "update" ? "Lesson updated!" : "Lesson created!"));
       setOpen(false);
@@ -99,7 +85,6 @@ const LessonForm = ({
     if (state.error) {
       toast.error(state.message || "Something went wrong!");
     }
-    // --- FIX: Add missing dependencies ---
   }, [state, router, setOpen, type]);
 
   const repeatsValue = watch("repeats");

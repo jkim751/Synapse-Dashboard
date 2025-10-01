@@ -158,21 +158,22 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
         ]);
 
-        // Fetch complete lesson data when updating
-        let lessonData = data;
+        // Always fetch lesson data when updating, regardless of what's in data prop
         if (type === "update" && id) {
-          lessonData = await prisma.lesson.findUnique({
+          const lessonData = await prisma.lesson.findUnique({
             where: { id: Number(id) },
             include: { 
-              subject: { select: { id: true, name: true } }, 
-              class: { select: { id: true, name: true } }, 
-              teacher: { select: { id: true, name: true, surname: true } } 
+              subject: true,
+              class: true,
+              teacher: true,
             },
           });
+          console.log("Fetched lesson data for form:", lessonData);
+          // Reassign data variable
+          data = lessonData;
         }
 
         relatedData = { subjects, classes, teachers, variant: "single" };
-        data = lessonData;
         break;
       }
 
@@ -183,21 +184,22 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
         ]);
 
-        // Fetch complete recurring lesson data when updating
-        let recurringData = data;
+        // Always fetch recurring lesson data when updating
         if (type === "update" && id) {
-          recurringData = await prisma.recurringLesson.findUnique({
+          const recurringData = await prisma.recurringLesson.findUnique({
             where: { id: Number(id) },
             include: { 
-              subject: { select: { id: true, name: true } }, 
-              class: { select: { id: true, name: true } }, 
-              teacher: { select: { id: true, name: true, surname: true } } 
+              subject: true,
+              class: true,
+              teacher: true,
             },
           });
+          console.log("Fetched recurring lesson data for form:", recurringData);
+          // Reassign data variable
+          data = recurringData;
         }
 
         relatedData = { subjects, classes, teachers, variant: "recurring" };
-        data = recurringData;
         break;
       }
 

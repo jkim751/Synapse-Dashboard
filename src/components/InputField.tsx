@@ -56,6 +56,20 @@ const InputField = ({
         {...inputProps}
         defaultValue={defaultValue}
       />
+      {type === "select" && (
+        <select
+          {...register(name)}
+          className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+          defaultValue={defaultValue}
+        >
+          <option value="">Select an option</option>
+          {options?.map((option) => (
+            <option value={option.value} key={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
       {error?.message && (
         <p className="text-xs text-red-400">{error.message.toString()}</p>
       )}
