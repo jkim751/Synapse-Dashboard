@@ -16,7 +16,17 @@ interface Note {
 }
 
 export default function NotesClient() {
-  const { notes, isLoaded, isLoading, saveNotesForDate } = useNotes()
+  const { 
+    notes, 
+    isLoaded, 
+    isLoading, 
+    saveNotesForDate,
+    addComment,
+    deleteComment,
+    addActionItem,
+    toggleActionItem,
+    deleteActionItem
+  } = useNotes()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isEditing, setIsEditing] = useState(false)
   const [editableContent, setEditableContent] = useState('')
@@ -240,6 +250,11 @@ export default function NotesClient() {
                 currentNotes={currentNotes}
                 setIsEditing={setIsEditing}
                 setEditableContent={setEditableContent}
+                onAddComment={addComment}
+                onDeleteComment={deleteComment}
+                onAddActionItem={addActionItem}
+                onToggleActionItem={toggleActionItem}
+                onDeleteActionItem={deleteActionItem}
               />
             )}
           </div>

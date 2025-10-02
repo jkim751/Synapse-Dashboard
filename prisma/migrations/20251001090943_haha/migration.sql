@@ -1,14 +1,30 @@
--- CreateEnum
-CREATE TYPE "UserSex" AS ENUM ('MALE', 'FEMALE');
+-- CreateEnum (only if not exists)
+DO $$ BEGIN
+    CREATE TYPE "UserSex" AS ENUM ('MALE', 'FEMALE');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "Day" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');
+-- CreateEnum (only if not exists)
+DO $$ BEGIN
+    CREATE TYPE "Day" AS ENUM ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "PaymentType" AS ENUM ('XERO', 'BANK_TRANSFER', 'CASH');
+-- CreateEnum (only if not exists)
+DO $$ BEGIN
+    CREATE TYPE "PaymentType" AS ENUM ('XERO', 'BANK_TRANSFER', 'CASH');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "StudentStatus" AS ENUM ('CURRENT', 'TRIAL', 'DISENROLLED');
+-- CreateEnum (only if not exists)
+DO $$ BEGIN
+    CREATE TYPE "StudentStatus" AS ENUM ('CURRENT', 'TRIAL', 'DISENROLLED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "Admin" (

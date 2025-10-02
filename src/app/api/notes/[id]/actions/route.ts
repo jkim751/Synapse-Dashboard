@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
 
 export async function GET(
@@ -36,19 +36,21 @@ export async function POST(
 ) {
   try {
     const { userId } = await auth()
+    const user = await currentUser()
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id: noteId } = await params
     const { title, description } = await request.json()
 
     const actionItem = await prisma.actionItem.create({
       data: {
         title,
         description,
-        noteId: id,
+        author: user?.fullName || user?.emailAddresses?.[0]?.emailAddress || 'Anonymous',
+        noteId,
         userId
       }
     })

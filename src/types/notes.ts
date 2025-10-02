@@ -2,8 +2,6 @@ export interface Comment {
   id: string
   content: string
   author: string
-  noteId: string
-  userId: string
   createdAt: Date
 }
 
@@ -12,8 +10,7 @@ export interface ActionItem {
   title: string
   description?: string
   completed: boolean
-  noteId: string
-  userId: string
+  author: string
   createdAt: Date
   completedAt?: Date
 }

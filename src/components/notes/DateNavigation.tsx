@@ -70,7 +70,7 @@ export default function DateNavigation({
   }
 
   return (
-    <div className={`mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${isSearchResult ? 'border-blue-300 bg-blue-50' : ''}`}>
+    <div className={`mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${isSearchResult ? 'border-orange-300 bg-orange-50' : ''}`}>
       <div className="flex items-center justify-between">
         <button
           onClick={goToPreviousDay}
@@ -90,7 +90,7 @@ export default function DateNavigation({
                 day: 'numeric'
               }) : 'Loading...'}
             </h1>
-            <p className={`text-sm mt-1 ${isSearchResult ? 'text-blue-600' : 'text-gray-500'}`}>
+            <p className={`text-sm mt-1 ${isSearchResult ? 'text-orange-600' : 'text-gray-500'}`}>
               {isSearchResult && '🔍 '}
               {currentNotes.length} note{currentNotes.length !== 1 ? 's' : ''}
               {isSearchResult && ' (search result)'}

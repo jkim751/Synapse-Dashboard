@@ -12,6 +12,14 @@ export async function GET() {
 
     const notes = await prisma.note.findMany({
       where: { userId },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' }
+        },
+        actionItems: {
+          orderBy: { createdAt: 'desc' }
+        }
+      },
       orderBy: { date: 'desc' }
     })
 
@@ -20,7 +28,9 @@ export async function GET() {
       title: note.title || '',
       content: note.content,
       author: note.author,
-      createdAt: note.date
+      createdAt: note.date,
+      comments: note.comments,
+      actionItems: note.actionItems
     }))
 
     return NextResponse.json(formattedNotes)

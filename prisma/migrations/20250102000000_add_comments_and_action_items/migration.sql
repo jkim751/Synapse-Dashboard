@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "Comment" (
 CREATE TABLE IF NOT EXISTS "ActionItem" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
+    "author" TEXT NOT NULL,
     "description" TEXT,
     "completed" BOOLEAN NOT NULL DEFAULT false,
     "noteId" TEXT NOT NULL,

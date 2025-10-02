@@ -347,6 +347,7 @@ model ActionItem {
   title       String
   description String?  @db.Text
   completed   Boolean  @default(false)
+  author      String
   noteId      String
   note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   userId      String
