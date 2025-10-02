@@ -58,19 +58,12 @@ export default function DateNavigation({
     setIsEditing(false)
   }
 
-  const handleEdit = () => {
-    setIsEditing(true)
-    // Combine HTML content with line breaks for editing
-    const combinedContent = currentNotes.map(note => note.content).join('<br><br>')
-    setEditableContent(combinedContent)
-  }
-
   const handleSave = () => {
     onSave(editableContent)
   }
 
   return (
-    <div className={`mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${isSearchResult ? 'border-orange-300 bg-orange-50' : ''}`}>
+    <div className={`mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${isSearchResult ? 'border-blue-300 bg-blue-50' : ''}`}>
       <div className="flex items-center justify-between">
         <button
           onClick={goToPreviousDay}
@@ -90,7 +83,7 @@ export default function DateNavigation({
                 day: 'numeric'
               }) : 'Loading...'}
             </h1>
-            <p className={`text-sm mt-1 ${isSearchResult ? 'text-orange-600' : 'text-gray-500'}`}>
+            <p className={`text-sm mt-1 ${isSearchResult ? 'text-blue-600' : 'text-gray-500'}`}>
               {isSearchResult && '🔍 '}
               {currentNotes.length} note{currentNotes.length !== 1 ? 's' : ''}
               {isSearchResult && ' (search result)'}
@@ -107,14 +100,7 @@ export default function DateNavigation({
         </div>
         
         <div className="flex gap-2">
-          {!isEditing ? (
-            <button
-              onClick={handleEdit}
-              className="px-4 py-2 bg-orange-400 text-white rounded hover:bg-orange-500"
-            >
-              Edit
-            </button>
-          ) : (
+          {isEditing && (
             <button
               onClick={handleSave}
               className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"

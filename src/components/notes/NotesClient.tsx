@@ -25,10 +25,12 @@ export default function NotesClient() {
     deleteComment,
     addActionItem,
     toggleActionItem,
-    deleteActionItem
+    deleteActionItem,
+    deleteNote
   } = useNotes()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isEditing, setIsEditing] = useState(false)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editableContent, setEditableContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResultDate, setSearchResultDate] = useState<Date | null>(null)
@@ -134,10 +136,8 @@ export default function NotesClient() {
       const query = searchQuery.toLowerCase()
       
       if (searchResultDate) {
-        // Date search - filter by the parsed date
         dayNotes = notes.filter(note => note.createdAt.toDateString() === searchResultDate.toDateString())
       } else {
-        // Check for month name search
         const monthMatch = notes.filter(note => {
           const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
           const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
@@ -147,7 +147,6 @@ export default function NotesClient() {
         if (monthMatch.length > 0) {
           dayNotes = monthMatch
         } else {
-          // Regular text search across all notes
           dayNotes = notes.filter(note => 
             note.title.toLowerCase().includes(query) ||
             stripHtml(note.content).toLowerCase().includes(query) ||
@@ -156,12 +155,11 @@ export default function NotesClient() {
         }
       }
     } else {
-      // No search query - show notes for selected date
       const dateKey = selectedDate.toDateString()
       dayNotes = notes.filter(note => note.createdAt.toDateString() === dateKey)
     }
     
-    return dayNotes
+    return dayNotes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
   const currentNotes = getCurrentNotes()
@@ -169,10 +167,35 @@ export default function NotesClient() {
   const handleSave = async (content: string) => {
     try {
       const targetDate = searchResultDate || selectedDate
-      await saveNotesForDate(content, targetDate)
+      
+      if (editingNoteId) {
+        // Update existing note
+        await saveNotesForDate(content, targetDate, editingNoteId)
+      } else {
+        // Create new note
+        await saveNotesForDate(content, targetDate)
+      }
+      
       setIsEditing(false)
+      setEditingNoteId(null)
     } catch (error) {
       console.error('Failed to save notes:', error)
+    }
+  }
+
+  const handleEdit = (noteId?: string, content?: string) => {
+    setEditingNoteId(noteId || null)
+    setEditableContent(content || '')
+    setIsEditing(true)
+  }
+
+  const handleDelete = async (noteId: string) => {
+    if (confirm('Are you sure you want to delete this note?')) {
+      try {
+        await deleteNote(noteId)
+      } catch (error) {
+        console.error('Failed to delete note:', error)
+      }
     }
   }
 
@@ -180,6 +203,7 @@ export default function NotesClient() {
     setSelectedDate(newDate)
     setSearchQuery('')
     setIsEditing(false)
+    setEditingNoteId(null)
   }
 
   if (!isLoaded) {
@@ -246,16 +270,26 @@ export default function NotesClient() {
                 setEditableContent={setEditableContent}
               />
             ) : (
-              <NotesDisplay
-                currentNotes={currentNotes}
-                setIsEditing={setIsEditing}
-                setEditableContent={setEditableContent}
-                onAddComment={addComment}
-                onDeleteComment={deleteComment}
-                onAddActionItem={addActionItem}
-                onToggleActionItem={toggleActionItem}
-                onDeleteActionItem={deleteActionItem}
-              />
+              <>
+                <NotesDisplay
+                  currentNotes={currentNotes}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onAddComment={addComment}
+                  onDeleteComment={deleteComment}
+                  onAddActionItem={addActionItem}
+                  onToggleActionItem={toggleActionItem}
+                  onDeleteActionItem={deleteActionItem}
+                />
+                
+                {/* Add New Note Button */}
+                <button
+                  onClick={() => handleEdit()}
+                  className="mt-6 w-full py-3 border-2 border-dashed border-orange-300 rounded-lg text-orange-500 hover:bg-orange-50 hover:border-orange-400 transition-colors"
+                >
+                  + Add New Note
+                </button>
+              </>
             )}
           </div>
         </div>

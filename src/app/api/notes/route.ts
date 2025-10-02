@@ -50,25 +50,7 @@ export async function POST(request: NextRequest) {
 
     const { id, title, content, author, date } = await request.json()
 
-    // Delete existing notes for this date
-    const noteDate = new Date(date)
-    const startOfDay = new Date(noteDate)
-    startOfDay.setHours(0, 0, 0, 0)
-    
-    const endOfDay = new Date(noteDate)
-    endOfDay.setHours(23, 59, 59, 999)
-
-    await prisma.note.deleteMany({
-      where: {
-        userId,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
-      }
-    })
-
-    // Create new note
+    // Create new note (don't delete existing notes for this date anymore)
     const note = await prisma.note.create({
       data: {
         id,
@@ -89,6 +71,40 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Failed to create note:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { userId } = await auth()
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id, content } = await request.json()
+
+    const note = await prisma.note.update({
+      where: {
+        id,
+        userId
+      },
+      data: {
+        content,
+        updatedAt: new Date()
+      }
+    })
+
+    return NextResponse.json({
+      id: note.id,
+      title: note.title || '',
+      content: note.content,
+      author: note.author,
+      createdAt: note.date
+    })
+  } catch (error) {
+    console.error('Failed to update note:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

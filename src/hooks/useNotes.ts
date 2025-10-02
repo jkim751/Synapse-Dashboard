@@ -46,7 +46,7 @@ export function useNotes() {
     }
   }
 
-  const saveNotesForDate = async (content: string, date: Date) => {
+  const saveNotesForDate = async (content: string, date: Date, noteId?: string) => {
     if (!user) return
 
     // Remove empty paragraphs and clean up HTML
@@ -58,29 +58,16 @@ export function useNotes() {
     try {
       setIsLoading(true)
       
-      // If content is empty or just whitespace/empty HTML, delete notes for this date
+      // If content is empty, delete the note if editing
       if (!cleanContent || cleanContent === '<p><br></p>' || cleanContent === '<br>' || cleanContent === '') {
-        const response = await fetch('/api/notes/delete-by-date', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            date: date.toISOString()
-          })
-        })
-
-        if (response.ok) {
-          await loadNotes()
-        } else {
-          console.error('Failed to delete notes:', response.statusText)
-          throw new Error('Failed to delete notes')
+        if (noteId) {
+          await deleteNote(noteId)
         }
         return
       }
 
-      const newNote = {
-        id: `${date.toDateString()}-${Date.now()}`,
+      const noteData = {
+        id: noteId || `${date.toDateString()}-${Date.now()}`,
         title: '',
         content: cleanContent,
         author: user.fullName || user.emailAddresses[0]?.emailAddress || 'Current User',
@@ -88,12 +75,12 @@ export function useNotes() {
       }
 
       const response = await fetch('/api/notes', {
-        method: 'POST',
+        method: noteId ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...newNote,
+          ...noteData,
           date: date.toISOString()
         })
       })

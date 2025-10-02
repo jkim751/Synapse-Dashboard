@@ -7,8 +7,8 @@ import ActionItemsSection from './ActionItemsSection'
 
 interface NotesDisplayProps {
   currentNotes: Note[]
-  setIsEditing: (editing: boolean) => void
-  setEditableContent: (content: string) => void
+  onEdit: (noteId: string, content: string) => void
+  onDelete: (noteId: string) => void
   onAddComment?: (noteId: string, content: string) => Promise<void>
   onDeleteComment?: (noteId: string, commentId: string) => Promise<void>
   onAddActionItem?: (noteId: string, title: string, description?: string) => Promise<void>
@@ -18,8 +18,8 @@ interface NotesDisplayProps {
 
 export default function NotesDisplay({ 
   currentNotes, 
-  setIsEditing, 
-  setEditableContent,
+  onEdit,
+  onDelete,
   onAddComment,
   onDeleteComment,
   onAddActionItem,
@@ -28,22 +28,10 @@ export default function NotesDisplay({
 }: NotesDisplayProps) {
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
 
-  const handleEdit = () => {
-    const content = currentNotes.length > 0 ? currentNotes[0].content : ''
-    setEditableContent(content)
-    setIsEditing(true)
-  }
-
   if (currentNotes.length === 0) {
     return (
       <div className="text-center py-20">
         <p className="text-gray-400 text-xl mb-4">No notes for this date</p>
-        <button
-          onClick={handleEdit}
-          className="px-6 py-3 bg-orange-400 text-white rounded-lg hover:bg-orange-600 transition-colors"
-        >
-          Create Note
-        </button>
       </div>
     )
   }
@@ -58,21 +46,20 @@ export default function NotesDisplay({
         return (
           <div 
             key={note.id} 
-            className="border-b border-gray-200 pb-6 last:border-b-0 relative"
+            className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 hover:border-orange-300 transition-colors relative"
             onMouseEnter={() => setHoveredNoteId(note.id)}
             onMouseLeave={() => setHoveredNoteId(null)}
           >
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
                 <div 
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: note.content }}
                 />
-                <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                  <span>{note.author}</span>
+                <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                  <span className="font-medium">{note.author}</span>
                   <span>•</span>
-                  <span>{note.createdAt.toLocaleDateString()}</span>
-                  <span>{note.createdAt.toLocaleTimeString()}</span>
+                  <span>{note.createdAt.toLocaleString()}</span>
                   {(hasComments || hasActions) && (
                     <>
                       <span>•</span>
@@ -85,16 +72,24 @@ export default function NotesDisplay({
                   )}
                 </div>
               </div>
-              <button
-                onClick={handleEdit}
-                className="ml-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors whitespace-nowrap"
-              >
-                Edit
-              </button>
+              <div className="flex gap-2 ml-4">
+                <button
+                  onClick={() => onEdit(note.id, note.content)}
+                  className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => onDelete(note.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
             {/* Hover overlay for comments and actions */}
-            {isHovered && (hasComments || hasActions || onAddComment || onAddActionItem) && (
+            {isHovered && (onAddComment || onAddActionItem || hasComments || hasActions) && (
               <div 
                 className="absolute left-0 right-0 top-full mt-2 bg-white border-2 border-orange-400 rounded-lg shadow-2xl z-50 p-6 max-h-[500px] overflow-y-auto"
                 onMouseEnter={() => setHoveredNoteId(note.id)}
