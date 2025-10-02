@@ -2,9 +2,17 @@ import { clerkClient } from '@clerk/nextjs/server'
 import prisma from './prisma'
 
 export async function syncUserProfile(userId: string, role: string) {
+  console.log(`🔄 Starting sync for user: ${userId}, role: ${role}`)
+  
   try {
     const clerk = await clerkClient()
     const user = await clerk.users.getUser(userId)
+    
+    console.log(`✅ Fetched Clerk user data for ${userId}:`, {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.emailAddresses?.[0]?.emailAddress,
+    })
     
     // Only include fields that have actual values
     const updateData: any = {}
