@@ -31,16 +31,26 @@ if (!process.env.XERO_REDIRECT_URI) {
   throw new Error('XERO_REDIRECT_URI is not set');
 }
 
+// Log the exact redirect URI being used
+console.log("Initializing Xero with redirect URI:", process.env.XERO_REDIRECT_URI);
+
 const xero = new XeroClient({
   clientId: process.env.XERO_CLIENT_ID,
   clientSecret: process.env.XERO_CLIENT_SECRET,
   redirectUris: [process.env.XERO_REDIRECT_URI],
-scopes: 'accounting.transactions accounting.contacts accounting.settings accounting.reports.read offline_access'.split(' '),
+  scopes: 'accounting.transactions accounting.contacts accounting.settings accounting.reports.read offline_access'.split(' '),
 });
 
 console.log("Xero client initialized successfully");
 
 export default xero;
+
+// Helper function to generate authorization URL with logging
+export const buildConsentUrl = async () => {
+  const url = await xero.buildConsentUrl();
+  console.log("Generated Xero consent URL:", url);
+  return url;
+};
 
 export const storeTokens = async (userId: string, tokenSet: TokenSet) => {
   console.log("=== STORE TOKENS DEBUG ===");

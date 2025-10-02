@@ -12,9 +12,32 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
     const state = searchParams.get('state');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+
+    // Log all received parameters for debugging
+    console.log('Xero callback received:', {
+      url: request.url,
+      code: code ? 'present' : 'missing',
+      state: state ? 'present' : 'missing',
+      error,
+      errorDescription,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+
+    // Check if Xero returned an error
+    if (error) {
+      console.error('Xero OAuth error:', error, errorDescription);
+      return NextResponse.redirect(
+        new URL('/admin/xero?error=' + encodeURIComponent(errorDescription || error), request.url)
+      );
+    }
 
     if (!code) {
-      return NextResponse.json({ error: 'Authorization code not found' }, { status: 400 });
+      console.error('Authorization code missing. Full URL:', request.url);
+      return NextResponse.redirect(
+        new URL('/admin/xero?error=' + encodeURIComponent('Authorization code not received from Xero'), request.url)
+      );
     }
 
     // Exchange the code for tokens
@@ -24,7 +47,7 @@ export async function GET(request: NextRequest) {
     await storeTokens(userId, tokenSet);
 
     // Redirect to the Xero admin page
-    return NextResponse.redirect(new URL('/admin/xero', request.url));
+    return NextResponse.redirect(new URL('/admin/xero?success=true', request.url));
     
   } catch (error: any) {
     console.error('Xero callback error:', error);
