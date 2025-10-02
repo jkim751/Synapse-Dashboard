@@ -139,7 +139,7 @@ const EventListPage = async ({
         if (student.gradeId) {
           userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
         }
-        const classIds = student.classes.map(c => c.classId);
+        const classIds = student.classes.map((c: { classId: any; }) => c.classId);
         if (classIds.length > 0) {
           userSpecificClauses.push({ classId: { in: classIds } });
         }
@@ -154,7 +154,7 @@ const EventListPage = async ({
         if (child.gradeId) {
           userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
         }
-        const classIds = child.classes.map(c => c.classId);
+        const classIds = child.classes.map((c: { classId: any; }) => c.classId);
         if (classIds.length > 0) {
           userSpecificClauses.push({ classId: { in: classIds } });
         }
@@ -188,7 +188,7 @@ const EventListPage = async ({
     prisma.event.count({ where: query }),
   ]);
 
-  const dataWithDetails = data.map(event => ({
+  const dataWithDetails = data.map((event: { id: any; title: any; description: any; startTime: any; endTime: any; classId: any; class: any; eventUsers: any[]; eventGrades: any[]; }) => ({
     ...event,
     id: event.id,
     title: event.title,
@@ -198,8 +198,8 @@ const EventListPage = async ({
     classId: event.classId,
     class: event.class,
     // Pass users and grades to FormContainer for editing
-    users: event.eventUsers.map(eu => ({ id: eu.userId })),
-    grades: event.eventGrades.map(eg => ({ id: eg.gradeId })),
+    users: event.eventUsers.map((eu: { userId: any; }) => ({ id: eu.userId })),
+    grades: event.eventGrades.map((eg: { gradeId: any; }) => ({ id: eg.gradeId })),
   }));
 
   return (

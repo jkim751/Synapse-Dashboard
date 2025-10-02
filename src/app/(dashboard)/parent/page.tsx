@@ -34,7 +34,7 @@ const ParentPage = async () => {
     select: { id: true, name: true },
   });
 
-  const classIds = classes.map(c => c.id);
+  const classIds = classes.map((c: { id: any; }) => c.id);
 
   if (classIds.length === 0) {
     return (
@@ -63,7 +63,7 @@ const ParentPage = async () => {
               <h1 className="text-xl font-semibold mb-4">
                 {students.length > 1 && (
                   <span className="text-sm text-gray-600 ml-2">
-                    ({students.map(s => s.name).join(", ")})
+                    ({students.map((s: { name: any; }) => s.name).join(", ")})
                   </span>
                 )}
               </h1>

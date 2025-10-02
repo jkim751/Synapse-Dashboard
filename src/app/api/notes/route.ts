@@ -10,6 +10,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Verify admin record exists before fetching notes
+    const admin = await prisma.admin.findUnique({
+      where: { id: userId }
+    })
+
+    if (!admin) {
+      // Return empty array if admin not found, don't throw error
+      return NextResponse.json([])
+    }
+
     const notes = await prisma.note.findMany({
       where: { userId },
       include: {
@@ -23,7 +33,7 @@ export async function GET() {
       orderBy: { date: 'desc' }
     })
 
-    const formattedNotes = notes.map(note => ({
+    const formattedNotes = notes.map((note: { id: any; title: any; content: any; author: any; date: any; comments: any; actionItems: any }) => ({
       id: note.id,
       title: note.title || '',
       content: note.content,

@@ -8,7 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { AwaitedReactNode, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, Suspense } from "react";
 
 const SingleStudentPage = async ({
   params,
@@ -46,11 +46,11 @@ const SingleStudentPage = async ({
   }
 
   // Get primary class or first class for display
-  const primaryClass = student.classes.find(sc => sc.isPrimary)?.class || student.classes[0]?.class;
-  const allClasses = student.classes.map(sc => sc.class);
+  const primaryClass = student.classes.find((sc: { isPrimary: any; }) => sc.isPrimary)?.class || student.classes[0]?.class;
+  const allClasses = student.classes.map((sc: { class: any; }) => sc.class);
   
   // Calculate total lessons across all classes
-  const totalLessons = student.classes.reduce((sum, sc) => sum + sc.class._count.lessons, 0);
+  const totalLessons = student.classes.reduce((sum: any, sc: { class: { _count: { lessons: any; }; }; }) => sum + sc.class._count.lessons, 0);
 
   return (
     <div className="flex-1 p-4 flex flex-col gap-4 xl:flex-row">
@@ -240,7 +240,7 @@ const SingleStudentPage = async ({
           <div className="bg-white p-4 rounded-xl">
             <h1 className="text-xl font-semibold mb-4">Enrolled Classes</h1>
             <div className="space-y-2">
-              {student.classes.map((sc) => (
+              {student.classes.map((sc: { class: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; _count: { lessons: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }; }; isPrimary: any; }) => (
                 <div 
                   key={sc.class.id} 
                   className="flex items-center justify-between p-2 rounded-xl bg-gray-50"

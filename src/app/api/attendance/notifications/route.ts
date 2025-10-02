@@ -155,11 +155,11 @@ export async function POST(request: NextRequest) {
     if (finalRecipients.length === 0 && student) {
       console.log("Sender is a student, finding all associated teachers as recipients.");
       const teacherIds = new Set<string>();
-      student.classes.forEach(studentClass => {
+      student.classes.forEach((studentClass: { class: { supervisor: { id: string; }; lessons: any[]; }; }) => {
         if (studentClass.class.supervisor?.id) {
           teacherIds.add(studentClass.class.supervisor.id);
         }
-        studentClass.class.lessons.forEach(lesson => {
+        studentClass.class.lessons.forEach((lesson: { teacher: { id: string; }; }) => {
           if (lesson.teacher?.id) {
             teacherIds.add(lesson.teacher.id);
           }

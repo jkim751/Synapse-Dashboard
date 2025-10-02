@@ -209,7 +209,7 @@ const renderRow = (item: ResultList) => (
     prisma.result.count({ where: query }),
   ]);
 
-  const data = dataRes.map((item) => {
+  const data = dataRes.map((item: { exam: any; assignment: any; id: any; title: any; student: { name: any; surname: any; }; score: any; documents: any; }) => {
     const assessment = item.exam || item.assignment;
 
     if (!assessment) {

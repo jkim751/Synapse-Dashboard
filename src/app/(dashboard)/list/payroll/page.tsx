@@ -52,7 +52,7 @@ const PayrollPage = async () => {
             <div className="space-y-2">
               <p><strong>Total Classes:</strong> {user.classes.length}</p>
               <p><strong>Total Lessons:</strong> {user.lessons.length}</p>
-              <p><strong>Subjects:</strong> {user.subjects.map(s => s.name).join(", ")}</p>
+              <p><strong>Subjects:</strong> {user.subjects.map((s: { name: any; }) => s.name).join(", ")}</p>
             </div>
           </div>
         )}

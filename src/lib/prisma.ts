@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client'
 import { withAccelerate } from '@prisma/extension-accelerate' // 1. IMPORT
 
 const prismaClientSingleton = () => {
+  // Prevent execution in browser environment
+  if (typeof window !== 'undefined') {
+    throw new Error('PrismaClient cannot be used in the browser');
+  }
+
   const basePrisma = new PrismaClient({
     log: ['query'],
   });
@@ -83,10 +88,14 @@ const globalForPrisma = globalThis as unknown as {
   prisma: ReturnType<typeof prismaClientSingleton> | undefined
 }
 
-export const prisma =
-  globalForPrisma.prisma ?? prismaClientSingleton();
+// Only initialize prisma on server-side
+export const prisma = typeof window === 'undefined' 
+  ? (globalForPrisma.prisma ?? prismaClientSingleton())
+  : null as any;
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+  globalForPrisma.prisma = prisma;
+}
 
 // Make sure we export as default as well
 export default prisma

@@ -1054,7 +1054,7 @@ export async function deleteRecurringLesson(
 ) {
   const id = data.get("id") as string;
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: { lesson: { deleteMany: (arg0: { where: { recurringLessonId: number; }; }) => any; }; recurringLesson: { delete: (arg0: { where: { id: number; }; }) => any; }; }) => {
       await tx.lesson.deleteMany({ where: { recurringLessonId: parseInt(id) } });
       await tx.recurringLesson.delete({ where: { id: parseInt(id) } });
     });

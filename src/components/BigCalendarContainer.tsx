@@ -99,7 +99,7 @@ const BigCalendarContainer = async ({
         where: { studentId: userId! },
         select: { classId: true },
       });
-      const studentClassIds = studentClasses.map(sc => sc.classId);
+      const studentClassIds = studentClasses.map((sc: { classId: any; }) => sc.classId);
       const clause = { classId: { in: studentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
@@ -120,7 +120,7 @@ const BigCalendarContainer = async ({
         where: { student: { parentId: userId! } },
         select: { classId: true },
       });
-      const parentClassIds = parentClasses.map(sc => sc.classId);
+      const parentClassIds = parentClasses.map((sc: { classId: any; }) => sc.classId);
       const clause = { classId: { in: parentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
@@ -233,7 +233,7 @@ const BigCalendarContainer = async ({
           if (student.gradeId) {
             userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
           }
-          const classIds = student.classes.map(c => c.classId);
+          const classIds = student.classes.map((c: { classId: any; }) => c.classId);
           if (classIds.length > 0) {
             userSpecificClauses.push({ classId: { in: classIds } });
           }
@@ -248,7 +248,7 @@ const BigCalendarContainer = async ({
           if (child.gradeId) {
             userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
           }
-          const classIds = child.classes.map(c => c.classId);
+          const classIds = child.classes.map((c: { classId: any; }) => c.classId);
           if (classIds.length > 0) {
             userSpecificClauses.push({ classId: { in: classIds } });
           }
@@ -391,7 +391,7 @@ const BigCalendarContainer = async ({
   }
 
   // Transform regular lessons data (keep original dates)
-  const lessonsData = lessonsRes.map((lesson) => ({
+  const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => ({
     title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
     start: new Date(lesson.startTime),
     end: new Date(lesson.endTime),
@@ -423,7 +423,7 @@ const BigCalendarContainer = async ({
   }));
 
   // Transform exams data
-  const examsData = examsRes.map(exam => {
+  const examsData = examsRes.map((exam: { lesson: any; recurringLesson: any; title: any; startTime: any; endTime: any; id: any; }) => {
     const lessonData = exam.lesson || exam.recurringLesson;
     return {
       title: `📝 ${exam.title}`,
@@ -439,7 +439,7 @@ const BigCalendarContainer = async ({
   });
 
   // Transform assignments data
-  const assignmentsData = assignmentsRes.map(assignment => {
+  const assignmentsData = assignmentsRes.map((assignment: { lesson: any; recurringLesson: any; title: any; dueDate: { getTime: () => number; }; id: any; }) => {
     const lessonData = assignment.lesson || assignment.recurringLesson;
     return {
       title: `📋 ${assignment.title}`,

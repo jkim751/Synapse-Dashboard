@@ -128,7 +128,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           if (studentClasses?.classes.length) {
             examLessonsQuery = {
               classId: {
-                in: studentClasses.classes.map(sc => sc.classId)
+                in: studentClasses.classes.map((sc: { classId: any; }) => sc.classId)
               }
             };
           } else {
@@ -235,7 +235,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           if (studentClasses?.classes.length) {
             assignmentLessonsQuery = {
               classId: {
-                in: studentClasses.classes.map(sc => sc.classId)
+                in: studentClasses.classes.map((sc: { classId: any; }) => sc.classId)
               }
             };
           } else {
@@ -406,8 +406,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           });
 
           if (data && eventWithRelations) {
-            data.userIds = eventWithRelations.eventUsers.map(eu => eu.userId);
-            data.gradeIds = eventWithRelations.eventGrades.map(eg => eg.gradeId);
+            data.userIds = eventWithRelations.eventUsers.map((eu: { userId: any; }) => eu.userId);
+            data.gradeIds = eventWithRelations.eventGrades.map((eg: { gradeId: any; }) => eg.gradeId);
           }
         }
 
@@ -454,8 +454,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           });
 
           if (data && announcementWithRelations) {
-            data.userIds = announcementWithRelations.announcementUsers.map((au) => au.userId);
-            data.gradeIds = announcementWithRelations.announcementGrades.map((ag) => ag.gradeId);
+            data.userIds = announcementWithRelations.announcementUsers.map((au: { userId: any; }) => au.userId);
+            data.gradeIds = announcementWithRelations.announcementGrades.map((ag: { gradeId: any; }) => ag.gradeId);
           }
         }
 

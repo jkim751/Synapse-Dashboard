@@ -36,8 +36,8 @@ export async function POST() {
 
     // Combine them into a single list for processing
     const allPeople = [
-        ...studentsToSync.map(p => ({ ...p, type: 'student' })), 
-        ...parentsToSync.map(p => ({ ...p, type: 'parent' }))
+        ...studentsToSync.map((p: any) => ({ ...p, type: 'student' })), 
+        ...parentsToSync.map((p: any) => ({ ...p, type: 'parent' }))
     ];
     
     // 2. Prepare contacts for Xero API, separating new from existing

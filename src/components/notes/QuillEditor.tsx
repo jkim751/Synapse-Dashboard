@@ -73,6 +73,7 @@ export default function QuillEditor({ value, onChange, placeholder }: QuillEdito
       [{ 'align': [] }],
       ['image'],
       ['clean']
+      
     ]
 
     try {

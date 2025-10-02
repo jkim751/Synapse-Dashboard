@@ -155,7 +155,7 @@ export const getEventsForUser = async (userId: string, role: string) => {
       // Events for student's classes
       {
         classId: {
-          in: student.classes.map(sc => sc.classId)
+          in: student.classes.map((sc: { classId: any; }) => sc.classId)
         }
       }
     ];
@@ -173,8 +173,8 @@ export const getEventsForUser = async (userId: string, role: string) => {
 
     if (children.length === 0) return [];
 
-    const childGradeIds = [...new Set(children.map(child => child.gradeId))];
-    const childClassIds = [...new Set(children.flatMap(child => child.classes.map(sc => sc.classId)))];
+    const childGradeIds = [...new Set(children.map((child: { gradeId: any; }) => child.gradeId))];
+    const childClassIds = [...new Set(children.flatMap((child: { classes: any[]; }) => child.classes.map((sc: { classId: any; }) => sc.classId)))];
 
     baseWhere.OR = [
       // Events for everyone

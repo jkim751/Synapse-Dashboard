@@ -17,6 +17,12 @@ const nextConfig = {
   // Add domains for images if needed
   images: {
     domains: ['res.cloudinary.com', 'localhost'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'img.clerk.com',
+      },
+    ],
   },
 }
 

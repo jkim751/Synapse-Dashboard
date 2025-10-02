@@ -51,11 +51,11 @@ export async function checkAndNotifyLateStudents() {
     for (const lesson of ongoingLessons) {
       if (!lesson.class || !lesson.teacher) continue;
 
-      const studentsInClass = lesson.class.students.map(sc => sc.student);
-      const attendedStudents = lesson.attendances.map(att => att.studentId);
+      const studentsInClass = lesson.class.students.map((sc: { student: any; }) => sc.student);
+      const attendedStudents = lesson.attendances.map((att: { studentId: any; }) => att.studentId);
       
       const unattendedStudents = studentsInClass.filter(
-        student => !attendedStudents.includes(student.id)
+        (        student: { id: any; }) => !attendedStudents.includes(student.id)
       );
 
       console.log(`Lesson ${lesson.id}: ${studentsInClass.length} students, ${attendedStudents.length} attended, ${unattendedStudents.length} unattended`);
@@ -76,7 +76,7 @@ export async function checkAndNotifyLateStudents() {
         if (!existingNotification) {
           // Create notification for the teacher
           const unattendedStudentNames = unattendedStudents
-            .map(s => `${s.name} ${s.surname}`)
+            .map((s: { name: any; surname: any; }) => `${s.name} ${s.surname}`)
             .join(', ');
 
           await prisma.notification.create({

@@ -39,7 +39,7 @@ const StudentPage = async () => {
     select: { id: true, name: true },
   });
 
-  const classIds = classes.map(c => c.id);
+  const classIds = classes.map((c: { id: any; }) => c.id);
 
   if (classIds.length === 0) {
     return (

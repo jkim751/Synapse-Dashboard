@@ -34,7 +34,7 @@ const AttendanceChartContainer = async () => {
       Fri: { present: 0, absent: 0 },
     };
 
-  resData.forEach((item) => {
+  resData.forEach((item: { date: string | number | Date; present: any; }) => {
     const itemDate = new Date(item.date);
     const dayOfWeek = itemDate.getDay();
     

@@ -13,6 +13,15 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Verify admin exists
+    const admin = await prisma.admin.findUnique({
+      where: { id: userId }
+    })
+
+    if (!admin) {
+      return NextResponse.json([])
+    }
+
     const { id } = await params
 
     const actionItems = await prisma.actionItem.findMany({

@@ -113,7 +113,7 @@ export async function GET(request: Request) {
     }
 
     // --- 6. Format single lessons ---
-    const formattedSingleLessons = singleLessons.map(l => ({
+    const formattedSingleLessons = singleLessons.map((l: { name: any; startTime: any; endTime: any; subject: { name: any; }; class: { name: any; }; teacher: { name: any; surname: any; }; id: any; }) => ({
       title: l.name,
       start: l.startTime,
       end: l.endTime,

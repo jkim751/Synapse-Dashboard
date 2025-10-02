@@ -36,7 +36,7 @@ export class NotesDB {
         orderBy: { date: 'desc' }
       })
 
-      return notes.map(note => ({
+      return notes.map((note: { id: any; title: any; content: any; author: any; date: any }) => ({
         id: note.id,
         title: note.title || '',
         content: note.content,
@@ -155,7 +155,7 @@ export class NotesDB {
         orderBy: { createdAt: 'asc' }
       })
 
-      return notes.map(note => ({
+      return notes.map((note: { id: any; title: any; content: any; author: any; date: any }) => ({
         id: note.id,
         title: note.title || '',
         content: note.content,

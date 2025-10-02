@@ -19,20 +19,20 @@ export async function GET() {
           where: { studentId: userId },
           select: { classId: true },
         });
-        userClassIds = studentClasses.map(sc => sc.classId);
+        userClassIds = studentClasses.map((sc: { classId: any; }) => sc.classId);
       } else if (userRoles.includes('teacher')) {
         const teacherClasses = await prisma.class.findMany({
           where: { lessons: { some: { teacherId: userId } } },
           select: { id: true },
         });
-        userClassIds = teacherClasses.map(c => c.id);
+        userClassIds = teacherClasses.map((c: { id: any; }) => c.id);
       } else if (userRoles.includes('parent')) {
         const parentClasses = await prisma.studentClass.findMany({
           where: { student: { parentId: userId } },
           select: { classId: true },
           distinct: ['classId'],
         });
-        userClassIds = parentClasses.map(sc => sc.classId);
+        userClassIds = parentClasses.map((sc: { classId: any; }) => sc.classId);
       }
     }
 
@@ -54,7 +54,7 @@ export async function GET() {
     });
 
     // --- Format the data for the BigCalendar component ---
-    const formattedEvents = eventsFromDb.map(event => ({
+    const formattedEvents = eventsFromDb.map((event: { title: any; startTime: any; endTime: any; description: any; id: any; }) => ({
       title: event.title,
       start: event.startTime,
       end: event.endTime,

@@ -163,7 +163,12 @@ const SingleClassAttendancePage = async ({
     });
 
     // Filter recurring lessons to only include those that actually occur on the selected date
-    const dayRecurringLessons = allRecurringLessons.filter(lesson => {
+    const dayRecurringLessons = allRecurringLessons.filter((lesson: { startTime: Date; rrule: string | undefined; }) => {
+      // Skip lessons without rrule
+      if (!lesson.rrule) {
+        return false;
+      }
+      
       // Check if the lesson period includes the selected date
       if (!isDateWithinLessonPeriod(lesson.startTime, selectedDate, lesson.rrule)) {
         return false;
@@ -177,8 +182,8 @@ const SingleClassAttendancePage = async ({
 
     // Combine regular and recurring lessons
     const allLessons = [
-      ...dayLessons.map(lesson => ({ ...lesson, isRecurring: false, type: 'regular' as const })),
-      ...dayRecurringLessons.map(lesson => ({ ...lesson, isRecurring: true, type: 'recurring' as const }))
+      ...dayLessons.map((lesson: any) => ({ ...lesson, isRecurring: false, type: 'regular' as const })),
+      ...dayRecurringLessons.map((lesson: any) => ({ ...lesson, isRecurring: true, type: 'recurring' as const }))
     ].sort((a, b) => {
       return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
     });
@@ -234,10 +239,10 @@ const SingleClassAttendancePage = async ({
       
       // Get attendance records for this student on the selected date
       const selectedDateAttendance = attendanceData.filter(
-        att => att.studentId === student.id
+        (        att: { studentId: string; }) => att.studentId === student.id
       );
       
-      selectedDateAttendance.forEach(att => {
+      selectedDateAttendance.forEach((att: { status: string; present: any; lessonId: any; recurringLessonId: any; }) => {
         // Map the attendance status, with safe handling of missing status field
         let status: AttendanceStatus = "present";
         

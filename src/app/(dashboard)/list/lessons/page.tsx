@@ -133,7 +133,7 @@ const LessonListPage = async ({
   ]);
 
   // ---- Normalize to one array and paginate in memory ----
-  const singleRows: LessonRow[] = lessons.map((l) => ({
+  const singleRows: LessonRow[] = lessons.map((l: { id: any; subject: any; class: any; teacher: any; }) => ({
     id: `L-${l.id}`,
     kind: "single",
     subject: l.subject!,
@@ -142,7 +142,7 @@ const LessonListPage = async ({
     lessonId: l.id,
   }));
 
-  const recurringRows: LessonRow[] = recurring.map((r) => ({
+  const recurringRows: LessonRow[] = recurring.map((r: { id: any; subject: any; class: any; teacher: any; }) => ({
     id: `R-${r.id}`,
     kind: "recurring",
     subject: r.subject!,

@@ -16,7 +16,7 @@ const StudentAttendanceCard = async ({ id }: { id: string }) => {
     });
 
     // Filter out cancelled lessons from the total count (only if status field exists)
-    const validAttendance = attendance.filter(a => {
+    const validAttendance = attendance.filter((a: { status: string; }) => {
       try {
         return a.status !== "cancelled";
       } catch (error) {
@@ -28,7 +28,7 @@ const StudentAttendanceCard = async ({ id }: { id: string }) => {
     const totalDays = validAttendance.length;
     
     // Count present days (including make-ups and trials as positive attendance)
-    const presentDays = validAttendance.filter((a) => {
+    const presentDays = validAttendance.filter((a: { status: string; present: any; }) => {
       try {
         if (a.status && typeof a.status === 'string') {
           return a.status === "present" || a.status === "makeup" || a.status === "trial";

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, AwaitedReactNode } from "react";
 
 const Announcements = async () => {
   const { userId, sessionClaims } = await auth();
@@ -15,7 +16,7 @@ const Announcements = async () => {
         where: { studentId: userId },
         select: { classId: true },
       });
-      userClassIds = studentClasses.map(sc => sc.classId);
+      userClassIds = studentClasses.map((sc: { classId: any; }) => sc.classId);
     } else if (userRoles.includes('teacher')) {
       const teacherClasses = await prisma.class.findMany({
         where: {
@@ -24,7 +25,7 @@ const Announcements = async () => {
         },
         select: { id: true }
       });
-      userClassIds = teacherClasses.map(c => c.id);
+      userClassIds = teacherClasses.map((c: { id: any; }) => c.id);
     } else if (userRoles.includes('parent')) {
       const parentClasses = await prisma.studentClass.findMany({
         where: {
@@ -33,7 +34,7 @@ const Announcements = async () => {
         select: { classId: true },
         distinct: ['classId'] // Get each class ID only once
       });
-      userClassIds = parentClasses.map(sc => sc.classId);
+      userClassIds = parentClasses.map((sc: { classId: any; }) => sc.classId);
     }
   }
 
@@ -69,7 +70,7 @@ const Announcements = async () => {
       </div>
       <div className="flex flex-col gap-4 mt-4">
         {data.length === 0 && <p className="text-sm text-gray-500 mt-2">No announcements found.</p>}
-        {data.map((announcement) => (
+        {data.map((announcement: { id: Key | null | undefined; title: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; date: number | Date | undefined; description: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }) => (
           <div key={announcement.id} className="bg-lamaSkyLight bg-opacity-10 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <h2 className="font-medium">{announcement.title}</h2>

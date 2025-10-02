@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
+import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, AwaitedReactNode } from "react";
 
 const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
   const date = dateParam ? new Date(dateParam) : new Date();
@@ -39,7 +40,7 @@ const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
         if (student.gradeId) {
           userSpecificClauses.push({ eventGrades: { some: { gradeId: student.gradeId } } });
         }
-        const classIds = student.classes.map(c => c.classId);
+        const classIds = student.classes.map((c: { classId: any; }) => c.classId);
         if (classIds.length > 0) {
           userSpecificClauses.push({ classId: { in: classIds } });
         }
@@ -54,7 +55,7 @@ const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
         if (child.gradeId) {
           userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
         }
-        const classIds = child.classes.map(c => c.classId);
+        const classIds = child.classes.map((c: { classId: any; }) => c.classId);
         if (classIds.length > 0) {
           userSpecificClauses.push({ classId: { in: classIds } });
         }
@@ -76,7 +77,7 @@ const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
     where: whereClause,
   });
 
-  return data.map((event) => (
+  return data.map((event: { id: Key | null | undefined; title: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; startTime: { toLocaleTimeString: (arg0: string, arg1: { hour: string; minute: string; hour12: boolean; }) => string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }; description: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }) => (
     <div
       className="p-5 rounded-xl border-2 border-gray-100 border-t-4 odd:border-t-lamaSky even:border-t-lamaPurple"
       key={event.id}

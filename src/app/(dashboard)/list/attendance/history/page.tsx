@@ -259,13 +259,13 @@ const AttendanceHistoryPage = async ({
         <div className="bg-gray-50 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-gray-700">Present</h3>
           <p className="text-2xl font-bold text-green-600">
-            {attendanceRecords.filter(r => r.present).length}
+            {attendanceRecords.filter((r: { present: any; }) => r.present).length}
           </p>
         </div>
         <div className="bg-gray-50 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-gray-700">Absent</h3>
           <p className="text-2xl font-bold text-red-600">
-            {attendanceRecords.filter(r => !r.present).length}
+            {attendanceRecords.filter((r: { present: any; }) => !r.present).length}
           </p>
         </div>
       </div>
