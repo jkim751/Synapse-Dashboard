@@ -8,9 +8,24 @@ const XeroAuthButton = ({ initialIsAuthenticated }: { initialIsAuthenticated: bo
   // A "disconnect" function would call another API route to delete the tokens
   const handleDisconnect = () => { alert("Disconnect logic not implemented yet."); }
   
-  const handleXeroAuth = () => {
+  const handleXeroAuth = async () => {
     setIsAuthenticating(true);
-    window.location.href = "/api/xero/callback";
+    try {
+      // Fetch the Xero authorization URL from our API
+      const response = await fetch('/api/xero/auth-url');
+      const data = await response.json();
+      
+      if (!response.ok || !data.authUrl) {
+        throw new Error(data.error || 'Failed to get authorization URL');
+      }
+      
+      // Redirect to Xero's authorization page
+      window.location.href = data.authUrl;
+    } catch (error: any) {
+      console.error('Error initiating Xero auth:', error);
+      alert('Failed to connect to Xero: ' + error.message);
+      setIsAuthenticating(false);
+    }
   };
 
   if (initialIsAuthenticated) {
