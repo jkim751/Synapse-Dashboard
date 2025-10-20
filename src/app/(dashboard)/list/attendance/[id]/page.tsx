@@ -376,7 +376,7 @@ const SingleClassAttendancePage = async ({
               day: 'numeric' 
             })}</p>
             {isPastDate && (
-              <p className="text-xs mt-2">This is a past date. You can navigate to dates with scheduled lessons to update attendance.</p>
+              <p className="text-xs mt-2">This is a past date. You can navigate to dates with scheduled lessons to update attendance</p>
             )}
           </div>
         )}
