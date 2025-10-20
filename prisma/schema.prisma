@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -23,27 +23,27 @@ model Admin {
 }
 
 model Student {
-  id            String         @id
-  username      String         @unique
+  id            String                 @id
+  username      String                 @unique
   name          String
   surname       String
-  email         String?        @unique
-  phone         String?        @unique
+  email         String?                @unique
+  phone         String?                @unique
   address       String
   img           String?
   sex           UserSex
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime               @default(now())
   parentId      String?
   gradeId       Int
   birthday      DateTime
   xeroContactId String?
   school        String?
-  updatedAt     DateTime       @updatedAt
-  status        StudentStatus  @default(CURRENT)
+  updatedAt     DateTime               @updatedAt
+  status        StudentStatus          @default(CURRENT)
   attendances   Attendance[]
   results       Result[]
-  grade         Grade          @relation(fields: [gradeId], references: [id])
-  parent        Parent?        @relation(fields: [parentId], references: [id])
+  grade         Grade                  @relation(fields: [gradeId], references: [id])
+  parent        Parent?                @relation(fields: [parentId], references: [id])
   classes       StudentClass[]
   statusHistory StudentStatusHistory[]
 }
@@ -312,16 +312,16 @@ model RecurringLesson {
 }
 
 model Note {
-  id        String   @id @default(cuid())
-  title     String?
-  content   String   @db.Text
-  author    String
-  date      DateTime
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  comments  Comment[]
+  id          String       @id @default(cuid())
+  title       String?
+  content     String
+  author      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  date        DateTime
+  userId      String
   actionItems ActionItem[]
+  comments    Comment[]
 
   @@index([userId])
   @@index([date])
@@ -330,46 +330,45 @@ model Note {
 
 model Comment {
   id        String   @id @default(cuid())
-  content   String   @db.Text
+  content   String
   author    String
   noteId    String
-  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
   @@index([userId])
 }
 
 model ActionItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
-  description String?  @db.Text
-  completed   Boolean  @default(false)
-  author      String
+  description String?
+  completed   Boolean   @default(false)
   noteId      String
-  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
+  author      String
+  note        Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
   @@index([userId])
 }
 
 model StudentStatusHistory {
-  id        String   @id @default(cuid())
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+  id         String         @id @default(cuid())
+  studentId  String
   fromStatus StudentStatus?
   toStatus   StudentStatus
-  changedAt  DateTime @default(now())
+  changedAt  DateTime       @default(now())
   changedBy  String?
   reason     String?
-  
+  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
   @@map("student_status_history")
 }
 
