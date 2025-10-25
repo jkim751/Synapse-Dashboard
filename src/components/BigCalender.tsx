@@ -1,13 +1,19 @@
 "use client";
 
 import { Calendar, momentLocalizer, View, Views } from "react-big-calendar";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import moment from "moment";
 import "moment/locale/en-gb";
-moment.locale("en-gb"); // keep header & grid aligned
+moment.locale("en-gb");
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { useState, useMemo } from "react";
+import { updateLessonTimes } from "@/lib/actions";
+import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
 
 const localizer = momentLocalizer(moment);
+const DragAndDropCalendar = withDragAndDrop(Calendar);
 
 // Predefined color mapping for common subjects
 const subjectColorMap: Record<string, string> = {
@@ -90,6 +96,7 @@ const BigCalendar = ({
   initialEvents?: CalendarEvent[];
   showNotifications?: boolean; 
 }) => {
+  const router = useRouter();
   const [lessons] = useState<CalendarEvent[]>(initialLessons);
   const [events] = useState<CalendarEvent[]>(initialEvents);
 
@@ -116,8 +123,8 @@ const BigCalendar = ({
   const handleView = (newView: View) => setView(newView);
   const handleNavigate = (newDate: Date) => setDate(newDate);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelectedEvent(event);
+  const handleEventClick = (event: object, e: React.SyntheticEvent) => {
+    setSelectedEvent(event as CalendarEvent);
     setIsModalOpen(true);
   };
 
@@ -156,18 +163,79 @@ const BigCalendar = ({
     }
   };
 
-  const eventStyleGetter = (event: CalendarEvent) => {
-    const backgroundColor = event.subject
-      ? generateColor(event.subject, event.type)
-      : event.type === 'event'
+  const handleEventDrop = async ({ event, start, end }: any) => {
+    try {
+      console.log("Event dropped:", { event, start, end });
+      
+      // Only allow dragging lessons, not events/exams/assignments
+      if (event.type !== 'lesson') {
+        toast.warning("Only lessons can be moved on the calendar");
+        return;
+      }
+
+      // For recurring lessons, ask if they want to update series or just this instance
+      if (event.isRecurring && event.recurringLessonId) {
+        const updateSeries = window.confirm(
+          "This is a recurring lesson. Do you want to update the entire series?\n\n" +
+          "Click OK to update all occurrences\n" +
+          "Click Cancel to update only this instance"
+        );
+        
+        const result = await updateLessonTimes({
+          id: event.recurringLessonId,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          variant: "recurring",
+          updateScope: updateSeries ? "series" : "instance",
+          originalDate: event.start.toISOString(),
+        });
+        
+        if (result.success) {
+          toast.success(result.message);
+          router.refresh();
+        } else {
+          toast.error(result.message);
+        }
+      } else if (event.lessonId) {
+        // Single lesson
+        const result = await updateLessonTimes({
+          id: event.lessonId,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          variant: "single",
+        });
+        
+        if (result.success) {
+          toast.success(result.message);
+          router.refresh();
+        } else {
+          toast.error(result.message);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating lesson time:", error);
+      toast.error("Failed to update lesson time");
+    }
+  };
+
+  const handleEventResize = async ({ event, start, end }: any) => {
+    // Similar logic to handleEventDrop
+    await handleEventDrop({ event, start, end });
+  };
+
+  const eventStyleGetter = (event: object) => {
+    const calendarEvent = event as CalendarEvent;
+    const backgroundColor = calendarEvent.subject
+      ? generateColor(calendarEvent.subject, calendarEvent.type)
+      : calendarEvent.type === 'event'
         ? '#6B7280'  // CHANGE DEFAULT EVENT COLOR HERE
-        : event.type === 'exam'
+        : calendarEvent.type === 'exam'
           ? '##E3735E'  // CHANGE DEFAULT EXAM COLOR HERE
-          : event.type === 'assignment'
+          : calendarEvent.type === 'assignment'
             ? '#059669'  // CHANGE DEFAULT ASSIGNMENT COLOR HERE
             : '#3B82F6';  // CHANGE DEFAULT LESSON COLOR HERE
 
-    const isEvent = event.type === 'event';
+    const isEvent = calendarEvent.type === 'event';
 
     return {
       style: {
@@ -283,11 +351,11 @@ const BigCalendar = ({
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        <Calendar
+        <DragAndDropCalendar
           localizer={localizer}
           events={sortedEvents}
-          startAccessor="start"
-          endAccessor="end"
+          startAccessor={(event: any) => event.start}
+          endAccessor={(event: any) => event.end}
           views={["month", "week", "day"]}
           view={view}
           date={date}
@@ -307,26 +375,35 @@ const BigCalendar = ({
           showMultiDayTimes={true}
           culture="en-GB"
           {...(view === 'day' ? dayViewProps : {})}
+          // Drag and drop configuration
+          draggableAccessor={(event: object) => (event as CalendarEvent).type === 'lesson'}
+          resizable
+          onEventDrop={handleEventDrop}
+          onEventResize={handleEventResize}
           components={{
-            event: ({ event }) => (
-              <div
-                className={`text-black text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
-                  }`}
-                style={{
-                  textOverflow: 'ellipsis',
-                  whiteSpace: view === 'month' ? 'nowrap' : 'normal',
-                  height: view === 'month' ? '100%' : 'auto',
-                  display: 'flex',
-                  alignItems: view === 'month' ? 'center' : 'flex-start',
-                  padding: view === 'month' ? '1px 3px' : '2px 4px',
-                }}
-              >
-                {event.type === 'event' && (
-                  <span className="mr-1 opacity-90"></span>
-                )}
-                <span className="truncate">{event.title}</span>
-              </div>
-            ),
+            event: ({ event }) => {
+              const calendarEvent = event as CalendarEvent;
+              return (
+                <div
+                  className={`text-black text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
+                    }`}
+                  style={{
+                    textOverflow: 'ellipsis',
+                    whiteSpace: view === 'month' ? 'nowrap' : 'normal',
+                    height: view === 'month' ? '100%' : 'auto',
+                    display: 'flex',
+                    alignItems: view === 'month' ? 'center' : 'flex-start',
+                    padding: view === 'month' ? '1px 3px' : '2px 4px',
+                    cursor: calendarEvent.type === 'lesson' ? 'move' : 'default',
+                  }}
+                >
+                  {calendarEvent.type === 'event' && (
+                    <span className="mr-1 opacity-90"></span>
+                  )}
+                  <span className="truncate">{calendarEvent.title}</span>
+                </div>
+              );
+            },
           }}
         />
       </div>
@@ -342,7 +419,7 @@ const BigCalendar = ({
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
               >
-                ×
+                
               </button>
             </div>
 

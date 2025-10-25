@@ -1103,7 +1103,88 @@ export async function createLesson(payload: {
   }
 }
 
+export const updateLessonTimes = async (payload: {
+  id: number;
+  startTime: string;
+  endTime: string;
+  variant?: "single" | "recurring";
+  updateScope?: "instance" | "series";
+  originalDate?: string;
+}) => {
+  try {
+    const { id, startTime, endTime, variant, updateScope, originalDate } = payload;
+    
+    if (variant === "recurring") {
+      const series = await prisma.recurringLesson.findUnique({ 
+        where: { id: Number(id) } 
+      });
+      
+      if (!series) {
+        return { success: false, error: true, message: "Recurring lesson not found" };
+      }
 
+      if (updateScope === "series") {
+        // Update the entire series
+        const newStartTime = new Date(startTime);
+        const newEndTime = new Date(endTime);
+        
+        await prisma.recurringLesson.update({
+          where: { id: Number(id) },
+          data: {
+            startTime: newStartTime,
+            endTime: newEndTime,
+          },
+        });
+        
+        revalidatePath("/list/lessons");
+        return { success: true, error: false, message: "Series updated" };
+      } else {
+        // Create an exception for this instance
+        const newStartTime = new Date(startTime);
+        const newEndTime = new Date(endTime);
+        const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+        const dayOfWeek = dayNames[newStartTime.getDay()];
+        
+        await prisma.lesson.create({
+          data: {
+            name: series.name,
+            subjectId: series.subjectId,
+            classId: series.classId,
+            teacherId: series.teacherId,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            day: dayOfWeek,
+            recurringLessonId: Number(id),
+          },
+        });
+        
+        revalidatePath("/list/lessons");
+        return { success: true, error: false, message: "Instance updated" };
+      }
+    } else {
+      // Update single lesson
+      const newStartTime = new Date(startTime);
+      const newEndTime = new Date(endTime);
+      const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+      const dayOfWeek = dayNames[newStartTime.getDay()];
+      
+      await prisma.lesson.update({
+        where: { id: Number(id) },
+        data: {
+          startTime: newStartTime,
+          endTime: newEndTime,
+          day: dayOfWeek,
+        },
+      });
+      
+      revalidatePath("/list/lessons");
+      return { success: true, error: false, message: "Lesson updated" };
+    }
+  } catch (e: any) {
+    console.error("Error updating lesson times:", e);
+    return { success: false, error: true, message: e.message || "Update failed" };
+  }
+}
 
 export const createParent = async (
   currentState: CurrentState,
