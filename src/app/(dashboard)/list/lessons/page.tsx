@@ -11,9 +11,9 @@ import { auth } from "@clerk/nextjs/server";
 type LessonRow = {
   id: string;                              // "L-12" or "R-5"
   kind: "single" | "recurring";
-  subject: { name: string };
-  class: { name: string };
-  teacher: { name: string; surname: string };
+  subject: { name: string } | null;
+  class: { name: string } | null;
+  teacher: { name: string; surname: string } | null;
   // For actions if you need them later:
   lessonId?: number;
   recurringId?: number;
@@ -43,11 +43,11 @@ const LessonListPage = async ({
     >
       <td className="flex items-center gap-2 p-4">
         {item.kind === "recurring" && <></>}
-        <span>{item.subject.name}</span>
+        <span>{item.subject?.name || "N/A"}</span>
       </td>
-      <td>{item.class.name}</td>
+      <td>{item.class?.name || "N/A"}</td>
       <td className="hidden md:table-cell">
-        {item.teacher.name + " " + item.teacher.surname}
+        {item.teacher ? `${item.teacher.name} ${item.teacher.surname}` : "N/A"}
       </td>
       <td>
         <div className="flex items-center gap-2">
@@ -136,26 +136,31 @@ const LessonListPage = async ({
   const singleRows: LessonRow[] = lessons.map((l: { id: any; subject: any; class: any; teacher: any; }) => ({
     id: `L-${l.id}`,
     kind: "single",
-    subject: l.subject!,
-    class: l.class!,
-    teacher: l.teacher!,
+    subject: l.subject,
+    class: l.class,
+    teacher: l.teacher,
     lessonId: l.id,
   }));
 
   const recurringRows: LessonRow[] = recurring.map((r: { id: any; subject: any; class: any; teacher: any; }) => ({
     id: `R-${r.id}`,
     kind: "recurring",
-    subject: r.subject!,
-    class: r.class!,
-    teacher: r.teacher!,
+    subject: r.subject,
+    class: r.class,
+    teacher: r.teacher,
     recurringId: r.id,
   }));
 
   // Example sort: by class then subject
   const merged = [...recurringRows, ...singleRows].sort(
-    (a, b) =>
-      a.class.name.localeCompare(b.class.name) ||
-      a.subject.name.localeCompare(b.subject.name)
+    (a, b) => {
+      const classA = a.class?.name || '';
+      const classB = b.class?.name || '';
+      const subjectA = a.subject?.name || '';
+      const subjectB = b.subject?.name || '';
+      
+      return classA.localeCompare(classB) || subjectA.localeCompare(subjectB);
+    }
   );
 
   const total = lessonsCount + recurringCount;
