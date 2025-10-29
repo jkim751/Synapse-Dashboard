@@ -6,13 +6,12 @@ import "moment/locale/en-gb";
 moment.locale("en-gb"); // keep header & grid aligned
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useState, useMemo } from "react";
+// NEW: drag-and-drop addon
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
 
 const localizer = momentLocalizer(moment);
-const DragAndDropCalendar = withDragAndDrop(Calendar);
+const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
 // Predefined color mapping for common subjects
 const subjectColorMap: Record<string, string> = {
@@ -82,6 +81,9 @@ interface CalendarEvent {
   description?: string;
   lessonId?: number;
   eventId?: number;
+  // NEW: allow recurring occurrence info
+  recurringLessonId?: number;
+  isRecurring?: boolean;
   type: 'lesson' | 'event' | 'exam' | 'assignment';
   subjectColor?: string;
 }
@@ -89,14 +91,13 @@ interface CalendarEvent {
 const BigCalendar = ({ 
   initialLessons = [], 
   initialEvents = [], 
-  showNotifications = false,
-  userRole = "student", // Add user role to control edit permissions
+  showNotifications = false 
 }: { 
   initialLessons?: CalendarEvent[];
   initialEvents?: CalendarEvent[];
-  showNotifications?: boolean;
-  userRole?: string;
+  showNotifications?: boolean; 
 }) => {
+  // CHANGED: keep setters to update UI instantly on drop/resize
   const [lessons, setLessons] = useState<CalendarEvent[]>(initialLessons);
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
 
@@ -106,6 +107,12 @@ const BigCalendar = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
+  const [pendingRecurringChange, setPendingRecurringChange] = useState<{
+    event: CalendarEvent;
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
 
   const sortedEvents = useMemo(() => {
     const allEvents = [...lessons, ...events];
@@ -163,85 +170,241 @@ const BigCalendar = ({
     }
   };
 
-  const canEditEvents = userRole === "admin" || userRole === "teacher";
-
-  const handleEventDrop = async ({ event, start, end }: any) => {
-    if (!canEditEvents) {
-      alert("You don't have permission to modify events");
-      return;
-    }
-
-    const updatedEvent = { ...event, start, end };
-
+  // NEW: Persist lesson change (single or recurring instance)
+  const persistLessonChange = async (evt: CalendarEvent, start: Date, end: Date) => {
     try {
-      // Update the UI optimistically
-      if (event.type === 'lesson' && event.lessonId) {
-        setLessons(prev => prev.map(l => 
-          l.lessonId === event.lessonId ? updatedEvent : l
-        ));
-        
-        const response = await fetch('/api/calendar/update-lesson', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: event.lessonId,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-          }),
-        });
+      const body: any = {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      };
 
-        if (!response.ok) {
-          throw new Error('Failed to update lesson');
-        }
-      } else if (event.type === 'event' && event.eventId) {
-        setEvents(prev => prev.map(e => 
-          e.eventId === event.eventId ? updatedEvent : e
-        ));
-        
-        const response = await fetch('/api/calendar/update-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: event.eventId,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update event');
-        }
+      if (evt.lessonId) {
+        body.kind = "single";
+        body.lessonId = evt.lessonId;
+      } else if (evt.recurringLessonId && evt.isRecurring) {
+        body.kind = "recurringInstance";
+        body.recurringLessonId = evt.recurringLessonId;
+        body.originalDate = evt.start.toISOString();
+      } else {
+        throw new Error("Unknown lesson event state");
       }
-    } catch (error) {
-      console.error('Error updating event:', error);
-      alert('Failed to update event. Please try again.');
-      setLessons(initialLessons);
-      setEvents(initialEvents);
+
+      const res = await fetch("/api/calendar-lessons", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({}));
+        throw new Error(msg?.error || "Failed to update lesson");
+      }
+
+      const json = await res.json();
+      const updated = json?.updatedEvent as CalendarEvent | undefined;
+
+      // Update local state for immediate UX
+      setLessons((prev) => {
+        // If server returned an updated event with a new lessonId (exception was created), use that.
+        const match = (e: CalendarEvent) => {
+          if (evt.lessonId) return e.lessonId === evt.lessonId;
+          if (evt.recurringLessonId && evt.isRecurring) {
+            // No stable ID for generated occurrences, match by recurringLessonId and date
+            return e.recurringLessonId === evt.recurringLessonId && e.start.getTime() === evt.start.getTime();
+          }
+          return false;
+        };
+
+        const next = prev.map((e) => {
+          if (!match(e)) return e;
+          // Replace with server shape if provided, else update times locally
+          return updated
+            ? { ...e, ...updated, start: new Date(updated.start), end: new Date(updated.end) }
+            : { ...e, start: new Date(start), end: new Date(end) };
+        });
+
+        // In case an exception was created and the existing generated item should be replaced:
+        if (updated && updated.lessonId && (!evt.lessonId)) {
+          // Replace generated occurrence with the new exception event (single)
+          // Remove the generated one (matched above) and add the updated one if not already there
+          const filtered = next.filter((e) => !(e.recurringLessonId === evt.recurringLessonId && e.start.getTime() === evt.start.getTime()));
+          return [...filtered, { ...updated, start: new Date(updated.start), end: new Date(updated.end) }];
+        }
+
+        return next;
+      });
+
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update lesson timing.");
+      return false;
     }
   };
 
-  const handleEventResize = async ({ event, start, end }: any) => {
-    if (!canEditEvents) {
-      alert("You don't have permission to modify events");
-      return;
+  // NEW: Persist recurring SERIES change (update whole series)
+  const persistLessonSeriesChange = async (evt: CalendarEvent, start: Date, end: Date) => {
+    try {
+      if (!evt.recurringLessonId) return false;
+
+      const res = await fetch("/api/calendar-lessons", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "series",
+          recurringLessonId: evt.recurringLessonId,
+          originalDate: evt.start.toISOString(),
+          start: start.toISOString(),
+          end: end.toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({}));
+        throw new Error(msg?.error || "Failed to update recurring series");
+      }
+
+      const json = await res.json();
+      const updated = json?.updatedEvent as CalendarEvent | undefined;
+
+      // Optimistically update only the dragged occurrence locally
+      setLessons((prev) =>
+        prev.map((e) => {
+          const isDraggedOccurrence =
+            e.recurringLessonId === evt.recurringLessonId &&
+            e.start.getTime() === evt.start.getTime() &&
+            e.isRecurring;
+
+          if (!isDraggedOccurrence) return e;
+
+          return updated
+            ? { ...e, ...updated, start: new Date(updated.start), end: new Date(updated.end) }
+            : { ...e, start: new Date(start), end: new Date(end) };
+        })
+      );
+
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update recurring series.");
+      return false;
+    }
+  };
+
+  // NEW: Persist event change
+  const persistEventChange = async (evt: CalendarEvent, start: Date, end: Date) => {
+    try {
+      if (!evt.eventId) return false;
+
+      const res = await fetch("/api/calendar-events", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: evt.eventId,
+          start: start.toISOString(),
+          end: end.toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({}));
+        throw new Error(msg?.error || "Failed to update event");
+      }
+
+      const json = await res.json();
+      const updated = json?.updatedEvent as CalendarEvent | undefined;
+
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.eventId === evt.eventId
+            ? {
+                ...e,
+                ...(updated || {}),
+                start: updated ? new Date(updated.start) : new Date(start),
+                end: updated ? new Date(updated.end) : new Date(end),
+              }
+            : e
+        )
+      );
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update event timing.");
+      return false;
+    }
+  };
+
+  // UPDATED: handle drag & resize with scope chooser for generated recurring items
+  const maybeOpenScopeChooser = (payload: { event: CalendarEvent; start: Date; end: Date }) => {
+    const { event } = payload;
+    const isGeneratedRecurring = event.type === "lesson" && event.recurringLessonId && event.isRecurring && !event.lessonId;
+    if (isGeneratedRecurring) {
+      setPendingRecurringChange(payload);
+      setIsScopeModalOpen(true);
+      return true;
+    }
+    return false;
+  };
+
+  // Accept Date | string from DnD callbacks and normalize to Date
+  type StringOrDate = Date | string;
+  const toDate = (d: StringOrDate): Date => (d instanceof Date ? d : new Date(d));
+
+  const onEventDrop = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
+    const s = toDate(start);
+    const e = toDate(end);
+    if (maybeOpenScopeChooser({ event, start: s, end: e })) return;
+    if (event.type === "lesson") {
+      persistLessonChange(event, s, e);
+    } else if (event.type === "event") {
+      persistEventChange(event, s, e);
+    }
+  };
+
+  const onEventResize = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
+    const s = toDate(start);
+    const e = toDate(end);
+    if (maybeOpenScopeChooser({ event, start: s, end: e })) return;
+    if (event.type === "lesson") {
+      persistLessonChange(event, s, e);
+    } else if (event.type === "event") {
+      persistEventChange(event, s, e);
+    }
+  };
+
+  // NEW: scope chooser actions
+  const applyScopeChoice = async (scope: "instance" | "series") => {
+    if (!pendingRecurringChange) return;
+    const { event, start, end } = pendingRecurringChange;
+
+    if (scope === "instance") {
+      await persistLessonChange(event, start, end);
+    } else {
+      await persistLessonSeriesChange(event, start, end);
     }
 
-    await handleEventDrop({ event, start, end });
+    setIsScopeModalOpen(false);
+    setPendingRecurringChange(null);
+  };
+
+  const cancelScopeChoice = () => {
+    setIsScopeModalOpen(false);
+    setPendingRecurringChange(null);
   };
 
   const eventStyleGetter = (event: object) => {
-    const calendarEvent = event as CalendarEvent;
-    const backgroundColor = calendarEvent.subject
-      ? generateColor(calendarEvent.subject, calendarEvent.type)
-      : calendarEvent.type === 'event'
+    const calEvent = event as CalendarEvent;
+    const backgroundColor = calEvent.subject
+      ? generateColor(calEvent.subject, calEvent.type)
+      : calEvent.type === 'event'
         ? '#6B7280'  // CHANGE DEFAULT EVENT COLOR HERE
-        : calendarEvent.type === 'exam'
-          ? '##E3735E'  // CHANGE DEFAULT EXAM COLOR HERE
-          : calendarEvent.type === 'assignment'
+        : calEvent.type === 'exam'
+          ? '#E3735E'  // FIX: single hash
+          : calEvent.type === 'assignment'
             ? '#059669'  // CHANGE DEFAULT ASSIGNMENT COLOR HERE
             : '#3B82F6';  // CHANGE DEFAULT LESSON COLOR HERE
 
-    const isEvent = calendarEvent.type === 'event';
+    const isEvent = calEvent.type === 'event';
 
     return {
       style: {
@@ -267,274 +430,298 @@ const BigCalendar = ({
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="h-full flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  const newDate = new Date(date);
-                  if (view === 'month') {
-                    newDate.setMonth(newDate.getMonth() - 1);
-                  } else if (view === 'week') {
-                    newDate.setDate(newDate.getDate() - 7);
-                  } else {
-                    newDate.setDate(newDate.getDate() - 1);
-                  }
-                  handleNavigate(newDate);
-                }}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
-              >
-                <span>←</span>
-                <span className="text-sm font-medium">
-                  {view === 'month' ? 'Previous Month' : view === 'week' ? 'Previous Week' : 'Previous Day'}
-                </span>
-              </button>
-
-              <button
-                onClick={() => handleNavigate(new Date())}
-                className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors text-sm font-medium"
-              >
-                Today
-              </button>
-
-              <button
-                onClick={() => {
-                  const newDate = new Date(date);
-                  if (view === 'month') {
-                    newDate.setMonth(newDate.getMonth() + 1);
-                  } else if (view === 'week') {
-                    newDate.setDate(newDate.getDate() + 7);
-                  } else {
-                    newDate.setDate(newDate.getDate() + 1);
-                  }
-                  handleNavigate(newDate);
-                }}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
-              >
-                <span className="text-sm font-medium">
-                  {view === 'month' ? 'Next Month' : view === 'week' ? 'Next Week' : 'Next Day'}
-                </span>
-                <span>→</span>
-              </button>
-            </div>
-
-            <div className="flex-1 text-center">
-              <h2 className="text-xl font-semibold text-gray-800">
-                {view === 'month'
-                  ? date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-                  : view === 'week'
-                    ? (() => {
-                      const weekStart = moment(date).startOf('week').toDate();
-                      const weekEnd = moment(date).endOf('week').toDate();
-                      return `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-                    })()
-                    : date.toLocaleDateString('en-GB', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                const newDate = new Date(date);
+                if (view === 'month') {
+                  newDate.setMonth(newDate.getMonth() - 1);
+                } else if (view === 'week') {
+                  newDate.setDate(newDate.getDate() - 7);
+                } else {
+                  newDate.setDate(newDate.getDate() - 1);
                 }
-              </h2>
-            </div>
+                handleNavigate(newDate);
+              }}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
+            >
+              <span>←</span>
+              <span className="text-sm font-medium">
+                {view === 'month' ? 'Previous Month' : view === 'week' ? 'Previous Week' : 'Previous Day'}
+              </span>
+            </button>
 
-            <div className="flex bg-gray-100 rounded-xl p-1">
-              {(['month', 'week', 'day'] as View[]).map((viewType) => (
-                <button
-                  key={viewType}
-                  onClick={() => handleView(viewType)}
-                  className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${view === viewType
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                >
-                  {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => handleNavigate(new Date())}
+              className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors text-sm font-medium"
+            >
+              Today
+            </button>
+
+            <button
+              onClick={() => {
+                const newDate = new Date(date);
+                if (view === 'month') {
+                  newDate.setMonth(newDate.getMonth() + 1);
+                } else if (view === 'week') {
+                  newDate.setDate(newDate.getDate() + 7);
+                } else {
+                  newDate.setDate(newDate.getDate() + 1);
+                }
+                handleNavigate(newDate);
+              }}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
+            >
+              <span className="text-sm font-medium">
+                {view === 'month' ? 'Next Month' : view === 'week' ? 'Next Week' : 'Next Day'}
+              </span>
+              <span>→</span>
+            </button>
+          </div>
+
+          <div className="flex-1 text-center">
+            <h2 className="text-xl font-semibold text-gray-800">
+              {view === 'month'
+                ? date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                : view === 'week'
+                  ? (() => {
+                    const weekStart = moment(date).startOf('week').toDate();
+                    const weekEnd = moment(date).endOf('week').toDate();
+                    return `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                  })()
+                  : date.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })
+              }
+            </h2>
+          </div>
+
+          <div className="flex bg-gray-100 rounded-xl p-1">
+            {(['month', 'week', 'day'] as View[]).map((viewType) => (
+              <button
+                key={viewType}
+                onClick={() => handleView(viewType)}
+                className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${view === viewType
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
-
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <DragAndDropCalendar
-            localizer={localizer}
-            events={sortedEvents}
-            startAccessor={(event: object) => (event as CalendarEvent).start}
-            endAccessor={(event: object) => (event as CalendarEvent).end}
-            views={["month", "week", "day"]}
-            view={view}
-            date={date}
-            style={{
-              height: "100%",
-              width: "100%",
-              minHeight: "400px"
-            }}
-            onView={handleView}
-            onNavigate={handleNavigate}
-            onSelectEvent={handleEventClick}
-            eventPropGetter={eventStyleGetter}
-            min={view !== "month" ? new Date(2025, 0, 1, 9, 0, 0) : undefined}
-            max={view !== "month" ? new Date(2025, 0, 1, 23, 0, 0) : undefined}
-            popup={view === "month"}
-            popupOffset={30}
-            showMultiDayTimes={true}
-            culture="en-GB"
-            {...(view === 'day' ? dayViewProps : {})}
-            draggableAccessor={() => canEditEvents}
-            resizable={canEditEvents}
-            onEventDrop={handleEventDrop}
-            onEventResize={handleEventResize}
-            components={{
-              event: ({ event }) => {
-                const calendarEvent = event as CalendarEvent;
-                return (
-                  <div
-                    className={`text-black text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
-                      } ${canEditEvents ? 'cursor-move' : 'cursor-pointer'}`}
-                    style={{
-                      textOverflow: 'ellipsis',
-                      whiteSpace: view === 'month' ? 'nowrap' : 'normal',
-                      height: view === 'month' ? '100%' : 'auto',
-                      display: 'flex',
-                      alignItems: view === 'month' ? 'center' : 'flex-start',
-                      padding: view === 'month' ? '1px 3px' : '2px 4px',
-                    }}
-                  >
-                    {calendarEvent.type === 'event' && (
-                      <span className="mr-1 opacity-90"></span>
-                    )}
-                    <span className="truncate">{calendarEvent.title}</span>
-                  </div>
-                );
-              },
-            }}
-          />
-        </div>
-
-        {isModalOpen && selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {selectedEvent.type === 'event' ? 'Event' : 'Lesson'} Details
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <span className="font-semibold text-gray-700">Title:</span>
-                  <p className="text-gray-600">{selectedEvent.title}</p>
-                </div>
-
-                {selectedEvent.type === 'event' && (
-                  <div className="bg-blue-50 p-3 rounded-xl">
-                    <span className="text-blue-800 font-medium">📅 Event</span>
-                  </div>
-                )}
-
-                <div>
-                  <span className="font-semibold text-gray-700">Start Time:</span>
-                  <p className="text-gray-600">
-                    {selectedEvent.start.toLocaleString("en-GB", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="font-semibold text-gray-700">End Time:</span>
-                  <p className="text-gray-600">
-                    {selectedEvent.end.toLocaleString("en-GB", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="font-semibold text-gray-700">Duration:</span>
-                  <p className="text-gray-600">
-                    {Math.round((selectedEvent.end.getTime() - selectedEvent.start.getTime()) / (1000 * 60))} minutes
-                  </p>
-                </div>
-
-                {selectedEvent.subject && selectedEvent.type === 'lesson' && (
-                  <div>
-                    <span className="font-semibold text-gray-700">Subject:</span>
-                    <p className="text-gray-600">{selectedEvent.subject}</p>
-                  </div>
-                )}
-
-                {selectedEvent.teacher && selectedEvent.type !== 'event' && (
-                  <div>
-                    <span className="font-semibold text-gray-700">Teacher:</span>
-                    <p className="text-gray-600">{selectedEvent.teacher}</p>
-                  </div>
-                )}
-
-                {selectedEvent.classroom && selectedEvent.type !== 'event' && (
-                  <div>
-                    <span className="font-semibold text-gray-700">Classroom:</span>
-                    <p className="text-gray-600">{selectedEvent.classroom}</p>
-                  </div>
-                )}
-
-                {selectedEvent.description && (
-                  <div>
-                    <span className="font-semibold text-gray-700">Description:</span>
-                    <p className="text-gray-600">{selectedEvent.description}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-between">
-                {showNotifications && selectedEvent.type === 'lesson' && (
-                  <button
-                    onClick={handleNotifyTeacher}
-                    disabled={isNotifying || !selectedEvent?.lessonId}
-                    className="px-4 py-2 bg-orange-400 text-white rounded hover:bg-orange-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {isNotifying ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Notifying...
-                      </>
-                    ) : (
-                      <>
-                        🔔 Notify Teacher (Late)
-                      </>
-                    )}
-                  </button>
-                )}
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors ml-auto"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </DndProvider>
+
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <DnDCalendar
+          localizer={localizer}
+          events={sortedEvents}
+          startAccessor={(event) => (event as CalendarEvent).start}
+          endAccessor={(event) => (event as CalendarEvent).end}
+          views={["month", "week", "day"]}
+          view={view}
+          date={date}
+          style={{
+            height: "100%",
+            width: "100%",
+            minHeight: "400px"
+          }}
+          onView={handleView}
+          onNavigate={handleNavigate}
+          onSelectEvent={handleEventClick}
+          eventPropGetter={eventStyleGetter}
+          min={view !== "month" ? new Date(2025, 0, 1, 9, 0, 0) : undefined}
+          max={view !== "month" ? new Date(2025, 0, 1, 23, 0, 0) : undefined}
+          popup={view === "month"}
+          popupOffset={30}
+          showMultiDayTimes={true}
+          culture="en-GB"
+          {...(view === 'day' ? dayViewProps : {})}
+          // NEW: DnD hooks
+          onEventDrop={onEventDrop}
+          onEventResize={onEventResize}
+          resizable
+          components={{
+            event: ({ event }) => (
+              <div
+                className={`text-black text-xs font-medium overflow-hidden ${view === 'month' ? 'leading-tight' : 'leading-normal'
+                  }`}
+                style={{
+                  textOverflow: 'ellipsis',
+                  whiteSpace: view === 'month' ? 'nowrap' : 'normal',
+                  height: view === 'month' ? '100%' : 'auto',
+                  display: 'flex',
+                  alignItems: view === 'month' ? 'center' : 'flex-start',
+                  padding: view === 'month' ? '1px 3px' : '2px 4px',
+                }}
+              >
+                {event.type === 'event' && (
+                  <span className="mr-1 opacity-90"></span>
+                )}
+                <span className="truncate">{event.title}</span>
+              </div>
+            ),
+          }}
+        />
+      </div>
+
+      {isModalOpen && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">
+                {selectedEvent.type === 'event' ? 'Event' : 'Lesson'} Details
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="font-semibold text-gray-700">Title:</span>
+                <p className="text-gray-600">{selectedEvent.title}</p>
+              </div>
+
+              {selectedEvent.type === 'event' && (
+                <div className="bg-blue-50 p-3 rounded-xl">
+                  <span className="text-blue-800 font-medium">📅 Event</span>
+                </div>
+              )}
+
+              <div>
+                <span className="font-semibold text-gray-700">Start Time:</span>
+                <p className="text-gray-600">
+                  {selectedEvent.start.toLocaleString("en-GB", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <span className="font-semibold text-gray-700">End Time:</span>
+                <p className="text-gray-600">
+                  {selectedEvent.end.toLocaleString("en-GB", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <span className="font-semibold text-gray-700">Duration:</span>
+                <p className="text-gray-600">
+                  {Math.round((selectedEvent.end.getTime() - selectedEvent.start.getTime()) / (1000 * 60))} minutes
+                </p>
+              </div>
+
+              {selectedEvent.subject && selectedEvent.type === 'lesson' && (
+                <div>
+                  <span className="font-semibold text-gray-700">Subject:</span>
+                  <p className="text-gray-600">{selectedEvent.subject}</p>
+                </div>
+              )}
+
+              {selectedEvent.teacher && selectedEvent.type !== 'event' && (
+                <div>
+                  <span className="font-semibold text-gray-700">Teacher:</span>
+                  <p className="text-gray-600">{selectedEvent.teacher}</p>
+                </div>
+              )}
+
+              {selectedEvent.classroom && selectedEvent.type !== 'event' && (
+                <div>
+                  <span className="font-semibold text-gray-700">Classroom:</span>
+                  <p className="text-gray-600">{selectedEvent.classroom}</p>
+                </div>
+              )}
+
+              {selectedEvent.description && (
+                <div>
+                  <span className="font-semibold text-gray-700">Description:</span>
+                  <p className="text-gray-600">{selectedEvent.description}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              {showNotifications && selectedEvent.type === 'lesson' && (
+                <button
+                  onClick={handleNotifyTeacher}
+                  disabled={isNotifying || !selectedEvent?.lessonId}
+                  className="px-4 py-2 bg-orange-400 text-white rounded hover:bg-orange-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isNotifying ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Notifying...
+                    </>
+                  ) : (
+                    <>
+                      🔔 Notify Teacher (Late)
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors ml-auto"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Scope chooser for recurring drops/resizes */}
+      {isScopeModalOpen && pendingRecurringChange && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-5 w-[380px] shadow-xl">
+            <h3 className="text-lg font-semibold mb-2">Update recurring lesson</h3>
+            <p className="text-sm text-gray-600 mb-4">Apply changes to only this event or the whole series?</p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => applyScopeChoice("instance")}
+                className="px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-colors"
+              >
+                Only this event
+              </button>
+              <button
+                onClick={() => applyScopeChoice("series")}
+                className="px-4 py-2 bg-orange-400 hover:bg-orange-600 text-white rounded-lg transition-colors"
+              >
+                This and all events
+              </button>
+              <button
+                onClick={cancelScopeChoice}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

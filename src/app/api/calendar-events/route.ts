@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 export async function GET() {
   try {
@@ -69,5 +70,54 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error fetching calendar events:', error.message);
     return NextResponse.json({ error: 'Failed to fetch calendar events' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { userId, sessionClaims } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { eventId, start, end } = body || {};
+    if (!eventId || !start || !end) {
+      return NextResponse.json({ error: 'Missing eventId/start/end' }, { status: 400 });
+    }
+
+    const updated = await prisma.event.update({
+      where: { id: Number(eventId) },
+      data: {
+        startTime: new Date(start),
+        endTime: new Date(end),
+      },
+      include: {
+        class: { select: { name: true } }
+      }
+    });
+
+    revalidatePath("/list/events");
+
+    return NextResponse.json({
+      success: true,
+      updatedEvent: {
+        title: updated.title,
+        start: updated.startTime,
+        end: updated.endTime,
+        description: updated.description,
+        classroom: (updated as any).class?.name,
+        eventId: updated.id,
+        type: 'event',
+      }
+    });
+  } catch (error: any) {
+    console.error('PATCH /api/calendar-events error:', error?.message || error);
+    return NextResponse.json({ error: 'Failed to update event' }, { status: 500 });
   }
 }
