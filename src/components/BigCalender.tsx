@@ -5,7 +5,7 @@ import moment from "moment";
 import "moment/locale/en-gb";
 moment.locale("en-gb"); // keep header & grid aligned
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 // NEW: drag-and-drop addon
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
@@ -113,21 +113,59 @@ const BigCalendar = ({
     end: Date;
   } | null>(null);
   const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const scrollLockCleanupRef = useRef<null | (() => void)>(null);
 
-  // Add a small helper to lock/unlock page scroll while dragging
+  // Strong scroll lock with fixed body + event listeners
   const setBodyScrollLock = (locked: boolean) => {
     if (typeof document === "undefined") return;
-    const html = document.documentElement;
-    const body = document.body;
+
     if (locked) {
-      html.classList.add("no-scroll");
-      body.classList.add("no-scroll");
+      if (scrollLockCleanupRef.current) return; // already locked
+      const scrollY = window.scrollY;
+
+      const prevent = (e: Event) => e.preventDefault();
+      const preventKeys = (e: KeyboardEvent) => {
+        const keys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+        if (keys.includes(e.key)) e.preventDefault();
+      };
+
+      document.documentElement.classList.add("no-scroll");
+      document.body.classList.add("no-scroll");
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+      document.body.style.overscrollBehavior = "none";
+
+      window.addEventListener("wheel", prevent, { passive: false });
+      window.addEventListener("touchmove", prevent, { passive: false });
+      window.addEventListener("keydown", preventKeys as any, { passive: false } as any);
+
+      scrollLockCleanupRef.current = () => {
+        window.removeEventListener("wheel", prevent);
+        window.removeEventListener("touchmove", prevent);
+        window.removeEventListener("keydown", preventKeys as any);
+        document.documentElement.classList.remove("no-scroll");
+        document.body.classList.remove("no-scroll");
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
+        document.body.style.overscrollBehavior = "";
+        window.scrollTo(0, scrollY);
+        scrollLockCleanupRef.current = null;
+      };
     } else {
-      html.classList.remove("no-scroll");
-      body.classList.remove("no-scroll");
+      if (scrollLockCleanupRef.current) {
+        scrollLockCleanupRef.current();
+      }
     }
   };
 
+  // Add a small helper to lock/unlock page scroll while dragging
   const sortedEvents = useMemo(() => {
     const allEvents = [...lessons, ...events];
     return allEvents.sort((a, b) => {
@@ -367,6 +405,7 @@ const BigCalendar = ({
   const onEventDrop = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
     const s = toDate(start);
     const e = toDate(end);
+    setIsDragging(false);
     if (maybeOpenScopeChooser({ event, start: s, end: e })) {
       setBodyScrollLock(false); // unlock when opening scope modal
       return;
@@ -383,6 +422,7 @@ const BigCalendar = ({
   const onEventResize = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
     const s = toDate(start);
     const e = toDate(end);
+    setIsDragging(false);
     if (maybeOpenScopeChooser({ event, start: s, end: e })) {
       setBodyScrollLock(false); // unlock when opening scope modal
       return;
@@ -409,12 +449,14 @@ const BigCalendar = ({
 
     setIsScopeModalOpen(false);
     setPendingRecurringChange(null);
+    setIsDragging(false);
     setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
   };
 
   const cancelScopeChoice = () => {
     setIsScopeModalOpen(false);
     setPendingRecurringChange(null);
+    setIsDragging(false);
     setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
   };
 
@@ -545,7 +587,12 @@ const BigCalendar = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div
+        className="flex-1 min-h-0 overflow-hidden"
+        // Prevent wheel/touch scrolling inside the calendar while dragging
+        onWheelCapture={(e) => { if (isDragging) e.preventDefault(); }}
+        onTouchMoveCapture={(e) => { if (isDragging) e.preventDefault(); }}
+      >
         <DnDCalendar
           localizer={localizer}
           events={sortedEvents}
@@ -573,12 +620,14 @@ const BigCalendar = ({
           // NEW: DnD hooks
           onEventDrop={onEventDrop}
           onEventResize={onEventResize}
-          // Lock scroll on drag start and add a safety auto-unlock
           onDragStart={() => {
+            setIsDragging(true);
             setBodyScrollLock(true);
-            const cleanup = () => setBodyScrollLock(false);
+            const cleanup = () => { setIsDragging(false); setBodyScrollLock(false); };
             window.addEventListener("mouseup", cleanup, { once: true });
             window.addEventListener("touchend", cleanup, { once: true });
+            window.addEventListener("dragend", cleanup, { once: true });
+            window.addEventListener("blur", cleanup, { once: true });
           }}
           resizable
           components={{

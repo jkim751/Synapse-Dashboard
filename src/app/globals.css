@@ -765,4 +765,6 @@ html.no-scroll,
 body.no-scroll {
   overflow: hidden !important;
   height: 100% !important;
+  position: fixed !important;  /* added */
+  width: 100% !important;      /* added */
 }
