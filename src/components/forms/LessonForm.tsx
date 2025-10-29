@@ -226,4 +226,3 @@ export default LessonForm;
 function actionFn(state: { success: boolean; error: boolean; message: string; }): { success: boolean; error: boolean; message: string; } | Promise<{ success: boolean; error: boolean; message: string; }> {
   throw new Error("Function not implemented.");
 }
-

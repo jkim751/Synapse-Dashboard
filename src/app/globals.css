@@ -561,16 +561,3 @@ body {
     min-width: 44px;
   }
 }
-/* Make it clear that lessons are draggable */
-.rbc-event[draggable="true"] {
-  cursor: move;
-}
-
-.rbc-event[draggable="true"]:hover {
-  opacity: 0.8;
-}
-
-/* Style for events (non-draggable) */
-.rbc-event-calendar {
-  cursor: default;
-}
