@@ -114,6 +114,20 @@ const BigCalendar = ({
   } | null>(null);
   const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
 
+  // Add a small helper to lock/unlock page scroll while dragging
+  const setBodyScrollLock = (locked: boolean) => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (locked) {
+      html.classList.add("no-scroll");
+      body.classList.add("no-scroll");
+    } else {
+      html.classList.remove("no-scroll");
+      body.classList.remove("no-scroll");
+    }
+  };
+
   const sortedEvents = useMemo(() => {
     const allEvents = [...lessons, ...events];
     return allEvents.sort((a, b) => {
@@ -353,22 +367,32 @@ const BigCalendar = ({
   const onEventDrop = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
     const s = toDate(start);
     const e = toDate(end);
-    if (maybeOpenScopeChooser({ event, start: s, end: e })) return;
+    if (maybeOpenScopeChooser({ event, start: s, end: e })) {
+      setBodyScrollLock(false); // unlock when opening scope modal
+      return;
+    }
     if (event.type === "lesson") {
-      persistLessonChange(event, s, e);
+      persistLessonChange(event, s, e).finally(() => setBodyScrollLock(false));
     } else if (event.type === "event") {
-      persistEventChange(event, s, e);
+      persistEventChange(event, s, e).finally(() => setBodyScrollLock(false));
+    } else {
+      setBodyScrollLock(false);
     }
   };
 
   const onEventResize = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
     const s = toDate(start);
     const e = toDate(end);
-    if (maybeOpenScopeChooser({ event, start: s, end: e })) return;
+    if (maybeOpenScopeChooser({ event, start: s, end: e })) {
+      setBodyScrollLock(false); // unlock when opening scope modal
+      return;
+    }
     if (event.type === "lesson") {
-      persistLessonChange(event, s, e);
+      persistLessonChange(event, s, e).finally(() => setBodyScrollLock(false));
     } else if (event.type === "event") {
-      persistEventChange(event, s, e);
+      persistEventChange(event, s, e).finally(() => setBodyScrollLock(false));
+    } else {
+      setBodyScrollLock(false);
     }
   };
 
@@ -385,11 +409,13 @@ const BigCalendar = ({
 
     setIsScopeModalOpen(false);
     setPendingRecurringChange(null);
+    setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
   };
 
   const cancelScopeChoice = () => {
     setIsScopeModalOpen(false);
     setPendingRecurringChange(null);
+    setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
   };
 
   const eventStyleGetter = (event: object) => {
@@ -547,6 +573,13 @@ const BigCalendar = ({
           // NEW: DnD hooks
           onEventDrop={onEventDrop}
           onEventResize={onEventResize}
+          // Lock scroll on drag start and add a safety auto-unlock
+          onDragStart={() => {
+            setBodyScrollLock(true);
+            const cleanup = () => setBodyScrollLock(false);
+            window.addEventListener("mouseup", cleanup, { once: true });
+            window.addEventListener("touchend", cleanup, { once: true });
+          }}
           resizable
           components={{
             event: ({ event }) => (
