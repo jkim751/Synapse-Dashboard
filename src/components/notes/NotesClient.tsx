@@ -198,12 +198,10 @@ export default function NotesClient() {
   }
 
   const handleDelete = async (noteId: string) => {
-    if (confirm('Are you sure you want to delete this note?')) {
-      try {
-        await deleteNote(noteId)
-      } catch (error) {
-        console.error('Failed to delete note:', error)
-      }
+    try {
+      await deleteNote(noteId)
+    } catch (error) {
+      console.error('Failed to delete note:', error)
     }
   }
 
