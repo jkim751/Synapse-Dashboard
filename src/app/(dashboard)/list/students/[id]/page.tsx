@@ -207,12 +207,6 @@ const SingleStudentPage = async ({
                 </Link>
                 <Link
                   className="p-3 rounded-xl bg-lamaSky/15"
-                  href={`/list/teachers?classId=${primaryClass.id}`}
-                >
-                  Student&apos;s Teachers
-                </Link>
-                <Link
-                  className="p-3 rounded-xl bg-lamaSky/15"
                   href={`/list/exams?classId=${primaryClass.id}`}
                 >
                   Student&apos;s Exams
