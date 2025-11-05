@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Note {
   id: string
@@ -22,6 +23,10 @@ export default function StudentNotes({ studentId }: StudentNotesProps) {
   const [newNote, setNewNote] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; noteId: string | null }>({
+    isOpen: false,
+    noteId: null
+  })
 
   useEffect(() => {
     fetchNotes()
@@ -90,22 +95,31 @@ export default function StudentNotes({ studentId }: StudentNotesProps) {
     }
   }
 
-  const handleDelete = async (noteId: string) => {
-    if (!confirm('Delete this note?')) return
+  const handleDeleteClick = (noteId: string) => {
+    setDeleteConfirm({ isOpen: true, noteId })
+  }
 
-    try {
-      const response = await fetch('/api/student-notes', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId })
-      })
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirm.noteId) {
+      try {
+        const response = await fetch('/api/student-notes', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noteId: deleteConfirm.noteId })
+        })
 
-      if (response.ok) {
-        await fetchNotes()
+        if (response.ok) {
+          await fetchNotes()
+        }
+      } catch (error) {
+        console.error('Failed to delete note:', error)
       }
-    } catch (error) {
-      console.error('Failed to delete note:', error)
     }
+    setDeleteConfirm({ isOpen: false, noteId: null })
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, noteId: null })
   }
 
   if (isLoading) {
@@ -118,111 +132,124 @@ export default function StudentNotes({ studentId }: StudentNotesProps) {
   }
 
   return (
-    <div className="bg-white p-4 rounded-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Student Notes</h1>
-        {!isAdding && (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="text-sm px-3 py-1 bg-lamaSky/70 text-white rounded hover:bg-lamaSky/80"
-          >
-            + Add Note
-          </button>
-        )}
-      </div>
+    <>
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Student Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        variant="danger"
+      />
 
-      {isAdding && (
-        <div className="mb-4 p-3 border border-gray-200 rounded-xl">
-          <textarea
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Type your note..."
-            className="w-full p-2 border border-gray-200 rounded resize-none focus:outline-none focus:border-lamaSky"
-            rows={3}
-          />
-          <div className="flex gap-2 mt-2">
+      <div className="bg-white p-4 rounded-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-semibold">Student Notes</h1>
+          {!isAdding && (
             <button
-              onClick={handleAdd}
-              className="text-sm px-3 py-1 bg-lamaSky text-white rounded hover:bg-lamaSky/80"
+              onClick={() => setIsAdding(true)}
+              className="text-sm px-3 py-1 bg-lamaSky/70 text-white rounded hover:bg-lamaSky/80"
             >
-              Save
+              + Add Note
             </button>
-            <button
-              onClick={() => {
-                setIsAdding(false)
-                setNewNote('')
-              }}
-              className="text-sm px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-          </div>
+          )}
         </div>
-      )}
 
-      <div className="space-y-3">
-        {notes.length === 0 ? (
-          <p className="text-gray-400 text-sm">No notes yet</p>
-        ) : (
-          notes.map((note) => (
-            <div key={note.id} className="p-3 bg-gray-50 rounded-xl">
-              {editingId === note.id ? (
-                <>
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full p-2 border border-gray-200 rounded resize-none focus:outline-none focus:border-lamaSky"
-                    rows={3}
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleUpdate(note.id)}
-                      className="text-xs px-2 py-1 bg-lamaSky text-white rounded hover:bg-lamaSky/80"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(null)
-                        setEditContent('')
-                      }}
-                      className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                    <span>
-                      {note.author} • {note.createdAt.toLocaleDateString()}
-                    </span>
-                    <div className="flex gap-2">
+        {isAdding && (
+          <div className="mb-4 p-3 border border-gray-200 rounded-xl">
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Type your note..."
+              className="w-full p-2 border border-gray-200 rounded resize-none focus:outline-none focus:border-lamaSky"
+              rows={3}
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleAdd}
+                className="text-sm px-3 py-1 bg-lamaSky text-white rounded hover:bg-lamaSky/80"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsAdding(false)
+                  setNewNote('')
+                }}
+                className="text-sm px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {notes.length === 0 ? (
+            <p className="text-gray-400 text-sm">No notes yet</p>
+          ) : (
+            notes.map((note) => (
+              <div key={note.id} className="p-3 bg-gray-50 rounded-xl">
+                {editingId === note.id ? (
+                  <>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded resize-none focus:outline-none focus:border-lamaSky"
+                      rows={3}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleUpdate(note.id)}
+                        className="text-xs px-2 py-1 bg-lamaSky text-white rounded hover:bg-lamaSky/80"
+                      >
+                        Save
+                      </button>
                       <button
                         onClick={() => {
-                          setEditingId(note.id)
-                          setEditContent(note.content)
+                          setEditingId(null)
+                          setEditContent('')
                         }}
-                        className="text-lamaSky hover:underline"
+                        className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(note.id)}
-                        className="text-red-500 hover:underline"
-                      >
-                        Delete
+                        Cancel
                       </button>
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          ))
-        )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                      <span>
+                        {note.author} • {note.createdAt.toLocaleDateString()}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingId(note.id)
+                            setEditContent(note.content)
+                          }}
+                          className="text-lamaSky hover:underline"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(note.id)}
+                          className="text-red-500 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
