@@ -49,7 +49,7 @@ const SubjectForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(state.message || `Failed to ${type} subject.`);
+      toast.error(type === "create" ? "Unable to create" : "Unable to update");
     }
   }, [state, router, type, setOpen]);
 
@@ -107,7 +107,7 @@ const SubjectForm = ({
           </div>
         </div>
         {state.error && (
-          <span className="text-red-500">Something went wrong!</span>
+          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
         )}
         <button 
           type="submit" 

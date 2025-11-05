@@ -83,7 +83,7 @@ const ExamForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(state.message || `Failed to ${type} exam.`);
+      toast.error(type === "create" ? "Unable to create" : "Unable to update");
     }
   }, [state, router, type, setOpen]);
 
@@ -173,7 +173,7 @@ const ExamForm = ({
           />
         </div>
         {state.error && (
-          <span className="text-red-500">Something went wrong!</span>
+          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
         )}
         <button
           type="submit"

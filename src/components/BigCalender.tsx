@@ -5,13 +5,9 @@ import moment from "moment";
 import "moment/locale/en-gb";
 moment.locale("en-gb"); // keep header & grid aligned
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useState, useMemo, useRef } from "react";
-// NEW: drag-and-drop addon
-import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import { useState, useMemo } from "react";
 
 const localizer = momentLocalizer(moment);
-const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
 // Predefined color mapping for common subjects
 const subjectColorMap: Record<string, string> = {
@@ -81,9 +77,6 @@ interface CalendarEvent {
   description?: string;
   lessonId?: number;
   eventId?: number;
-  // NEW: allow recurring occurrence info
-  recurringLessonId?: number;
-  isRecurring?: boolean;
   type: 'lesson' | 'event' | 'exam' | 'assignment';
   subjectColor?: string;
 }
@@ -97,9 +90,8 @@ const BigCalendar = ({
   initialEvents?: CalendarEvent[];
   showNotifications?: boolean; 
 }) => {
-  // CHANGED: keep setters to update UI instantly on drop/resize
-  const [lessons, setLessons] = useState<CalendarEvent[]>(initialLessons);
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+  const [lessons] = useState<CalendarEvent[]>(initialLessons);
+  const [events] = useState<CalendarEvent[]>(initialEvents);
 
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
@@ -107,65 +99,7 @@ const BigCalendar = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
-  const [pendingRecurringChange, setPendingRecurringChange] = useState<{
-    event: CalendarEvent;
-    start: Date;
-    end: Date;
-  } | null>(null);
-  const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const scrollLockCleanupRef = useRef<null | (() => void)>(null);
 
-  // Strong scroll lock with fixed body + event listeners
-  const setBodyScrollLock = (locked: boolean) => {
-    if (typeof document === "undefined") return;
-
-    if (locked) {
-      if (scrollLockCleanupRef.current) return; // already locked
-      const scrollY = window.scrollY;
-
-      const prevent = (e: Event) => e.preventDefault();
-      const preventKeys = (e: KeyboardEvent) => {
-        const keys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
-        if (keys.includes(e.key)) e.preventDefault();
-      };
-
-      document.documentElement.classList.add("no-scroll");
-      document.body.classList.add("no-scroll");
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = "0";
-      document.body.style.right = "0";
-      document.body.style.width = "100%";
-      document.body.style.overscrollBehavior = "none";
-
-      window.addEventListener("wheel", prevent, { passive: false });
-      window.addEventListener("touchmove", prevent, { passive: false });
-      window.addEventListener("keydown", preventKeys as any, { passive: false } as any);
-
-      scrollLockCleanupRef.current = () => {
-        window.removeEventListener("wheel", prevent);
-        window.removeEventListener("touchmove", prevent);
-        window.removeEventListener("keydown", preventKeys as any);
-        document.documentElement.classList.remove("no-scroll");
-        document.body.classList.remove("no-scroll");
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.left = "";
-        document.body.style.right = "";
-        document.body.style.width = "";
-        document.body.style.overscrollBehavior = "";
-        window.scrollTo(0, scrollY);
-        scrollLockCleanupRef.current = null;
-      };
-    } else {
-      if (scrollLockCleanupRef.current) {
-        scrollLockCleanupRef.current();
-      }
-    }
-  };
-
-  // Add a small helper to lock/unlock page scroll while dragging
   const sortedEvents = useMemo(() => {
     const allEvents = [...lessons, ...events];
     return allEvents.sort((a, b) => {
@@ -182,8 +116,8 @@ const BigCalendar = ({
   const handleView = (newView: View) => setView(newView);
   const handleNavigate = (newDate: Date) => setDate(newDate);
 
-  const handleEventClick = (event: object) => {
-    setSelectedEvent(event as CalendarEvent);
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
     setIsModalOpen(true);
   };
 
@@ -222,257 +156,18 @@ const BigCalendar = ({
     }
   };
 
-  // NEW: Persist lesson change (single or recurring instance)
-  const persistLessonChange = async (evt: CalendarEvent, start: Date, end: Date) => {
-    try {
-      const body: any = {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      };
-
-      if (evt.lessonId) {
-        body.kind = "single";
-        body.lessonId = evt.lessonId;
-      } else if (evt.recurringLessonId && evt.isRecurring) {
-        body.kind = "recurringInstance";
-        body.recurringLessonId = evt.recurringLessonId;
-        body.originalDate = evt.start.toISOString();
-      } else {
-        throw new Error("Unknown lesson event state");
-      }
-
-      const res = await fetch("/api/calendar-lessons", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const msg = await res.json().catch(() => ({}));
-        throw new Error(msg?.error || "Failed to update lesson");
-      }
-
-      const json = await res.json();
-      const updated = json?.updatedEvent as CalendarEvent | undefined;
-
-      // Update local state for immediate UX
-      setLessons((prev) => {
-        // If server returned an updated event with a new lessonId (exception was created), use that.
-        const match = (e: CalendarEvent) => {
-          if (evt.lessonId) return e.lessonId === evt.lessonId;
-          if (evt.recurringLessonId && evt.isRecurring) {
-            // No stable ID for generated occurrences, match by recurringLessonId and date
-            return e.recurringLessonId === evt.recurringLessonId && e.start.getTime() === evt.start.getTime();
-          }
-          return false;
-        };
-
-        const next = prev.map((e) => {
-          if (!match(e)) return e;
-          // Replace with server shape if provided, else update times locally
-          return updated
-            ? { ...e, ...updated, start: new Date(updated.start), end: new Date(updated.end) }
-            : { ...e, start: new Date(start), end: new Date(end) };
-        });
-
-        // In case an exception was created and the existing generated item should be replaced:
-        if (updated && updated.lessonId && (!evt.lessonId)) {
-          // Replace generated occurrence with the new exception event (single)
-          // Remove the generated one (matched above) and add the updated one if not already there
-          const filtered = next.filter((e) => !(e.recurringLessonId === evt.recurringLessonId && e.start.getTime() === evt.start.getTime()));
-          return [...filtered, { ...updated, start: new Date(updated.start), end: new Date(updated.end) }];
-        }
-
-        return next;
-      });
-
-      return true;
-    } catch (e) {
-      console.error(e);
-      alert("Failed to update lesson timing.");
-      return false;
-    }
-  };
-
-  // NEW: Persist recurring SERIES change (update whole series)
-  const persistLessonSeriesChange = async (evt: CalendarEvent, start: Date, end: Date) => {
-    try {
-      if (!evt.recurringLessonId) return false;
-
-      const res = await fetch("/api/calendar-lessons", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "series",
-          recurringLessonId: evt.recurringLessonId,
-          originalDate: evt.start.toISOString(),
-          start: start.toISOString(),
-          end: end.toISOString(),
-        }),
-      });
-
-      if (!res.ok) {
-        const msg = await res.json().catch(() => ({}));
-        throw new Error(msg?.error || "Failed to update recurring series");
-      }
-
-      const json = await res.json();
-      const updated = json?.updatedEvent as CalendarEvent | undefined;
-
-      // Optimistically update only the dragged occurrence locally
-      setLessons((prev) =>
-        prev.map((e) => {
-          const isDraggedOccurrence =
-            e.recurringLessonId === evt.recurringLessonId &&
-            e.start.getTime() === evt.start.getTime() &&
-            e.isRecurring;
-
-          if (!isDraggedOccurrence) return e;
-
-          return updated
-            ? { ...e, ...updated, start: new Date(updated.start), end: new Date(updated.end) }
-            : { ...e, start: new Date(start), end: new Date(end) };
-        })
-      );
-
-      return true;
-    } catch (e) {
-      console.error(e);
-      alert("Failed to update recurring series.");
-      return false;
-    }
-  };
-
-  // NEW: Persist event change
-  const persistEventChange = async (evt: CalendarEvent, start: Date, end: Date) => {
-    try {
-      if (!evt.eventId) return false;
-
-      const res = await fetch("/api/calendar-events", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId: evt.eventId,
-          start: start.toISOString(),
-          end: end.toISOString(),
-        }),
-      });
-
-      if (!res.ok) {
-        const msg = await res.json().catch(() => ({}));
-        throw new Error(msg?.error || "Failed to update event");
-      }
-
-      const json = await res.json();
-      const updated = json?.updatedEvent as CalendarEvent | undefined;
-
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.eventId === evt.eventId
-            ? {
-                ...e,
-                ...(updated || {}),
-                start: updated ? new Date(updated.start) : new Date(start),
-                end: updated ? new Date(updated.end) : new Date(end),
-              }
-            : e
-        )
-      );
-      return true;
-    } catch (e) {
-      console.error(e);
-      alert("Failed to update event timing.");
-      return false;
-    }
-  };
-
-  // UPDATED: handle drag & resize with scope chooser for generated recurring items
-  const maybeOpenScopeChooser = (payload: { event: CalendarEvent; start: Date; end: Date }) => {
-    const { event } = payload;
-    const isGeneratedRecurring = event.type === "lesson" && event.recurringLessonId && event.isRecurring && !event.lessonId;
-    if (isGeneratedRecurring) {
-      setPendingRecurringChange(payload);
-      setIsScopeModalOpen(true);
-      return true;
-    }
-    return false;
-  };
-
-  // Accept Date | string from DnD callbacks and normalize to Date
-  type StringOrDate = Date | string;
-  const toDate = (d: StringOrDate): Date => (d instanceof Date ? d : new Date(d));
-
-  const onEventDrop = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
-    const s = toDate(start);
-    const e = toDate(end);
-    setIsDragging(false);
-    if (maybeOpenScopeChooser({ event, start: s, end: e })) {
-      setBodyScrollLock(false); // unlock when opening scope modal
-      return;
-    }
-    if (event.type === "lesson") {
-      persistLessonChange(event, s, e).finally(() => setBodyScrollLock(false));
-    } else if (event.type === "event") {
-      persistEventChange(event, s, e).finally(() => setBodyScrollLock(false));
-    } else {
-      setBodyScrollLock(false);
-    }
-  };
-
-  const onEventResize = ({ event, start, end }: { event: CalendarEvent; start: StringOrDate; end: StringOrDate }) => {
-    const s = toDate(start);
-    const e = toDate(end);
-    setIsDragging(false);
-    if (maybeOpenScopeChooser({ event, start: s, end: e })) {
-      setBodyScrollLock(false); // unlock when opening scope modal
-      return;
-    }
-    if (event.type === "lesson") {
-      persistLessonChange(event, s, e).finally(() => setBodyScrollLock(false));
-    } else if (event.type === "event") {
-      persistEventChange(event, s, e).finally(() => setBodyScrollLock(false));
-    } else {
-      setBodyScrollLock(false);
-    }
-  };
-
-  // NEW: scope chooser actions
-  const applyScopeChoice = async (scope: "instance" | "series") => {
-    if (!pendingRecurringChange) return;
-    const { event, start, end } = pendingRecurringChange;
-
-    if (scope === "instance") {
-      await persistLessonChange(event, start, end);
-    } else {
-      await persistLessonSeriesChange(event, start, end);
-    }
-
-    setIsScopeModalOpen(false);
-    setPendingRecurringChange(null);
-    setIsDragging(false);
-    setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
-  };
-
-  const cancelScopeChoice = () => {
-    setIsScopeModalOpen(false);
-    setPendingRecurringChange(null);
-    setIsDragging(false);
-    setBodyScrollLock(false); // ensure unlock if modal was opened from a drag
-  };
-
-  const eventStyleGetter = (event: object) => {
-    const calEvent = event as CalendarEvent;
-    const backgroundColor = calEvent.subject
-      ? generateColor(calEvent.subject, calEvent.type)
-      : calEvent.type === 'event'
+  const eventStyleGetter = (event: CalendarEvent) => {
+    const backgroundColor = event.subject
+      ? generateColor(event.subject, event.type)
+      : event.type === 'event'
         ? '#6B7280'  // CHANGE DEFAULT EVENT COLOR HERE
-        : calEvent.type === 'exam'
-          ? '#E3735E'  // FIX: single hash
-          : calEvent.type === 'assignment'
+        : event.type === 'exam'
+          ? '##E3735E'  // CHANGE DEFAULT EXAM COLOR HERE
+          : event.type === 'assignment'
             ? '#059669'  // CHANGE DEFAULT ASSIGNMENT COLOR HERE
             : '#3B82F6';  // CHANGE DEFAULT LESSON COLOR HERE
 
-    const isEvent = calEvent.type === 'event';
+    const isEvent = event.type === 'event';
 
     return {
       style: {
@@ -587,17 +282,12 @@ const BigCalendar = ({
         </div>
       </div>
 
-      <div
-        className="flex-1 min-h-0 overflow-hidden"
-        // Prevent wheel/touch scrolling inside the calendar while dragging
-        onWheelCapture={(e) => { if (isDragging) e.preventDefault(); }}
-        onTouchMoveCapture={(e) => { if (isDragging) e.preventDefault(); }}
-      >
-        <DnDCalendar
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <Calendar
           localizer={localizer}
           events={sortedEvents}
-          startAccessor={(event) => (event as CalendarEvent).start}
-          endAccessor={(event) => (event as CalendarEvent).end}
+          startAccessor="start"
+          endAccessor="end"
           views={["month", "week", "day"]}
           view={view}
           date={date}
@@ -617,19 +307,6 @@ const BigCalendar = ({
           showMultiDayTimes={true}
           culture="en-GB"
           {...(view === 'day' ? dayViewProps : {})}
-          // NEW: DnD hooks
-          onEventDrop={onEventDrop}
-          onEventResize={onEventResize}
-          onDragStart={() => {
-            setIsDragging(true);
-            setBodyScrollLock(true);
-            const cleanup = () => { setIsDragging(false); setBodyScrollLock(false); };
-            window.addEventListener("mouseup", cleanup, { once: true });
-            window.addEventListener("touchend", cleanup, { once: true });
-            window.addEventListener("dragend", cleanup, { once: true });
-            window.addEventListener("blur", cleanup, { once: true });
-          }}
-          resizable
           components={{
             event: ({ event }) => (
               <div
@@ -665,6 +342,7 @@ const BigCalendar = ({
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
               >
+                ×
               </button>
             </div>
 
@@ -768,36 +446,6 @@ const BigCalendar = ({
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors ml-auto"
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* NEW: Scope chooser for recurring drops/resizes */}
-      {isScopeModalOpen && pendingRecurringChange && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-5 w-[380px] shadow-xl">
-            <h3 className="text-lg font-semibold mb-2">Update recurring lesson</h3>
-            <p className="text-sm text-gray-600 mb-4">Apply changes to only this event or the whole series?</p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => applyScopeChoice("instance")}
-                className="px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-colors"
-              >
-                Only this event
-              </button>
-              <button
-                onClick={() => applyScopeChoice("series")}
-                className="px-4 py-2 bg-orange-400 hover:bg-orange-600 text-white rounded-lg transition-colors"
-              >
-                This and all events
-              </button>
-              <button
-                onClick={cancelScopeChoice}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
-              >
-                Cancel
               </button>
             </div>
           </div>

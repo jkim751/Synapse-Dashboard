@@ -77,7 +77,7 @@ const AnnouncementForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(state.message || `Failed to ${type} announcement.`);
+      toast.error(type === "create" ? "Unable to create" : "Unable to update");
     }
   }, [state, router, type, setOpen]);
 
@@ -219,7 +219,7 @@ const AnnouncementForm = ({
         </div>
 
         {state.error && (
-          <span className="text-red-500">Something went wrong!</span>
+          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
         )}
         <button
           className="bg-orange-400 text-white p-2 rounded-xl"

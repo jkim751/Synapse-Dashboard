@@ -52,6 +52,14 @@ export async function GET(request: Request) {
     
     const allCalendarEvents = new Map<string, any>();
 
+    // Helper: stable local date key (avoids UTC shift duplicates)
+    const localDateKey = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     // --- 4. Expand recurring rules into individual occurrences ---
     for (const rule of recurringRules) {
       try {
@@ -59,18 +67,13 @@ export async function GET(request: Request) {
         const occurrences = rrule.between(viewStart, viewEnd, true); // inclusive
 
         for (const occurrenceDate of occurrences) {
-          // Create a unique key for each occurrence: `recurringLessonId-YYYY-MM-DD`
-          const occurrenceKey = `${rule.id}-${occurrenceDate.toISOString().slice(0, 10)}`;
-          
-          // Calculate the duration of the original lesson
-          const originalDuration = rule.endTime.getTime() - rule.startTime.getTime();
-          
-          // Set the start time to the occurrence date with the same time as the original
+          // Clone date and apply series time in local time
           const start = new Date(occurrenceDate);
           start.setHours(rule.startTime.getHours(), rule.startTime.getMinutes(), 0, 0);
-          
-          // Calculate end time by adding the original duration
+          const originalDuration = rule.endTime.getTime() - rule.startTime.getTime();
           const end = new Date(start.getTime() + originalDuration);
+
+          const occurrenceKey = `${rule.id}-${localDateKey(start)}`;
 
           allCalendarEvents.set(occurrenceKey, {
             title: rule.name,
@@ -92,7 +95,8 @@ export async function GET(request: Request) {
     
     // --- 5. Apply the exceptions on top of the generated occurrences ---
     for (const exception of exceptions) {
-      const exceptionKey = `${exception.recurringLessonId}-${exception.startTime.toISOString().slice(0, 10)}`;
+      const exStart = new Date(exception.startTime);
+      const exceptionKey = `${exception.recurringLessonId}-${localDateKey(exStart)}`;
       
       if (exception.isCancelled) {
         // If it's a cancellation, remove it from the map

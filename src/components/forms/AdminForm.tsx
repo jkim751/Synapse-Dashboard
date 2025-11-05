@@ -51,7 +51,7 @@ const AdminForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(state.message || `Failed to ${type} admin. Please check all required fields and try again.`);
+      toast.error(type === "create" ? "Unable to create" : "Unable to update");
     }
   }, [state, router, type, setOpen]);
 
@@ -188,7 +188,7 @@ const AdminForm = ({
           />
         </div>
         {state.error && (
-          <span className="text-red-500">Something went wrong! Please check all required fields.</span>
+          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
         )}
         <button 
           type="submit" 
