@@ -24,6 +24,16 @@ export default function CommentsSection({
     commentId: null
   })
 
+  const formatBritishDateTime = (date: Date) => {
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newComment.trim()) return
@@ -97,7 +107,7 @@ export default function CommentsSection({
                   <div>
                     <span className="font-medium text-gray-800">{comment.author}</span>
                     <span className="text-xs text-gray-500 ml-2">
-                      {comment.createdAt.toLocaleString()}
+                      {formatBritishDateTime(comment.createdAt)}
                     </span>
                   </div>
                   <button

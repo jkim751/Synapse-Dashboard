@@ -50,6 +50,16 @@ export default function NotesDisplay({
     setDeleteConfirm({ isOpen: false, noteId: null })
   }
 
+  const formatBritishDateTime = (date: Date) => {
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   if (currentNotes.length === 0) {
     return (
       <div className="text-center py-20">
@@ -116,7 +126,7 @@ export default function NotesDisplay({
                   <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
                     <span className="font-medium">{note.author}</span>
                     <span>•</span>
-                    <span>{note.createdAt.toLocaleString()}</span>
+                    <span>{formatBritishDateTime(note.createdAt)}</span>
                     {(hasComments || hasActions) && (
                       <>
                         <span>•</span>

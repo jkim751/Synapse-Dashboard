@@ -28,6 +28,14 @@ export default function StudentNotes({ studentId }: StudentNotesProps) {
     noteId: null
   })
 
+  const formatBritishDate = (date: Date) => {
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  }
+
   useEffect(() => {
     fetchNotes()
   }, [studentId])
@@ -223,7 +231,7 @@ export default function StudentNotes({ studentId }: StudentNotesProps) {
                     <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                     <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                       <span>
-                        {note.author} • {note.createdAt.toLocaleDateString()}
+                        {note.author} • {formatBritishDate(note.createdAt)}
                       </span>
                       <div className="flex gap-2">
                         <button
