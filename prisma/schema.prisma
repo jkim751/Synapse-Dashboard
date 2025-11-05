@@ -45,6 +45,10 @@ model Student {
   parent        Parent?                @relation(fields: [parentId], references: [id])
   classes       StudentClass[]
   statusHistory StudentStatusHistory[]
+
+  StudentNote StudentNote[]
+
+  StudentTag StudentTag[]
 }
 
 model Teacher {
@@ -325,6 +329,7 @@ model Note {
   @@index([userId])
   @@index([date])
   @@map("notes")
+  StudentTag StudentTag[]
 }
 
 model Comment {
@@ -369,6 +374,27 @@ model StudentStatusHistory {
   student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("student_status_history")
+}
+
+model StudentNote {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  author    String
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentTag {
+  id        String   @id @default(cuid())
+  noteId    String
+  studentId String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([noteId, studentId])
 }
 
 enum UserSex {

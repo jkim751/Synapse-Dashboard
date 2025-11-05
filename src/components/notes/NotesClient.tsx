@@ -164,16 +164,24 @@ export default function NotesClient() {
 
   const currentNotes = getCurrentNotes()
 
+  const extractStudentIdsFromContent = (content: string): string[] => {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(content, 'text/html')
+    const mentions = doc.querySelectorAll('a[data-student-id]')
+    return Array.from(mentions).map(mention => mention.getAttribute('data-student-id')).filter(Boolean) as string[]
+  }
+
   const handleSave = async (content: string) => {
     try {
       const targetDate = searchResultDate || selectedDate
+      const studentIds = extractStudentIdsFromContent(content)
       
       if (editingNoteId) {
         // Update existing note
-        await saveNotesForDate(content, targetDate, editingNoteId)
+        await saveNotesForDate(content, targetDate, editingNoteId, studentIds)
       } else {
         // Create new note
-        await saveNotesForDate(content, targetDate)
+        await saveNotesForDate(content, targetDate, undefined, studentIds)
       }
       
       setIsEditing(false)
@@ -183,7 +191,7 @@ export default function NotesClient() {
     }
   }
 
-  const handleEdit = (noteId?: string, content?: string) => {
+  const handleEdit = (noteId?: string, content?: string, studentIds?: string[]) => {
     setEditingNoteId(noteId || null)
     setEditableContent(content || '')
     setIsEditing(true)

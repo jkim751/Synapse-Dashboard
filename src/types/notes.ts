@@ -15,6 +15,19 @@ export interface ActionItem {
   completedAt?: Date
 }
 
+export interface StudentTag {
+  id: string
+  studentId: string
+  noteId: string
+  createdAt: Date
+  student: {
+    id: string
+    name: string
+    surname: string
+    img?: string | null
+  }
+}
+
 export interface Note {
   id: string
   title: string
@@ -23,4 +36,5 @@ export interface Note {
   createdAt: Date
   comments?: Comment[]
   actionItems?: ActionItem[]
+  taggedStudents?: StudentTag[]
 }

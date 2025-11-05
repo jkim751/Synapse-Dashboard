@@ -3,6 +3,7 @@ import BigCalendarContainer from "@/components/BigCalendarContainer";
 import FormContainer from "@/components/FormContainer";
 import Performance from "@/components/Performance";
 import StudentAttendanceCard from "@/components/StudentAttendanceCard";
+import StudentNotes from "@/components/notes/StudentNotes";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import Image from "next/image";
@@ -236,6 +237,12 @@ const SingleStudentPage = async ({
         </div>
         
         {/* Classes Card */}
+
+          {/* Student Notes Section */}
+          {role === "admin" && (
+          <StudentNotes studentId={student.id} />
+        )}
+
         {allClasses.length > 0 && (
           <div className="bg-white p-4 rounded-xl">
             <h1 className="text-xl font-semibold mb-4">Enrolled Classes</h1>
@@ -261,8 +268,6 @@ const SingleStudentPage = async ({
             </div>
           </div>
         )}
-        
-        <Announcements />
       </div>
     </div>
   );

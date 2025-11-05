@@ -46,7 +46,7 @@ export function useNotes() {
     }
   }
 
-  const saveNotesForDate = async (content: string, date: Date, noteId?: string) => {
+  const saveNotesForDate = async (content: string, date: Date, noteId?: string, taggedStudents?: string[]) => {
     if (!user) return
 
     // Remove empty paragraphs and clean up HTML

@@ -1,256 +1,169 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import MentionAutocomplete from './MentionAutocomplete'
 
 interface QuillEditorProps {
   value: string
-  onChange: (content: string) => void
+  onChange: (value: string) => void
   placeholder?: string
 }
 
+interface Student {
+  id: string
+  name: string
+  surname: string
+  img?: string | null
+}
+
 export default function QuillEditor({ value, onChange, placeholder }: QuillEditorProps) {
-  const [isClient, setIsClient] = useState(false)
-  const [isQuillLoaded, setIsQuillLoaded] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
-  const quillInstanceRef = useRef<any>(null)
+  const quillRef = useRef<any>(null)
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 })
+  const mentionIndexRef = useRef<number>(0)
 
   useEffect(() => {
-    setIsClient(true)
-    
-    // Dynamically import Quill to avoid SSR issues
+    if (!editorRef.current) return
+
     const loadQuill = async () => {
-      try {
-        if (typeof window !== 'undefined') {
-          const { default: Quill } = await import('quill')
-          
-          // Store Quill on window object for reuse
-          ;(window as any).Quill = Quill
-          setIsQuillLoaded(true)
-        }
-      } catch (error) {
-        console.error('Failed to load Quill:', error)
-      }
-    }
-    
-    if (!isQuillLoaded && !(window as any).Quill) {
-      loadQuill()
-    } else if ((window as any).Quill) {
-      setIsQuillLoaded(true)
-    }
-  }, [isQuillLoaded])
-
-  useEffect(() => {
-    if (!isQuillLoaded || !editorRef.current || quillInstanceRef.current) return
-
-    const Quill = (window as any).Quill
-    if (!Quill) return
-
-    // Register custom font sizes
-    const Size = Quill.import('attributors/style/size')
-    Size.whitelist = ['10px', '12px', '14px', '16px', '18px', '20px', '22px', '24px', '26px', '28px', '30px', '32px', '36px', '40px', '44px', '48px']
-    Quill.register(Size, true)
-
-    // Register custom fonts with proper CSS values
-    const Font = Quill.import('attributors/style/font')
-    Font.whitelist = [
-      'Arial', 'Comic-Sans-MS', 'Courier-New', 'Georgia', 'Helvetica', 'Lucida-Sans-Unicode',
-      'Times-New-Roman', 'Verdana', 'system-ui', 'Inter', 'Roboto', 'Open-Sans', 'Lato',
-      'Montserrat', 'Poppins', 'Source-Sans-Pro', 'Nunito', 'PT-Sans', 'Ubuntu',
-      'Fira-Code', 'JetBrains-Mono', 'Source-Code-Pro', 'Monaco', 'Menlo'
-    ]
-    Quill.register(Font, true)
-
-    // Quill configuration
-    const toolbarOptions = [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      [{ 'font': Font.whitelist }],
-      [{ 'size': Size.whitelist }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'script': 'sub'}, { 'script': 'super' }],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
-      [{ 'align': [] }],
-      ['image'],
-      ['clean']
+      const Quill = (await import('quill')).default
       
-    ]
+      if (quillRef.current) return
 
-    try {
-      const quill = new Quill(editorRef.current, {
+      const quill = new Quill(editorRef.current!, {
         theme: 'snow',
-        placeholder: placeholder || 'Start typing your notes...',
+        placeholder: placeholder || 'Start typing...',
         modules: {
-          toolbar: toolbarOptions
-        },
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ color: [] }, { background: [] }],
+            ['link'],
+            ['clean']
+          ]
+        }
       })
+
+      quillRef.current = quill
 
       // Set initial content
       if (value) {
         quill.root.innerHTML = value
       }
 
-      // Handle content changes
+      // Handle text changes
       quill.on('text-change', () => {
-        const content = quill.root.innerHTML
-        onChange(content)
+        const html = quill.root.innerHTML
+        onChange(html)
+        checkForMention(quill)
       })
 
-      quillInstanceRef.current = quill
-    } catch (error) {
-      console.error('Failed to initialize Quill:', error)
+      // Handle selection changes
+      quill.on('selection-change', () => {
+        checkForMention(quill)
+      })
     }
 
-    // Cleanup
+    loadQuill()
+
     return () => {
-      if (quillInstanceRef.current) {
-        quillInstanceRef.current = null
+      if (quillRef.current) {
+        quillRef.current = null
       }
     }
-  }, [isQuillLoaded, placeholder])
+  }, [])
 
-  // Update content when value prop changes
+  // Update content when value prop changes externally
   useEffect(() => {
-    if (quillInstanceRef.current && value !== quillInstanceRef.current.root.innerHTML) {
-      const quill = quillInstanceRef.current
-      const currentSelection = quill.getSelection()
-      quill.root.innerHTML = value
-      if (currentSelection) {
-        quill.setSelection(currentSelection)
+    if (quillRef.current && value !== quillRef.current.root.innerHTML) {
+      const selection = quillRef.current.getSelection()
+      quillRef.current.root.innerHTML = value
+      if (selection) {
+        quillRef.current.setSelection(selection)
       }
     }
   }, [value])
 
-  if (!isClient || !isQuillLoaded) {
-    return (
-      <div className="w-full h-[650px] bg-gray-50 border border-gray-200 rounded flex items-center justify-center">
-        <div className="text-gray-400">Loading editor...</div>
-      </div>
-    )
+  const checkForMention = (quill: any) => {
+    const selection = quill.getSelection()
+    if (!selection) {
+      setShowMentions(false)
+      return
+    }
+
+    const [line, offset] = quill.getLine(selection.index)
+    const lineText = line.domNode.textContent || ''
+    const textBeforeCursor = lineText.substring(0, offset)
+    
+    // Find last @ symbol
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@')
+    
+    if (lastAtIndex !== -1 && lastAtIndex === textBeforeCursor.length - 1) {
+      // Just typed @, show all students
+      mentionIndexRef.current = selection.index - 1
+      setMentionQuery('')
+      setShowMentions(true)
+      updateMentionPosition(quill, selection.index)
+    } else if (lastAtIndex !== -1) {
+      // Check if we're still in a mention
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1)
+      if (!/\s/.test(textAfterAt)) {
+        mentionIndexRef.current = selection.index - textAfterAt.length - 1
+        setMentionQuery(textAfterAt)
+        setShowMentions(true)
+        updateMentionPosition(quill, selection.index)
+      } else {
+        setShowMentions(false)
+      }
+    } else {
+      setShowMentions(false)
+    }
+  }
+
+  const updateMentionPosition = (quill: any, index: number) => {
+    const bounds = quill.getBounds(index)
+    if (editorRef.current) {
+      const editorRect = editorRef.current.getBoundingClientRect()
+      setMentionPosition({
+        top: bounds.bottom + 5,
+        left: bounds.left
+      })
+    }
+  }
+
+  const handleSelectStudent = (student: Student) => {
+    if (!quillRef.current) return
+
+    const quill = quillRef.current
+    const mentionText = mentionQuery
+    
+    // Delete the @ and any typed text
+    quill.deleteText(mentionIndexRef.current, mentionText.length + 1)
+    
+    // Insert student mention as a link
+    const mentionHTML = `<a href="/list/students/${student.id}" class="student-mention" data-student-id="${student.id}" style="color: #2563eb; text-decoration: none; background-color: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 500;">@${student.name} ${student.surname}</a>`
+    
+    quill.clipboard.dangerouslyPasteHTML(mentionIndexRef.current, mentionHTML + ' ')
+    quill.setSelection(mentionIndexRef.current + mentionHTML.length + 1)
+    
+    setShowMentions(false)
+    setMentionQuery('')
   }
 
   return (
-    <>
-      <div className="w-full h-[650px] relative">
-        <div ref={editorRef} style={{ height: '600px' }} />
-      </div>
-      
-      <style jsx global>{`
-        .ql-editor {
-          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-          font-size: 16px !important;
-          line-height: 1.6 !important;
-          min-height: 550px !important;
-          background: transparent !important;
-        }
-        
-        .ql-toolbar {
-          border-top: 1px solid #e5e7eb !important;
-          border-left: 1px solid #e5e7eb !important;
-          border-right: 1px solid #e5e7eb !important;
-          border-bottom: 1px solid #e5e7eb !important;
-          border-radius: 8px 8px 0 0 !important;
-        }
-        
-        .ql-container {
-          border-left: 1px solid #e5e7eb !important;
-          border-right: 1px solid #e5e7eb !important;
-          border-bottom: 1px solid #e5e7eb !important;
-          border-radius: 0 0 8px 8px !important;
-          background: transparent !important;
-        }
-        
-        .ql-editor.ql-blank::before {
-          color: #9ca3af !important;
-          font-style: italic !important;
-        }
-        
-        .ql-snow .ql-tooltip {
-          z-index: 1000 !important;
-        }
-
-        /* Font family styles */
-        .ql-font-Arial { font-family: Arial, sans-serif; }
-        .ql-font-Comic-Sans-MS { font-family: 'Comic Sans MS', cursive; }
-        .ql-font-Courier-New { font-family: 'Courier New', monospace; }
-        .ql-font-Georgia { font-family: Georgia, serif; }
-        .ql-font-Helvetica { font-family: Helvetica, sans-serif; }
-        .ql-font-Lucida-Sans-Unicode { font-family: 'Lucida Sans Unicode', sans-serif; }
-        .ql-font-Times-New-Roman { font-family: 'Times New Roman', serif; }
-        .ql-font-Verdana { font-family: Verdana, sans-serif; }
-        .ql-font-system-ui { font-family: system-ui, sans-serif; }
-        .ql-font-Inter { font-family: Inter, sans-serif; }
-        .ql-font-Roboto { font-family: Roboto, sans-serif; }
-        .ql-font-Open-Sans { font-family: 'Open Sans', sans-serif; }
-        .ql-font-Lato { font-family: Lato, sans-serif; }
-        .ql-font-Montserrat { font-family: Montserrat, sans-serif; }
-        .ql-font-Poppins { font-family: Poppins, sans-serif; }
-        .ql-font-Source-Sans-Pro { font-family: 'Source Sans Pro', sans-serif; }
-        .ql-font-Nunito { font-family: Nunito, sans-serif; }
-        .ql-font-PT-Sans { font-family: 'PT Sans', sans-serif; }
-        .ql-font-Ubuntu { font-family: Ubuntu, sans-serif; }
-        .ql-font-Fira-Code { font-family: 'Fira Code', monospace; }
-        .ql-font-JetBrains-Mono { font-family: 'JetBrains Mono', monospace; }
-        .ql-font-Source-Code-Pro { font-family: 'Source Code Pro', monospace; }
-        .ql-font-Monaco { font-family: Monaco, monospace; }
-        .ql-font-Menlo { font-family: Menlo, monospace; }
-
-        /* Font picker dropdown */
-        .ql-picker.ql-font .ql-picker-label[data-value="Arial"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Arial"]::before { content: "Arial"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Comic-Sans-MS"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Comic-Sans-MS"]::before { content: "Comic Sans MS"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Courier-New"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Courier-New"]::before { content: "Courier New"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Georgia"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Georgia"]::before { content: "Georgia"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Helvetica"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Helvetica"]::before { content: "Helvetica"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Lucida-Sans-Unicode"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Lucida-Sans-Unicode"]::before { content: "Lucida Sans Unicode"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Times-New-Roman"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Times-New-Roman"]::before { content: "Times New Roman"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Verdana"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Verdana"]::before { content: "Verdana"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="system-ui"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="system-ui"]::before { content: "System UI"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Inter"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Inter"]::before { content: "Inter"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Roboto"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Roboto"]::before { content: "Roboto"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Open-Sans"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Open-Sans"]::before { content: "Open Sans"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Lato"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Lato"]::before { content: "Lato"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Montserrat"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Montserrat"]::before { content: "Montserrat"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Poppins"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Poppins"]::before { content: "Poppins"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Source-Sans-Pro"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Source-Sans-Pro"]::before { content: "Source Sans Pro"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Nunito"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Nunito"]::before { content: "Nunito"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="PT-Sans"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="PT-Sans"]::before { content: "PT Sans"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Ubuntu"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Ubuntu"]::before { content: "Ubuntu"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Fira-Code"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Fira-Code"]::before { content: "Fira Code"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="JetBrains-Mono"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="JetBrains-Mono"]::before { content: "JetBrains Mono"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Source-Code-Pro"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Source-Code-Pro"]::before { content: "Source Code Pro"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Monaco"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Monaco"]::before { content: "Monaco"; }
-        .ql-picker.ql-font .ql-picker-label[data-value="Menlo"]::before,
-        .ql-picker.ql-font .ql-picker-item[data-value="Menlo"]::before { content: "Menlo"; }
-
-        /* Size picker dropdown styling */
-        .ql-picker.ql-size .ql-picker-label::before,
-        .ql-picker.ql-size .ql-picker-item::before {
-          content: attr(data-value) !important;
-        }
-      `}</style>
-    </>
+    <div className="relative">
+      <div ref={editorRef} className="w-full h-[650px]" />
+      {showMentions && (
+        <MentionAutocomplete
+          query={mentionQuery}
+          position={mentionPosition}
+          onSelect={handleSelectStudent}
+          onClose={() => setShowMentions(false)}
+        />
+      )}
+    </div>
   )
 }

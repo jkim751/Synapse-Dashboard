@@ -9,14 +9,16 @@ interface NotesEditorProps {
   setEditableContent: (content: string) => void
 }
 
-export default function NotesEditor({ editableContent, setEditableContent }: NotesEditorProps) {
+export default function NotesEditor({ 
+  editableContent, 
+  setEditableContent
+}: NotesEditorProps) {
   const [isClient, setIsClient] = useState(false)
   const [useSimpleEditor, setUseSimpleEditor] = useState(false)
 
   useEffect(() => {
     setIsClient(true)
     
-    // Check if we should use the simple editor (fallback)
     const checkQuillSupport = async () => {
       try {
         await import('quill')
@@ -37,21 +39,24 @@ export default function NotesEditor({ editableContent, setEditableContent }: Not
     )
   }
 
-  if (useSimpleEditor) {
-    return (
-      <SimpleRichEditor
-        value={editableContent}
-        onChange={setEditableContent}
-        placeholder="Start typing your notes..."
-      />
-    )
-  }
-
   return (
-    <QuillEditor
-      value={editableContent}
-      onChange={setEditableContent}
-      placeholder="Start typing your notes..."
-    />
+    <div className="space-y-2">
+      <p className="text-sm text-gray-600">
+        💡 Tip: Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">@</span> to mention students
+      </p>
+      {useSimpleEditor ? (
+        <SimpleRichEditor
+          value={editableContent}
+          onChange={setEditableContent}
+          placeholder="Start typing your notes... Use @ to mention students"
+        />
+      ) : (
+        <QuillEditor
+          value={editableContent}
+          onChange={setEditableContent}
+          placeholder="Start typing your notes... Use @ to mention students"
+        />
+      )}
+    </div>
   )
 }

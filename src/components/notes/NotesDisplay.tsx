@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { Note } from '@/types/notes'
 import CommentsSection from './CommentsSection'
 import ActionItemsSection from './ActionItemsSection'
+import Image from 'next/image'
+import Link from 'next/link'
 
 interface NotesDisplayProps {
   currentNotes: Note[]
-  onEdit: (noteId: string, content: string) => void
+  onEdit: (noteId: string, content: string, taggedStudents?: string[]) => void
   onDelete: (noteId: string) => void
   onAddComment?: (noteId: string, content: string) => Promise<void>
   onDeleteComment?: (noteId: string, commentId: string) => Promise<void>
@@ -41,6 +43,7 @@ export default function NotesDisplay({
       {currentNotes.map((note) => {
         const hasComments = note.comments && note.comments.length > 0
         const hasActions = note.actionItems && note.actionItems.length > 0
+        const hasTaggedStudents = note.taggedStudents && note.taggedStudents.length > 0
         const isHovered = hoveredNoteId === note.id
 
         return (
@@ -52,6 +55,28 @@ export default function NotesDisplay({
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
+                {/* Tagged Students */}
+                {hasTaggedStudents && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {note.taggedStudents!.map((tag) => (
+                      <Link
+                        key={tag.id}
+                        href={`/list/students/${tag.student.id}`}
+                        className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors"
+                      >
+                        <Image
+                          src={tag.student.img || '/noAvatar.png'}
+                          alt=""
+                          width={20}
+                          height={20}
+                          className="w-5 h-5 rounded-full object-cover"
+                        />
+                        <span>{tag.student.name} {tag.student.surname}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
                 <div 
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: note.content }}
@@ -74,7 +99,11 @@ export default function NotesDisplay({
               </div>
               <div className="flex gap-2 ml-4">
                 <button
-                  onClick={() => onEdit(note.id, note.content)}
+                  onClick={() => onEdit(
+                    note.id, 
+                    note.content,
+                    note.taggedStudents?.map(tag => tag.studentId)
+                  )}
                   className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
                 >
                   Edit
