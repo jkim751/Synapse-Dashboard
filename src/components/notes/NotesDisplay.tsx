@@ -81,6 +81,72 @@ export default function NotesDisplay({
         variant="danger"
       />
 
+      <style jsx global>{`
+        .prose ul,
+        .prose ol {
+          padding-left: 1.5em;
+          margin: 0.5em 0;
+          list-style-position: outside;
+        }
+        .prose ul li {
+          list-style-type: disc;
+          margin: 0.25em 0;
+          display: list-item;
+          line-height: 32px;
+        }
+        .prose ol li {
+          list-style-type: decimal;
+          margin: 0.25em 0;
+          display: list-item;
+          line-height: 32px;
+        }
+        .prose ul ul li {
+          list-style-type: circle;
+        }
+        .prose ul ul ul li {
+          list-style-type: square;
+        }
+        .prose ul li::before,
+        .prose ol li::before {
+          display: none !important;
+          content: none !important;
+        }
+        
+        .prose p {
+          line-height: 32px;
+          margin: 0;
+        }
+        
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          line-height: 32px;
+          margin: 0;
+        }
+        
+        /* Table styles for display */
+        .prose table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 1em 0;
+        }
+        .prose table td,
+        .prose table th {
+          border: 1px solid #ddd;
+          padding: 8px;
+          min-width: 50px;
+          text-align: left;
+        }
+        .prose table th {
+          background-color: #f3f4f6;
+          font-weight: 600;
+        }
+        .prose table tr:hover {
+          background-color: #f9fafb;
+        }
+        .prose table tr:nth-child(even) {
+          background-color: #fafafa;
+        }
+      `}</style>
+
       <div className="space-y-6">
         {currentNotes.map((note) => {
           const hasComments = note.comments && note.comments.length > 0

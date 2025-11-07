@@ -83,7 +83,7 @@ const LessonForm = ({
       router.refresh();
     }
     if (state.error) {
-      toast.error(type === "create" ? "Unable to create" : "Unable to update");
+      toast.error(state.message || "Something went wrong!");
     }
   }, [state, router, setOpen, type]);
 
@@ -148,11 +148,11 @@ const LessonForm = ({
           setOpen(false);
           router.refresh();
         } else {
-          toast.error(type === "create" ? "Unable to create" : "Unable to update");
+          toast.error(result.message);
         }
       } catch (error: any) {
         console.error("Form submission error:", error);
-        toast.error(type === "create" ? "Unable to create" : "Unable to update");
+        toast.error("Something went wrong!");
       }
     });
   });
@@ -213,7 +213,7 @@ const LessonForm = ({
           </div>
         )}
 
-        {state.error && <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>}
+        {state.error && <span className="text-red-500">{state.message || "Something went wrong!"}</span>}
         <button className="bg-orange-400 text-white p-2 rounded-xl" disabled={isPending}>
           {isPending ? "Loading..." : type === "update" ? "Update" : "Create"}
         </button>
@@ -223,3 +223,6 @@ const LessonForm = ({
 };
 
 export default LessonForm;
+function actionFn(state: { success: boolean; error: boolean; message: string; }): { success: boolean; error: boolean; message: string; } | Promise<{ success: boolean; error: boolean; message: string; }> {
+  throw new Error("Function not implemented.");
+}

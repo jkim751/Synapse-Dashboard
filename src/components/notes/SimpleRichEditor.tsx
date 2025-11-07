@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import MentionAutocomplete from './MentionAutocomplete'
+import { getLastWord, shouldAutocorrect } from '@/utils/autocorrect'
 
 interface SimpleRichEditorProps {
   value: string
@@ -23,21 +24,131 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 })
   const mentionRangeRef = useRef<Range | null>(null)
   const [isClient, setIsClient] = useState(false)
+  const [showTableDialog, setShowTableDialog] = useState(false)
+  const [tableRows, setTableRows] = useState(3)
+  const [tableCols, setTableCols] = useState(3)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
+    // Only update if we're not currently typing and content has changed
+    if (editorRef.current && editorRef.current.innerHTML !== value && document.activeElement !== editorRef.current) {
+      const savedSelection = saveSelection()
       editorRef.current.innerHTML = value
+      if (savedSelection) {
+        restoreSelection(savedSelection)
+      }
     }
   }, [value])
+
+  const saveSelection = () => {
+    const selection = window.getSelection()
+    if (!selection || !selection.rangeCount || !editorRef.current) return null
+    
+    const range = selection.getRangeAt(0)
+    return {
+      start: getNodeOffset(editorRef.current, range.startContainer, range.startOffset),
+      end: getNodeOffset(editorRef.current, range.endContainer, range.endOffset)
+    }
+  }
+
+  const restoreSelection = (saved: { start: number; end: number }) => {
+    if (!editorRef.current) return
+    
+    const selection = window.getSelection()
+    if (!selection) return
+    
+    const range = document.createRange()
+    const startPos = getNodeAndOffset(editorRef.current, saved.start)
+    const endPos = getNodeAndOffset(editorRef.current, saved.end)
+    
+    if (startPos && endPos) {
+      range.setStart(startPos.node, startPos.offset)
+      range.setEnd(endPos.node, endPos.offset)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
+  }
+
+  const getNodeOffset = (root: Node, node: Node, offset: number): number => {
+    let totalOffset = 0
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    let currentNode = walker.nextNode()
+    
+    while (currentNode) {
+      if (currentNode === node) {
+        return totalOffset + offset
+      }
+      totalOffset += currentNode.textContent?.length || 0
+      currentNode = walker.nextNode()
+    }
+    
+    return totalOffset
+  }
+
+  const getNodeAndOffset = (root: Node, offset: number): { node: Node; offset: number } | null => {
+    let currentOffset = 0
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    let node = walker.nextNode()
+    
+    while (node) {
+      const length = node.textContent?.length || 0
+      if (currentOffset + length >= offset) {
+        return { node, offset: offset - currentOffset }
+      }
+      currentOffset += length
+      node = walker.nextNode()
+    }
+    
+    // Fallback to end of content
+    if (root.lastChild) {
+      return { node: root.lastChild, offset: 0 }
+    }
+    
+    return null
+  }
 
   const handleInput = () => {
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML)
       checkForMention()
+      handleAutocorrect()
+    }
+  }
+
+  const handleAutocorrect = () => {
+    const selection = window.getSelection()
+    if (!selection || !selection.rangeCount || !editorRef.current) return
+
+    const range = selection.getRangeAt(0)
+    const textNode = range.startContainer
+    
+    if (textNode.nodeType !== Node.TEXT_NODE) return
+
+    const text = textNode.textContent || ''
+    const cursorPos = range.startOffset
+    
+    if (cursorPos > 0 && /[\s.,!?;:]/.test(text[cursorPos - 1])) {
+      const { word, startPos } = getLastWord(text, cursorPos - 1)
+      
+      if (word && word.length > 2) {
+        const correction = shouldAutocorrect(word)
+        
+        if (correction) {
+          const newText = text.substring(0, startPos) + correction + text.substring(cursorPos - 1)
+          textNode.textContent = newText
+          
+          const newRange = document.createRange()
+          newRange.setStart(textNode, startPos + correction.length + 1)
+          newRange.collapse(true)
+          selection.removeAllRanges()
+          selection.addRange(newRange)
+          
+          onChange(editorRef.current.innerHTML)
+        }
+      }
     }
   }
 
@@ -98,10 +209,8 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     const selection = window.getSelection()
     if (!selection) return
 
-    // Delete the @ and typed text
     mentionRangeRef.current.deleteContents()
 
-    // Create mention link
     const mentionLink = document.createElement('a')
     mentionLink.href = `/list/students/${student.id}`
     mentionLink.className = 'student-mention'
@@ -110,14 +219,11 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     mentionLink.textContent = `@${student.name} ${student.surname}`
     mentionLink.contentEditable = 'false'
 
-    // Insert the mention
     mentionRangeRef.current.insertNode(mentionLink)
 
-    // Add space after mention
     const space = document.createTextNode(' ')
     mentionLink.parentNode?.insertBefore(space, mentionLink.nextSibling)
 
-    // Move cursor after the space
     const newRange = document.createRange()
     newRange.setStartAfter(space)
     newRange.collapse(true)
@@ -147,6 +253,54 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     execCommand(`insert${type === 'ul' ? 'Unordered' : 'Ordered'}List`)
   }
 
+  const highlightText = () => {
+    execCommand('backColor', '#ffeb3b')
+  }
+
+  const insertTable = () => {
+    if (!editorRef.current) return
+
+    let tableHTML = '<table style="border-collapse: collapse; width: 100%; margin: 1em 0;">'
+    tableHTML += '<thead><tr>'
+    for (let j = 0; j < tableCols; j++) {
+      tableHTML += '<th style="border: 1px solid #ddd; padding: 8px; background-color: #f3f4f6; font-weight: 600;">Header ' + (j + 1) + '</th>'
+    }
+    tableHTML += '</tr></thead>'
+    tableHTML += '<tbody>'
+    for (let i = 1; i < tableRows; i++) {
+      tableHTML += '<tr>'
+      for (let j = 0; j < tableCols; j++) {
+        tableHTML += '<td style="border: 1px solid #ddd; padding: 8px;">Cell</td>'
+      }
+      tableHTML += '</tr>'
+    }
+    tableHTML += '</tbody></table><p><br></p>'
+
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = tableHTML
+      
+      range.deleteContents()
+      
+      while (tempDiv.firstChild) {
+        range.insertNode(tempDiv.lastChild!)
+      }
+      
+      range.collapse(false)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    } else {
+      editorRef.current.innerHTML += tableHTML
+    }
+
+    onChange(editorRef.current.innerHTML)
+    setShowTableDialog(false)
+    setTableRows(3)
+    setTableCols(3)
+  }
+
   if (!isClient) {
     return (
       <div className="w-full h-[650px] bg-gray-50 border border-gray-200 rounded flex items-center justify-center">
@@ -157,14 +311,103 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
   return (
     <div className="relative">
+      {showTableDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Insert Table</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rows: <span className="font-bold">{tableRows}</span>
+                </label>
+                <input
+                  type="range"
+                  min="2"
+                  max="10"
+                  value={tableRows}
+                  onChange={(e) => setTableRows(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-200"
+                  style={{
+                    background: `linear-gradient(to right, #fed7aa 0%, #fed7aa ${((tableRows - 2) / 8) * 100}%, #e5e7eb ${((tableRows - 2) / 8) * 100}%, #e5e7eb 100%)`
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Columns: <span className="font-bold">{tableCols}</span>
+                </label>
+                <input
+                  type="range"
+                  min="2"
+                  max="10"
+                  value={tableCols}
+                  onChange={(e) => setTableCols(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-200"
+                  style={{
+                    background: `linear-gradient(to right, #fed7aa 0%, #fed7aa ${((tableCols - 2) / 8) * 100}%, #e5e7eb ${((tableCols - 2) / 6) * 100}%, #e5e7eb 100%)`
+                  }}
+                />
+              </div>
+
+              <div className="border border-gray-300 rounded p-2 bg-gray-50">
+                <p className="text-xs text-gray-600 mb-2">Preview:</p>
+                <div className="overflow-auto max-h-40">
+                  <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '10px' }}>
+                    <thead>
+                      <tr>
+                        {Array.from({ length: tableCols }).map((_, j) => (
+                          <th key={j} style={{ border: '1px solid #ddd', padding: '4px', backgroundColor: '#f3f4f6' }}>
+                            H{j + 1}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: tableRows - 1 }).map((_, i) => (
+                        <tr key={i}>
+                          {Array.from({ length: tableCols }).map((_, j) => (
+                            <td key={j} style={{ border: '1px solid #ddd', padding: '4px' }}>
+                              Cell
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={insertTable}
+                className="flex-1 px-4 py-2 bg-orange-300 text-white rounded hover:bg-orange-500"
+              >
+                Insert Table
+              </button>
+              <button
+                onClick={() => {
+                  setShowTableDialog(false)
+                  setTableRows(3)
+                  setTableCols(3)
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full h-[650px] border border-gray-200 rounded-lg overflow-hidden">
-        {/* Toolbar */}
-        <div className="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1">
-          {/* Text formatting */}
+        <div className="bg-gray-50 border-b border-gray-200 p-1.5 flex flex-wrap gap-1 items-center">
           <button
             type="button"
             onClick={() => execCommand('bold')}
-            className="p-2 hover:bg-gray-200 rounded text-sm font-bold"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm font-bold w-7 h-7 flex items-center justify-center"
             title="Bold"
           >
             B
@@ -172,7 +415,7 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           <button
             type="button"
             onClick={() => execCommand('italic')}
-            className="p-2 hover:bg-gray-200 rounded text-sm italic"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm italic w-7 h-7 flex items-center justify-center"
             title="Italic"
           >
             I
@@ -180,23 +423,14 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           <button
             type="button"
             onClick={() => execCommand('underline')}
-            className="p-2 hover:bg-gray-200 rounded text-sm underline"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm underline w-7 h-7 flex items-center justify-center"
             title="Underline"
           >
             U
           </button>
-          <button
-            type="button"
-            onClick={() => execCommand('strikeThrough')}
-            className="p-2 hover:bg-gray-200 rounded text-sm line-through"
-            title="Strikethrough"
-          >
-            S
-          </button>
 
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 h-6 mx-1" />
 
-          {/* Headers */}
           <select
             onChange={(e) => {
               if (e.target.value) {
@@ -204,121 +438,144 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
                 e.target.value = ''
               }
             }}
-            className="p-1 text-sm border border-gray-300 rounded"
+            className="px-2 py-1 text-xs border border-gray-300 rounded h-7"
             defaultValue=""
           >
             <option value="" disabled>Heading</option>
-            <option value="h1">Heading 1</option>
-            <option value="h2">Heading 2</option>
-            <option value="h3">Heading 3</option>
-            <option value="h4">Heading 4</option>
-            <option value="h5">Heading 5</option>
-            <option value="h6">Heading 6</option>
-            <option value="p">Paragraph</option>
+            <option value="h1">H1</option>
+            <option value="h2">H2</option>
+            <option value="h3">H3</option>
+            <option value="p">P</option>
           </select>
 
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 h-6 mx-1" />
 
-          {/* Lists */}
           <button
             type="button"
             onClick={() => insertList('ul')}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
             title="Bullet List"
           >
-            • List
+            •
           </button>
           <button
             type="button"
             onClick={() => insertList('ol')}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
             title="Numbered List"
           >
-            1. List
+            1.
           </button>
 
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 h-6 mx-1" />
 
-          {/* Alignment */}
+          <button
+            type="button"
+            onClick={() => setShowTableDialog(true)}
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
+            title="Insert Table"
+          >
+            ⊞
+          </button>
+
+          <div className="w-px bg-gray-300 h-6 mx-1" />
+
+          {/* Alignment - Microsoft Word style */}
           <button
             type="button"
             onClick={() => execCommand('justifyLeft')}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded w-7 h-7 flex items-center justify-center"
             title="Align Left"
           >
-            ⬅
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3h12v1H2V3zm0 3h8v1H2V6zm0 3h12v1H2V9zm0 3h8v1H2v-1z"/>
+            </svg>
           </button>
           <button
             type="button"
             onClick={() => execCommand('justifyCenter')}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded w-7 h-7 flex items-center justify-center"
             title="Align Center"
           >
-            ↔
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3h12v1H2V3zm2 3h8v1H4V6zm-2 3h12v1H2V9zm2 3h8v1H4v-1z"/>
+            </svg>
           </button>
           <button
             type="button"
             onClick={() => execCommand('justifyRight')}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded w-7 h-7 flex items-center justify-center"
             title="Align Right"
           >
-            ➡
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3h12v1H2V3zm4 3h8v1H6V6zm-4 3h12v1H2V9zm4 3h8v1H6v-1z"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => execCommand('justifyFull')}
+            className="p-1.5 hover:bg-gray-200 rounded w-7 h-7 flex items-center justify-center"
+            title="Justify"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3h12v1H2V3zm0 3h12v1H2V6zm0 3h12v1H2V9zm0 3h12v1H2v-1z"/>
+            </svg>
           </button>
 
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 h-6 mx-1" />
 
-          {/* Colors */}
           <input
             type="color"
             onChange={(e) => execCommand('foreColor', e.target.value)}
-            className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+            className="w-6 h-6 border border-gray-300 rounded cursor-pointer"
             title="Text Color"
           />
           <input
             type="color"
             onChange={(e) => execCommand('backColor', e.target.value)}
-            className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+            className="w-6 h-6 border border-gray-300 rounded cursor-pointer"
             title="Background Color"
           />
 
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 h-6 mx-1" />
 
-          {/* Link */}
           <button
             type="button"
             onClick={() => {
               const url = prompt('Enter URL:')
               if (url) execCommand('createLink', url)
             }}
-            className="p-2 hover:bg-gray-200 rounded text-sm"
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
             title="Insert Link"
           >
             🔗
           </button>
         </div>
 
-        {/* Editor */}
         <div
           ref={editorRef}
           contentEditable
           onInput={handleInput}
           onKeyDown={handleKeyDown}
-          className="w-full h-[580px] p-4 overflow-y-auto focus:outline-none"
+          className="w-full h-[calc(100%-36px)] px-2 overflow-y-auto focus:outline-none"
           style={{
             fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
             fontSize: '16px',
-            lineHeight: '1.6'
+            lineHeight: '32px',
+            paddingTop: '0px',
+            paddingBottom: '0px'
           }}
           suppressContentEditableWarning={true}
-          dangerouslySetInnerHTML={{ __html: value }}
         />
 
         {!value && (
           <div 
-            className="absolute top-20 left-4 text-gray-400 pointer-events-none"
+            className="absolute left-2 text-gray-400 pointer-events-none"
             style={{
               fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-              fontSize: '16px'
+              fontSize: '16px',
+              lineHeight: '32px',
+              top: '36px'
             }}
           >
             {placeholder || 'Start typing your notes...'}

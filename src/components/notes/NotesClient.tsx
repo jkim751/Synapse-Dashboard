@@ -254,7 +254,7 @@ export default function NotesClient() {
         currentNotes={currentNotes}
       />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <div className="bg-white shadow-lg rounded-lg min-h-[750px] border border-gray-200 relative"
              style={{
                backgroundImage: `repeating-linear-gradient(
@@ -264,12 +264,12 @@ export default function NotesClient() {
                  #e5e7eb 32px
                )`,
                backgroundSize: '100% 32px',
-               paddingTop: '40px'
+               backgroundPosition: '0 8px'
              }}>
           
           <div className="absolute left-16 top-0 bottom-0 w-px bg-red-300"></div>
           
-          <div className="relative z-10 px-20 py-4">
+          <div className="relative z-10 pl-20 pr-8 pt-2">
             {isEditing ? (
               <NotesEditor
                 editableContent={editableContent}

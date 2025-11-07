@@ -15,10 +15,11 @@ export async function DELETE(
 
     const { id } = await params
 
-    await prisma.note.deleteMany({
+    // Allow anyone to delete any note
+    // Remove the userId filter to make notes deletable by everyone
+    await prisma.note.delete({
       where: {
-        id,
-        userId // Ensure user can only delete their own notes
+        id
       }
     })
 

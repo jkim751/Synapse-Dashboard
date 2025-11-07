@@ -10,37 +10,40 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify admin record exists before fetching notes
-    const admin = await prisma.admin.findUnique({
-      where: { id: userId }
-    })
-
-    if (!admin) {
-      // Return empty array if admin not found, don't throw error
-      return NextResponse.json([])
-    }
-
+    // Fetch ALL notes regardless of userId - everyone can see all notes
     const notes = await prisma.note.findMany({
-      where: { userId },
       include: {
         comments: {
           orderBy: { createdAt: 'desc' }
         },
         actionItems: {
           orderBy: { createdAt: 'desc' }
+        },
+        StudentTag: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                img: true
+              }
+            }
+          }
         }
       },
       orderBy: { date: 'desc' }
     })
 
-    const formattedNotes = notes.map((note: { id: any; title: any; content: any; author: any; date: any; comments: any; actionItems: any }) => ({
+    const formattedNotes = notes.map((note: { id: any; title: any; content: any; author: any; date: any; comments: any; actionItems: any; StudentTag: any }) => ({
       id: note.id,
       title: note.title || '',
       content: note.content,
       author: note.author,
       createdAt: note.date,
       comments: note.comments,
-      actionItems: note.actionItems
+      actionItems: note.actionItems,
+      taggedStudents: note.StudentTag
     }))
 
     return NextResponse.json(formattedNotes)
@@ -58,9 +61,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, title, content, author, date } = await request.json()
+    const { id, title, content, author, date, studentIds } = await request.json()
 
-    // Create new note (don't delete existing notes for this date anymore)
+    // Create note with student tags
     const note = await prisma.note.create({
       data: {
         id,
@@ -68,7 +71,26 @@ export async function POST(request: NextRequest) {
         content,
         author,
         date: new Date(date),
-        userId
+        userId,
+        StudentTag: studentIds && studentIds.length > 0 ? {
+          create: studentIds.map((studentId: string) => ({
+            studentId
+          }))
+        } : undefined
+      },
+      include: {
+        StudentTag: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                img: true
+              }
+            }
+          }
+        }
       }
     })
 
@@ -77,7 +99,8 @@ export async function POST(request: NextRequest) {
       title: note.title || '',
       content: note.content,
       author: note.author,
-      createdAt: note.date
+      createdAt: note.date,
+      taggedStudents: note.StudentTag
     })
   } catch (error) {
     console.error('Failed to create note:', error)
@@ -93,16 +116,38 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id, content } = await request.json()
+    const { id, content, studentIds } = await request.json()
 
+    // Delete existing tags
+    await prisma.studentTag.deleteMany({
+      where: { noteId: id }
+    })
+
+    // Update note and create new tags
     const note = await prisma.note.update({
-      where: {
-        id,
-        userId
-      },
+      where: { id },
       data: {
         content,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        StudentTag: studentIds && studentIds.length > 0 ? {
+          create: studentIds.map((studentId: string) => ({
+            studentId
+          }))
+        } : undefined
+      },
+      include: {
+        StudentTag: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                img: true
+              }
+            }
+          }
+        }
       }
     })
 
@@ -111,7 +156,8 @@ export async function PUT(request: NextRequest) {
       title: note.title || '',
       content: note.content,
       author: note.author,
-      createdAt: note.date
+      createdAt: note.date,
+      taggedStudents: note.StudentTag
     })
   } catch (error) {
     console.error('Failed to update note:', error)

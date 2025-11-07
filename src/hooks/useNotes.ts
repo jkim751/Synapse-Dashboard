@@ -71,7 +71,8 @@ export function useNotes() {
         title: '',
         content: cleanContent,
         author: user.fullName || user.emailAddresses[0]?.emailAddress || 'Current User',
-        createdAt: date
+        createdAt: date,
+        studentIds: taggedStudents || []
       }
 
       const response = await fetch('/api/notes', {
@@ -145,6 +146,9 @@ export function useNotes() {
 
       if (response.ok) {
         await loadNotes()
+      } else {
+        console.error('Failed to delete comment:', response.statusText)
+        throw new Error('Failed to delete comment')
       }
     } catch (error) {
       console.error('Failed to delete comment:', error)
@@ -194,6 +198,9 @@ export function useNotes() {
 
       if (response.ok) {
         await loadNotes()
+      } else {
+        console.error('Failed to delete action item:', response.statusText)
+        throw new Error('Failed to delete action item')
       }
     } catch (error) {
       console.error('Failed to delete action item:', error)
