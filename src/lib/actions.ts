@@ -892,6 +892,7 @@ export async function createRecurringLesson(payload: {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
+    // FIX: Parse as UTC to preserve the time
     const startDate = new Date(payload.startTime);
     const endDate = new Date(payload.endTime);
     
@@ -946,10 +947,11 @@ export async function updateLesson(payload: {
     if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     if (rest.startTime !== undefined) {
-      updateData.startTime = new Date(rest.startTime);
-      // Update day based on new start time
+      const startDate = new Date(rest.startTime);
+      updateData.startTime = startDate;
+      // Update day based on new start time using UTC
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-      updateData.day = dayNames[new Date(rest.startTime).getDay()];
+      updateData.day = dayNames[startDate.getUTCDay()];
     }
     if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
 
@@ -1007,7 +1009,7 @@ export async function updateRecurringLesson(payload: {
 
     const startDate = new Date(rest.startTime ?? originalDate);
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()];
+    const dayOfWeek = dayNames[startDate.getUTCDay()]; // Use getUTCDay()
 
     await prisma.lesson.create({
       data: {
@@ -1081,9 +1083,10 @@ export async function createLesson(payload: {
   endTime: string;
 }) {
   try {
+    // FIX: Parse as UTC to preserve the time
     const startDate = new Date(payload.startTime);
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()];
+    const dayOfWeek = dayNames[startDate.getUTCDay()]; // Use getUTCDay() instead of getDay()
     
     await prisma.lesson.create({
       data: {

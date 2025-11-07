@@ -119,14 +119,18 @@ const LessonForm = ({
       console.log("Generated RRule:", rruleString);
     }
 
+    // FIX: Preserve local time by appending 'Z' to treat as UTC
+    const startTimeISO = formData.startTime + ':00.000Z';
+    const endTimeISO = formData.endTime + ':00.000Z';
+
     // Prepare payload for the server action
     const payload = {
       name: formData.name,
       subjectId: Number(formData.subjectId),
       classId: Number(formData.classId),
       teacherId: formData.teacherId,
-      startTime: new Date(formData.startTime).toISOString(),
-      endTime: new Date(formData.endTime).toISOString(),
+      startTime: startTimeISO,
+      endTime: endTimeISO,
       repeats: formData.repeats,
       rrule: rruleString,
       variant: relatedData?.variant || (formData.repeats === "weekly" ? "recurring" : "single"),
