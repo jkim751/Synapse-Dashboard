@@ -356,7 +356,7 @@ const FormModal = ({
         router.refresh();
       }
       if (state.error && !state.success) {
-        toast.error("Unable to delete");
+        toast.error(state.message || `Failed to delete ${table}!`);
       }
       // --- FIX: Follow linter advice for this specific hook ---
     }, [state, router]);
