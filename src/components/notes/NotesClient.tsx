@@ -195,6 +195,9 @@ export default function NotesClient() {
     setEditingNoteId(noteId || null)
     setEditableContent(content || '')
     setIsEditing(true)
+    
+    // Scroll to top when editing
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (noteId: string) => {

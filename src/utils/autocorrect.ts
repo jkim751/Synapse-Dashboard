@@ -304,75 +304,29 @@ async function checkSpellingAPI(word: string): Promise<string | null> {
   return null
 }
 
-// Generate possible corrections based on common patterns with confidence scores
-function generateCorrections(word: string): Array<{ word: string; confidence: number }> {
-  const corrections: Array<{ word: string; confidence: number }> = []
+// Generate possible corrections based on common patterns
+function generateCorrections(word: string): string[] {
+  const corrections: string[] = []
   const lower = word.toLowerCase()
 
-  // Check manual dictionary first - highest confidence
+  // Check manual dictionary first - only return if found
   if (autocorrectDictionary[lower]) {
-    corrections.push({ word: autocorrectDictionary[lower], confidence: 100 })
-    return corrections
+    return [autocorrectDictionary[lower]]
   }
 
-  // Check against common words with Levenshtein distance
-  const candidates: Array<{ word: string; distance: number }> = []
-  
+  // Only check against common words with very small Levenshtein distance
   for (const commonWord of commonWords) {
     // Only consider words of similar length
-    if (Math.abs(commonWord.length - lower.length) <= 2) {
+    if (Math.abs(commonWord.length - lower.length) <= 1) {
       const distance = levenshteinDistance(lower, commonWord)
-      // Accept distance of 1 or 2
-      if (distance === 1 || 2) {
-        candidates.push({ word: commonWord, distance })
+      // Only suggest if distance is 1 (single typo)
+      if (distance === 1) {
+        corrections.push(commonWord)
       }
     }
   }
 
-  // Sort by distance and assign confidence scores
-  candidates.sort((a, b) => a.distance - b.distance)
-  
-  for (const candidate of candidates.slice(0, 5)) {
-    const confidence = candidate.distance === 1 ? 90 : 70
-    corrections.push({ word: candidate.word, confidence })
-  }
-
   return corrections
-}
-
-// Get multiple autocorrect suggestions
-export function getAutocorrectSuggestions(word: string): string[] {
-  // Skip empty or very short
-  if (!word || word.length <= 1) return []
-  
-  if (isLikelyCorrect(word)) {
-    return []
-  }
-
-  const lowerWord = word.toLowerCase()
-  
-  // Check manual dictionary first
-  const manualCorrection = autocorrectDictionary[lowerWord]
-  if (manualCorrection && manualCorrection !== word) {
-    return [manualCorrection]
-  }
-
-  // Check cache
-  if (spellCheckCache.has(word)) {
-    const cached = spellCheckCache.get(word)
-    return cached ? [cached] : []
-  }
-
-  // Get multiple suggestions
-  const corrections = generateCorrections(word)
-  
-  // Filter by confidence and remove duplicates
-  const suggestions = corrections
-    .filter(c => c.confidence >= 70)
-    .map(c => c.word)
-    .filter((word, index, self) => self.indexOf(word) === index)
-  
-  return suggestions.slice(0, 3) // Return top 3 suggestions
 }
 
 // Main autocorrect function with API support
@@ -404,8 +358,8 @@ export async function shouldAutocorrectAsync(word: string): Promise<string | nul
   if (corrections.length > 0) {
     // Return the first suggestion that's in common words
     for (const correction of corrections) {
-      if (commonWords.has(correction.word.toLowerCase())) {
-        return correction.word
+      if (commonWords.has(correction.toLowerCase())) {
+        return correction
       }
     }
   }
@@ -415,8 +369,35 @@ export async function shouldAutocorrectAsync(word: string): Promise<string | nul
 
 // Synchronous version (uses cache and patterns only)
 export function shouldAutocorrect(word: string): string | null {
-  const suggestions = getAutocorrectSuggestions(word)
-  return suggestions.length > 0 ? suggestions[0] : null
+  // Skip empty or very short
+  if (!word || word.length <= 1) return null
+  
+  if (isLikelyCorrect(word)) {
+    return null
+  }
+
+  const lowerWord = word.toLowerCase()
+  
+  // Only use manual dictionary - don't guess
+  const correction = autocorrectDictionary[lowerWord]
+  
+  if (correction && correction !== word) {
+    return correction
+  }
+
+  // Check cache
+  if (spellCheckCache.has(word)) {
+    return spellCheckCache.get(word) || null
+  }
+
+  // Only suggest corrections if we have high confidence (distance = 1)
+  const corrections = generateCorrections(word)
+  if (corrections.length === 1) {
+    // Only one clear suggestion
+    return corrections[0]
+  }
+  
+  return null
 }
 
 // Additional patterns for capitalization after punctuation

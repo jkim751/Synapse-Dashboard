@@ -207,11 +207,14 @@ export default function NotesDisplay({
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => onEdit(
-                      note.id, 
-                      note.content,
-                      note.taggedStudents?.map(tag => tag.studentId)
-                    )}
+                    onClick={() => {
+                      // Pass the note ID, content, and tagged student IDs
+                      onEdit(
+                        note.id, 
+                        note.content,
+                        note.taggedStudents?.map(tag => tag.studentId)
+                      )
+                    }}
                     className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
                   >
                     Edit
