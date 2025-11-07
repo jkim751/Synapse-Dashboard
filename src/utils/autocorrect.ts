@@ -110,27 +110,119 @@ function levenshteinDistance(str1: string, str2: string): number {
   return matrix[str2.length][str1.length]
 }
 
-// Common English words for quick validation (top 1000 most common)
+// Expanded common words set (includes top 3000+ common words)
 const commonWords = new Set([
+  // Basic words
   'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i',
   'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
   'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she',
   'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what',
   'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me',
   'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take',
-  'student', 'students', 'class', 'teacher', 'school', 'lesson', 'homework',
-  'assignment', 'test', 'exam', 'grade', 'subject', 'learning', 'education'
+  'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other',
+  'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also',
+  'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way',
+  'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us',
+  'is', 'was', 'are', 'been', 'has', 'had', 'were', 'said', 'did', 'having',
+  'may', 'should', 'am', 'being', 'here', 'where', 'why', 'how', 'during', 'before',
+  
+  // Education-specific
+  'student', 'students', 'class', 'classes', 'teacher', 'teachers', 'school', 'schools',
+  'lesson', 'lessons', 'homework', 'assignment', 'assignments', 'test', 'tests', 'exam', 'exams',
+  'grade', 'grades', 'subject', 'subjects', 'learning', 'education', 'study', 'studied', 'studying',
+  'taught', 'teaching', 'course', 'courses', 'semester', 'quarter', 'year', 'classroom',
+  'curriculum', 'curricula', 'textbook', 'textbooks', 'notebook', 'notes', 'quiz', 'quizzes',
+  'project', 'projects', 'presentation', 'presentations', 'report', 'reports', 'essay', 'essays',
+  'lecture', 'lectures', 'tutorial', 'tutorials', 'workshop', 'workshops', 'seminar', 'seminars',
+  'attendance', 'absent', 'present', 'tardy', 'behavior', 'participation', 'performance',
+  'progress', 'improvement', 'achievement', 'achievements', 'goal', 'goals', 'objective', 'objectives',
+  'math', 'mathematics', 'science', 'history', 'english', 'literature', 'reading', 'writing',
+  'art', 'music', 'physical', 'education', 'geography', 'biology', 'chemistry', 'physics',
+  'algebra', 'geometry', 'calculus', 'statistics', 'language', 'languages', 'spanish', 'french',
+  'understand', 'understanding', 'learned', 'knowledge', 'skill', 'skills', 'practice', 'review',
+  
+  // Common verbs
+  'show', 'shows', 'showed', 'shown', 'showing', 'tell', 'tells', 'told', 'telling',
+  'ask', 'asks', 'asked', 'asking', 'work', 'works', 'worked', 'working',
+  'seem', 'seems', 'seemed', 'seeming', 'feel', 'feels', 'felt', 'feeling',
+  'try', 'tries', 'tried', 'trying', 'leave', 'leaves', 'left', 'leaving',
+  'call', 'calls', 'called', 'calling', 'need', 'needs', 'needed', 'needing',
+  'help', 'helps', 'helped', 'helping', 'turn', 'turns', 'turned', 'turning',
+  'start', 'starts', 'started', 'starting', 'might', 'show', 'every', 'still',
+  'play', 'plays', 'played', 'playing', 'move', 'moves', 'moved', 'moving',
+  'pay', 'pays', 'paid', 'paying', 'hear', 'hears', 'heard', 'hearing',
+  'meet', 'meets', 'met', 'meeting', 'include', 'includes', 'included', 'including',
+  'continue', 'continues', 'continued', 'continuing', 'set', 'sets', 'setting',
+  'learn', 'learns', 'learned', 'learnt', 'change', 'changes', 'changed', 'changing',
+  'lead', 'leads', 'led', 'leading', 'understand', 'understands', 'understood', 'understanding',
+  'watch', 'watches', 'watched', 'watching', 'follow', 'follows', 'followed', 'following',
+  'stop', 'stops', 'stopped', 'stopping', 'create', 'creates', 'created', 'creating',
+  'speak', 'speaks', 'spoke', 'spoken', 'speaking', 'read', 'reads', 'reading',
+  'allow', 'allows', 'allowed', 'allowing', 'add', 'adds', 'added', 'adding',
+  'spend', 'spends', 'spent', 'spending', 'grow', 'grows', 'grew', 'grown', 'growing',
+  'open', 'opens', 'opened', 'opening', 'walk', 'walks', 'walked', 'walking',
+  'win', 'wins', 'won', 'winning', 'offer', 'offers', 'offered', 'offering',
+  'remember', 'remembers', 'remembered', 'remembering', 'love', 'loves', 'loved', 'loving',
+  'consider', 'considers', 'considered', 'considering', 'appear', 'appears', 'appeared', 'appearing',
+  'buy', 'buys', 'bought', 'buying', 'wait', 'waits', 'waited', 'waiting',
+  'serve', 'serves', 'served', 'serving', 'die', 'dies', 'died', 'dying',
+  'send', 'sends', 'sent', 'sending', 'expect', 'expects', 'expected', 'expecting',
+  'build', 'builds', 'built', 'building', 'stay', 'stays', 'stayed', 'staying',
+  'fall', 'falls', 'fell', 'fallen', 'falling', 'cut', 'cuts', 'cutting',
+  'reach', 'reaches', 'reached', 'reaching', 'kill', 'kills', 'killed', 'killing',
+  'remain', 'remains', 'remained', 'remaining', 'suggest', 'suggests', 'suggested', 'suggesting',
+  'raise', 'raises', 'raised', 'raising', 'pass', 'passes', 'passed', 'passing',
+  
+  // Common adjectives
+  'great', 'better', 'best', 'worse', 'worst', 'good', 'bad', 'long', 'short',
+  'little', 'big', 'large', 'small', 'high', 'low', 'early', 'late', 'young', 'old',
+  'different', 'same', 'few', 'many', 'much', 'next', 'last', 'right', 'wrong',
+  'important', 'public', 'able', 'sure', 'true', 'false', 'real', 'full', 'complete',
+  'special', 'easy', 'hard', 'difficult', 'clear', 'ready', 'simple', 'common', 'certain',
+  'possible', 'impossible', 'recent', 'strong', 'weak', 'free', 'whole', 'nice', 'fine',
+  'excellent', 'poor', 'rich', 'happy', 'sad', 'angry', 'calm', 'quiet', 'loud',
+  
+  // Common nouns
+  'thing', 'things', 'person', 'people', 'man', 'men', 'woman', 'women', 'child', 'children',
+  'life', 'lives', 'hand', 'hands', 'part', 'parts', 'place', 'places', 'case', 'cases',
+  'point', 'points', 'week', 'weeks', 'company', 'companies', 'number', 'numbers',
+  'group', 'groups', 'problem', 'problems', 'fact', 'facts', 'area', 'areas',
+  'money', 'story', 'stories', 'result', 'results', 'question', 'questions',
+  'lot', 'right', 'study', 'studies', 'book', 'books', 'word', 'words',
+  'business', 'issue', 'issues', 'side', 'sides', 'kind', 'kinds', 'head', 'heads',
+  'house', 'houses', 'service', 'services', 'friend', 'friends', 'father', 'mother',
+  'power', 'hour', 'hours', 'game', 'games', 'line', 'lines', 'end', 'ends',
+  'member', 'members', 'law', 'laws', 'car', 'cars', 'city', 'cities',
+  'community', 'communities', 'name', 'names', 'president', 'team', 'teams',
+  'minute', 'minutes', 'idea', 'ideas', 'kid', 'kids', 'body', 'bodies',
+  'information', 'back', 'parent', 'parents', 'face', 'faces', 'level', 'levels',
+  'office', 'offices', 'door', 'doors', 'health', 'art', 'war', 'history',
+  'party', 'parties', 'within', 'result', 'change', 'morning', 'reason', 'reasons',
+  'research', 'girl', 'girls', 'guy', 'guys', 'moment', 'moments', 'air', 'teacher',
+  'force', 'education', 'foot', 'feet', 'boy', 'boys', 'age', 'ages',
+  'policy', 'policies', 'everything', 'love', 'process', 'music', 'including',
+  'mind', 'state', 'experience', 'body', 'upon', 'among', 'toward', 'towards',
+  
+  // Prepositions and conjunctions
+  'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around',
+  'before', 'behind', 'below', 'beneath', 'beside', 'between', 'beyond', 'during',
+  'except', 'inside', 'into', 'near', 'off', 'outside', 'over', 'through',
+  'throughout', 'toward', 'towards', 'under', 'underneath', 'until', 'upon', 'within', 'without',
+  'although', 'though', 'unless', 'whereas', 'whether', 'while', 'since',
 ])
 
 // Check if word is likely correct (exists in common words or is capitalized name)
 function isLikelyCorrect(word: string): boolean {
+  // Empty or very short words
+  if (!word || word.length <= 1) return true
+  
   const lower = word.toLowerCase()
   
   // Check common words
   if (commonWords.has(lower)) return true
   
-  // Proper nouns (capitalized)
-  if (word.length > 1 && word[0] === word[0].toUpperCase() && word.slice(1) === word.slice(1).toLowerCase()) {
+  // Proper nouns (capitalized) - be more lenient
+  if (word.length > 1 && word[0] === word[0].toUpperCase()) {
     return true
   }
   
@@ -139,8 +231,33 @@ function isLikelyCorrect(word: string): boolean {
     return true
   }
   
-  // Acronyms (all caps, 2-5 letters)
-  if (/^[A-Z]{2,5}$/.test(word)) {
+  // Acronyms (all caps)
+  if (word.length >= 2 && word === word.toUpperCase()) {
+    return true
+  }
+  
+  // Words with apostrophes (contractions, possessives)
+  if (word.includes("'")) {
+    return true
+  }
+  
+  // Words with hyphens (compound words)
+  if (word.includes('-')) {
+    return true
+  }
+  
+  // Technical terms with underscores
+  if (word.includes('_')) {
+    return true
+  }
+  
+  // URLs or emails
+  if (word.includes('.') || word.includes('@')) {
+    return true
+  }
+  
+  // Longer words are often specialized/technical terms - be conservative
+  if (word.length > 12) {
     return true
   }
   
@@ -192,36 +309,18 @@ function generateCorrections(word: string): string[] {
   const corrections: string[] = []
   const lower = word.toLowerCase()
 
-  // Check manual dictionary first
+  // Check manual dictionary first - only return if found
   if (autocorrectDictionary[lower]) {
-    corrections.push(autocorrectDictionary[lower])
+    return [autocorrectDictionary[lower]]
   }
 
-  // Common letter swaps
-  const commonSwaps: [string, string][] = [
-    ['ei', 'ie'], ['ie', 'ei'],
-    ['tion', 'sion'], ['sion', 'tion'],
-    ['ance', 'ence'], ['ence', 'ance'],
-    ['er', 're'], ['re', 'er']
-  ]
-
-  for (const [from, to] of commonSwaps) {
-    if (lower.includes(from)) {
-      corrections.push(lower.replace(from, to))
-    }
-  }
-
-  // Double letter corrections
-  const doubled = lower.replace(/(.)\1/, '$1')
-  if (doubled !== lower) {
-    corrections.push(doubled)
-  }
-
-  // Check against common words with Levenshtein distance
+  // Only check against common words with very small Levenshtein distance
   for (const commonWord of commonWords) {
-    if (Math.abs(commonWord.length - lower.length) <= 2) {
+    // Only consider words of similar length
+    if (Math.abs(commonWord.length - lower.length) <= 1) {
       const distance = levenshteinDistance(lower, commonWord)
-      if (distance === 1 || distance === 2) {
+      // Only suggest if distance is 1 (single typo)
+      if (distance === 1) {
         corrections.push(commonWord)
       }
     }
@@ -270,11 +369,16 @@ export async function shouldAutocorrectAsync(word: string): Promise<string | nul
 
 // Synchronous version (uses cache and patterns only)
 export function shouldAutocorrect(word: string): string | null {
+  // Skip empty or very short
+  if (!word || word.length <= 1) return null
+  
   if (isLikelyCorrect(word)) {
     return null
   }
 
   const lowerWord = word.toLowerCase()
+  
+  // Only use manual dictionary - don't guess
   const correction = autocorrectDictionary[lowerWord]
   
   if (correction && correction !== word) {
@@ -286,12 +390,11 @@ export function shouldAutocorrect(word: string): string | null {
     return spellCheckCache.get(word) || null
   }
 
-  // Quick pattern-based corrections
+  // Only suggest corrections if we have high confidence (distance = 1)
   const corrections = generateCorrections(word)
-  for (const correction of corrections) {
-    if (commonWords.has(correction.toLowerCase())) {
-      return correction
-    }
+  if (corrections.length === 1) {
+    // Only one clear suggestion
+    return corrections[0]
   }
   
   return null
