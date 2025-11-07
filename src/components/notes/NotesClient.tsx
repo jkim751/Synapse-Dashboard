@@ -192,6 +192,8 @@ export default function NotesClient() {
   }
 
   const handleEdit = (noteId?: string, content?: string, studentIds?: string[]) => {
+    console.log('handleEdit called with:', { noteId, contentLength: content?.length, studentIds })
+    
     setEditingNoteId(noteId || null)
     setEditableContent(content || '')
     setIsEditing(true)

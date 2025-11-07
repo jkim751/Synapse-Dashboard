@@ -27,14 +27,27 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const [showTableDialog, setShowTableDialog] = useState(false)
   const [tableRows, setTableRows] = useState(3)
   const [tableCols, setTableCols] = useState(3)
+  const isInitializedRef = useRef(false)
+  const [selectedFont, setSelectedFont] = useState('Monaco')
+  const [selectedFontSize, setSelectedFontSize] = useState('16')
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
   useEffect(() => {
-    // Only update if we're not currently typing and content has changed
-    if (editorRef.current && editorRef.current.innerHTML !== value && document.activeElement !== editorRef.current) {
+    // Initialize editor content when component mounts or value changes from parent
+    if (editorRef.current && !isInitializedRef.current) {
+      editorRef.current.innerHTML = value
+      isInitializedRef.current = true
+    }
+  }, [value])
+
+  useEffect(() => {
+    // Update content only if we're not actively editing and content has changed externally
+    if (editorRef.current && 
+        document.activeElement !== editorRef.current && 
+        editorRef.current.innerHTML !== value) {
       const savedSelection = saveSelection()
       editorRef.current.innerHTML = value
       if (savedSelection) {
@@ -301,6 +314,42 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     setTableCols(3)
   }
 
+  const changeFontFamily = (fontFamily: string) => {
+    setSelectedFont(fontFamily)
+    document.execCommand('fontName', false, fontFamily)
+    editorRef.current?.focus()
+    handleInput()
+  }
+
+  const changeFontSize = (fontSize: string) => {
+    setSelectedFontSize(fontSize)
+    // Use fontSize command with pixel value
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      const span = document.createElement('span')
+      span.style.fontSize = `${fontSize}px`
+      
+      // If there's a selection, wrap it
+      if (!range.collapsed) {
+        range.surroundContents(span)
+      } else {
+        // Otherwise just set for next input
+        document.execCommand('fontSize', false, '7') // Use size 7 as placeholder
+        // Then immediately change it to our custom size
+        const fontElements = editorRef.current?.querySelectorAll('font[size="7"]')
+        fontElements?.forEach(el => {
+          const newSpan = document.createElement('span')
+          newSpan.style.fontSize = `${fontSize}px`
+          newSpan.innerHTML = el.innerHTML
+          el.parentNode?.replaceChild(newSpan, el)
+        })
+      }
+    }
+    editorRef.current?.focus()
+    handleInput()
+  }
+
   if (!isClient) {
     return (
       <div className="w-full h-[650px] bg-gray-50 border border-gray-200 rounded flex items-center justify-center">
@@ -431,6 +480,46 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
           <div className="w-px bg-gray-300 h-6 mx-1" />
 
+          {/* Font Family Selector */}
+          <select
+            value={selectedFont}
+            onChange={(e) => changeFontFamily(e.target.value)}
+            className="px-2 py-1 text-xs border border-gray-300 rounded h-7"
+            style={{ fontFamily: selectedFont }}
+          >
+            <option value="Monaco" style={{ fontFamily: 'Monaco' }}>Monaco</option>
+            <option value="Menlo" style={{ fontFamily: 'Menlo' }}>Menlo</option>
+            <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New</option>
+            <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
+            <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
+            <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
+            <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia</option>
+            <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana</option>
+            <option value="Trebuchet MS" style={{ fontFamily: 'Trebuchet MS' }}>Trebuchet MS</option>
+            <option value="Comic Sans MS" style={{ fontFamily: 'Comic Sans MS' }}>Comic Sans MS</option>
+            <option value="Impact" style={{ fontFamily: 'Impact' }}>Impact</option>
+            <option value="Palatino" style={{ fontFamily: 'Palatino' }}>Palatino</option>
+            <option value="Garamond" style={{ fontFamily: 'Garamond' }}>Garamond</option>
+            <option value="Bookman" style={{ fontFamily: 'Bookman' }}>Bookman</option>
+            <option value="Avant Garde" style={{ fontFamily: 'Avant Garde' }}>Avant Garde</option>
+          </select>
+
+          {/* Font Size Selector */}
+          <select
+            value={selectedFontSize}
+            onChange={(e) => changeFontSize(e.target.value)}
+            className="px-2 py-1 text-xs border border-gray-300 rounded h-7 w-16"
+            title="Font Size"
+          >
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="14">14</option>
+            <option value="16">16</option>
+          </select>
+
           <select
             onChange={(e) => {
               if (e.target.value) {
@@ -559,8 +648,8 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           onKeyDown={handleKeyDown}
           className="w-full h-[calc(100%-36px)] px-2 overflow-y-auto focus:outline-none"
           style={{
-            fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-            fontSize: '16px',
+            fontFamily: selectedFont,
+            fontSize: `${selectedFontSize}px`,
             lineHeight: '32px',
             paddingTop: '0px',
             paddingBottom: '0px'
@@ -572,8 +661,8 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           <div 
             className="absolute left-2 text-gray-400 pointer-events-none"
             style={{
-              fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-              fontSize: '16px',
+              fontFamily: selectedFont,
+              fontSize: `${selectedFontSize}px`,
               lineHeight: '32px',
               top: '36px'
             }}
