@@ -892,7 +892,7 @@ export async function createRecurringLesson(payload: {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
-    // FIX: Parse as UTC to preserve the time
+    // Parse as local time
     const startDate = new Date(payload.startTime);
     const endDate = new Date(payload.endTime);
     
@@ -949,9 +949,9 @@ export async function updateLesson(payload: {
     if (rest.startTime !== undefined) {
       const startDate = new Date(rest.startTime);
       updateData.startTime = startDate;
-      // Update day based on new start time using UTC
+      // Update day based on local time
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-      updateData.day = dayNames[startDate.getUTCDay()];
+      updateData.day = dayNames[startDate.getDay()];
     }
     if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
 
@@ -1009,7 +1009,7 @@ export async function updateRecurringLesson(payload: {
 
     const startDate = new Date(rest.startTime ?? originalDate);
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getUTCDay()]; // Use getUTCDay()
+    const dayOfWeek = dayNames[startDate.getDay()]; // Use local getDay()
 
     await prisma.lesson.create({
       data: {
@@ -1083,10 +1083,10 @@ export async function createLesson(payload: {
   endTime: string;
 }) {
   try {
-    // FIX: Parse as UTC to preserve the time
+    // Parse as local time
     const startDate = new Date(payload.startTime);
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getUTCDay()]; // Use getUTCDay() instead of getDay()
+    const dayOfWeek = dayNames[startDate.getDay()]; // Use local getDay()
     
     await prisma.lesson.create({
       data: {
