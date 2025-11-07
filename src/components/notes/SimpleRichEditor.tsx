@@ -316,34 +316,29 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
   const changeFontFamily = (fontFamily: string) => {
     setSelectedFont(fontFamily)
-    document.execCommand('fontName', false, fontFamily)
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      document.execCommand('fontName', false, fontFamily)
+    }
     editorRef.current?.focus()
     handleInput()
   }
 
   const changeFontSize = (fontSize: string) => {
     setSelectedFontSize(fontSize)
-    // Use fontSize command with pixel value
     const selection = window.getSelection()
-    if (selection && selection.rangeCount > 0) {
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0)
       const span = document.createElement('span')
       span.style.fontSize = `${fontSize}px`
       
-      // If there's a selection, wrap it
-      if (!range.collapsed) {
+      try {
         range.surroundContents(span)
-      } else {
-        // Otherwise just set for next input
-        document.execCommand('fontSize', false, '7') // Use size 7 as placeholder
-        // Then immediately change it to our custom size
-        const fontElements = editorRef.current?.querySelectorAll('font[size="7"]')
-        fontElements?.forEach(el => {
-          const newSpan = document.createElement('span')
-          newSpan.style.fontSize = `${fontSize}px`
-          newSpan.innerHTML = el.innerHTML
-          el.parentNode?.replaceChild(newSpan, el)
-        })
+      } catch (e) {
+        // If surroundContents fails, use alternative method
+        const fragment = range.extractContents()
+        span.appendChild(fragment)
+        range.insertNode(span)
       }
     }
     editorRef.current?.focus()
@@ -643,13 +638,11 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
         <div
           ref={editorRef}
-          contentEditable
+          contentEditable={true}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
           className="w-full h-[calc(100%-36px)] px-2 overflow-y-auto focus:outline-none"
           style={{
-            fontFamily: selectedFont,
-            fontSize: `${selectedFontSize}px`,
             lineHeight: '32px',
             paddingTop: '0px',
             paddingBottom: '0px'
@@ -661,8 +654,6 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           <div 
             className="absolute left-2 text-gray-400 pointer-events-none"
             style={{
-              fontFamily: selectedFont,
-              fontSize: `${selectedFontSize}px`,
               lineHeight: '32px',
               top: '36px'
             }}
