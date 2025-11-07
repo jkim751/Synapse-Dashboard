@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import MentionAutocomplete from './MentionAutocomplete'
-import { getLastWord, shouldAutocorrect } from '@/utils/autocorrect'
+import AutocorrectSuggestion from './AutocorrectSuggestion'
+import { getLastWord, shouldAutocorrect, getAutocorrectSuggestions } from '@/utils/autocorrect'
 
 interface SimpleRichEditorProps {
   value: string
@@ -27,6 +28,13 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const [showTableDialog, setShowTableDialog] = useState(false)
   const [tableRows, setTableRows] = useState(3)
   const [tableCols, setTableCols] = useState(3)
+  
+  // Autocorrect suggestion state
+  const [showAutocorrect, setShowAutocorrect] = useState(false)
+  const [autocorrectSuggestions, setAutocorrectSuggestions] = useState<string[]>([])
+  const [autocorrectPosition, setAutocorrectPosition] = useState({ top: 0, left: 0 })
+  const autocorrectRangeRef = useRef<Range | null>(null)
+  const autocorrectWordRef = useRef<string>('')
 
   useEffect(() => {
     setIsClient(true)
@@ -114,42 +122,89 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML)
       checkForMention()
-      handleAutocorrect()
+      checkForAutocorrect()
     }
   }
 
-  const handleAutocorrect = () => {
+  const checkForAutocorrect = () => {
     const selection = window.getSelection()
-    if (!selection || !selection.rangeCount || !editorRef.current) return
+    if (!selection || !selection.rangeCount || !editorRef.current) {
+      setShowAutocorrect(false)
+      return
+    }
 
     const range = selection.getRangeAt(0)
     const textNode = range.startContainer
     
-    if (textNode.nodeType !== Node.TEXT_NODE) return
+    if (textNode.nodeType !== Node.TEXT_NODE) {
+      setShowAutocorrect(false)
+      return
+    }
 
     const text = textNode.textContent || ''
     const cursorPos = range.startOffset
     
+    // Check if we just typed a space or punctuation
     if (cursorPos > 0 && /[\s.,!?;:]/.test(text[cursorPos - 1])) {
       const { word, startPos } = getLastWord(text, cursorPos - 1)
       
       if (word && word.length > 2) {
-        const correction = shouldAutocorrect(word)
+        const suggestions = getAutocorrectSuggestions(word)
         
-        if (correction) {
-          const newText = text.substring(0, startPos) + correction + text.substring(cursorPos - 1)
-          textNode.textContent = newText
+        if (suggestions.length > 0) {
+          // Store the range for the misspelled word
+          autocorrectRangeRef.current = document.createRange()
+          autocorrectRangeRef.current.setStart(textNode, startPos)
+          autocorrectRangeRef.current.setEnd(textNode, startPos + word.length)
+          autocorrectWordRef.current = word
           
-          const newRange = document.createRange()
-          newRange.setStart(textNode, startPos + correction.length + 1)
-          newRange.collapse(true)
-          selection.removeAllRanges()
-          selection.addRange(newRange)
-          
-          onChange(editorRef.current.innerHTML)
+          setAutocorrectSuggestions(suggestions)
+          setShowAutocorrect(true)
+          updateAutocorrectPosition(autocorrectRangeRef.current)
+        } else {
+          setShowAutocorrect(false)
         }
+      } else {
+        setShowAutocorrect(false)
       }
     }
+  }
+
+  const updateAutocorrectPosition = (range: Range) => {
+    const rect = range.getBoundingClientRect()
+    const editorRect = editorRef.current?.getBoundingClientRect()
+    
+    if (editorRect) {
+      setAutocorrectPosition({
+        top: rect.bottom - editorRect.top + 5,
+        left: rect.left - editorRect.left
+      })
+    }
+  }
+
+  const applyAutocorrect = (suggestion: string) => {
+    if (!autocorrectRangeRef.current || !editorRef.current) return
+
+    const selection = window.getSelection()
+    if (!selection) return
+
+    // Delete the misspelled word
+    autocorrectRangeRef.current.deleteContents()
+
+    // Insert the corrected word
+    const correctedText = document.createTextNode(suggestion)
+    autocorrectRangeRef.current.insertNode(correctedText)
+
+    // Move cursor after the corrected word
+    const newRange = document.createRange()
+    newRange.setStartAfter(correctedText)
+    newRange.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(newRange)
+
+    setShowAutocorrect(false)
+    setAutocorrectSuggestions([])
+    onChange(editorRef.current.innerHTML)
   }
 
   const checkForMention = () => {
@@ -237,6 +292,21 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Tab for autocorrect
+    if (e.key === 'Tab' && showAutocorrect && autocorrectSuggestions.length > 0) {
+      e.preventDefault()
+      applyAutocorrect(autocorrectSuggestions[0])
+      return
+    }
+
+    // Handle Escape to dismiss autocorrect
+    if (e.key === 'Escape' && showAutocorrect) {
+      e.preventDefault()
+      setShowAutocorrect(false)
+      setAutocorrectSuggestions([])
+      return
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       document.execCommand('insertLineBreak')
@@ -582,12 +652,25 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           </div>
         )}
       </div>
+      
       {showMentions && (
         <MentionAutocomplete
           query={mentionQuery}
           position={mentionPosition}
           onSelect={handleSelectStudent}
           onClose={() => setShowMentions(false)}
+        />
+      )}
+      
+      {showAutocorrect && (
+        <AutocorrectSuggestion
+          suggestions={autocorrectSuggestions}
+          position={autocorrectPosition}
+          onSelect={applyAutocorrect}
+          onDismiss={() => {
+            setShowAutocorrect(false)
+            setAutocorrectSuggestions([])
+          }}
         />
       )}
     </div>
