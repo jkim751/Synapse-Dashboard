@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import MentionAutocomplete from './MentionAutocomplete'
-import { getLastWord, shouldAutocorrect } from '@/utils/autocorrect'
+import { getLastWord, shouldAutocorrect, shouldAutoCorrectImmediately } from '@/utils/autocorrect'
 
 interface SimpleRichEditorProps {
   value: string
@@ -33,6 +33,11 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const [selectedFontSize, setSelectedFontSize] = useState('16')
   const isUpdatingRef = useRef(false)
   const hasInitializedRef = useRef(false)
+  const [spellSuggestion, setSpellSuggestion] = useState<{
+    word: string
+    suggestion: string
+    rect: DOMRect
+  } | null>(null)
 
   useEffect(() => {
     setIsClient(true)
@@ -141,15 +146,17 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
       // Run these after a tick to avoid interfering with typing
       setTimeout(() => {
         checkForMention()
-        handleAutocorrect()
+        checkSpelling() // Changed from handleAutocorrect
         isUpdatingRef.current = false
       }, 0)
     }
   }
 
-  const handleAutocorrect = () => {
+  const checkSpelling = () => {
+    if (!editorRef.current) return
+
     const selection = window.getSelection()
-    if (!selection || !selection.rangeCount || !editorRef.current) return
+    if (!selection || !selection.rangeCount) return
 
     const range = selection.getRangeAt(0)
     const textNode = range.startContainer
@@ -163,22 +170,126 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
       const { word, startPos } = getLastWord(text, cursorPos - 1)
       
       if (word && word.length > 2) {
-        const correction = shouldAutocorrect(word)
+        // Check for obvious typos that should be auto-corrected
+        const immediateCorrection = shouldAutoCorrectImmediately(word)
         
-        if (correction) {
-          const newText = text.substring(0, startPos) + correction + text.substring(cursorPos - 1)
-          textNode.textContent = newText
+        if (immediateCorrection) {
+          // Auto-correct immediately
+          applyImmediateCorrection(textNode, startPos, cursorPos - 1, immediateCorrection)
+        } else {
+          // Check for suggestions (less certain corrections)
+          const correction = shouldAutocorrect(word)
           
-          const newRange = document.createRange()
-          newRange.setStart(textNode, startPos + correction.length + 1)
-          newRange.collapse(true)
-          selection.removeAllRanges()
-          selection.addRange(newRange)
-          
-          onChange(editorRef.current.innerHTML)
+          if (correction) {
+            // Don't auto-correct, just mark the word
+            markSpellingError(textNode, startPos, cursorPos - 1, word, correction)
+          }
         }
       }
     }
+  }
+
+  const applyImmediateCorrection = (textNode: Node, start: number, end: number, correction: string) => {
+    if (!editorRef.current) return
+
+    const selection = window.getSelection()
+    if (!selection) return
+
+    const range = document.createRange()
+    range.setStart(textNode, start)
+    range.setEnd(textNode, end)
+
+    // Replace the word
+    const newText = textNode.textContent || ''
+    const correctedText = newText.substring(0, start) + correction + newText.substring(end)
+    textNode.textContent = correctedText
+
+    // Restore cursor position after the corrected word + space
+    const newRange = document.createRange()
+    newRange.setStart(textNode, start + correction.length + 1)
+    newRange.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(newRange)
+
+    onChange(editorRef.current.innerHTML)
+  }
+
+  const markSpellingError = (textNode: Node, start: number, end: number, word: string, suggestion: string) => {
+    if (!editorRef.current) return
+
+    const range = document.createRange()
+    range.setStart(textNode, start)
+    range.setEnd(textNode, end)
+
+    // Remove existing marks in the range
+    const existingMarks = editorRef.current.querySelectorAll('.spell-error')
+    existingMarks.forEach(mark => {
+      const parent = mark.parentNode
+      if (parent) {
+        parent.replaceChild(document.createTextNode(mark.textContent || ''), mark)
+      }
+    })
+
+    // Create span with underline
+    const span = document.createElement('span')
+    span.className = 'spell-error'
+    span.setAttribute('data-word', word)
+    span.setAttribute('data-suggestion', suggestion)
+    span.style.cssText = 'text-decoration: underline wavy red; cursor: pointer;'
+    
+    try {
+      const contents = range.extractContents()
+      span.appendChild(contents)
+      range.insertNode(span)
+      
+      // Add click handler
+      span.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const rect = span.getBoundingClientRect()
+        setSpellSuggestion({
+          word,
+          suggestion,
+          rect
+        })
+      })
+    } catch (error) {
+      console.error('Error marking spelling error:', error)
+    }
+  }
+
+  const applyCorrection = () => {
+    if (!spellSuggestion || !editorRef.current) return
+
+    const marks = editorRef.current.querySelectorAll('.spell-error')
+    marks.forEach(mark => {
+      const markWord = mark.getAttribute('data-word')
+      const markSuggestion = mark.getAttribute('data-suggestion')
+      
+      if (markWord === spellSuggestion.word && markSuggestion === spellSuggestion.suggestion) {
+        const textNode = document.createTextNode(spellSuggestion.suggestion + ' ')
+        mark.parentNode?.replaceChild(textNode, mark)
+      }
+    })
+
+    setSpellSuggestion(null)
+    onChange(editorRef.current.innerHTML)
+  }
+
+  const ignoreCorrection = () => {
+    if (!spellSuggestion || !editorRef.current) return
+
+    const marks = editorRef.current.querySelectorAll('.spell-error')
+    marks.forEach(mark => {
+      const markWord = mark.getAttribute('data-word')
+      
+      if (markWord === spellSuggestion.word) {
+        const textNode = document.createTextNode(mark.textContent || '')
+        mark.parentNode?.replaceChild(textNode, mark)
+      }
+    })
+
+    setSpellSuggestion(null)
+    onChange(editorRef.current.innerHTML)
   }
 
   const checkForMention = () => {
@@ -616,6 +727,46 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
         </div>
       )}
 
+      {spellSuggestion && (
+        <div
+          className="fixed bg-white border border-gray-300 rounded-lg shadow-lg p-3 z-[10000]"
+          style={{
+            top: spellSuggestion.rect.bottom + window.scrollY + 5,
+            left: spellSuggestion.rect.left + window.scrollX,
+          }}
+        >
+          <div className="text-sm mb-2">
+            <span className="text-gray-600">Change "</span>
+            <span className="font-semibold text-red-600">{spellSuggestion.word}</span>
+            <span className="text-gray-600">" to "</span>
+            <span className="font-semibold text-green-600">{spellSuggestion.suggestion}</span>
+            <span className="text-gray-600">"?</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={applyCorrection}
+              className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600"
+            >
+              Apply
+            </button>
+            <button
+              onClick={ignoreCorrection}
+              className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+            >
+              Ignore
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close spell suggestion */}
+      {spellSuggestion && (
+        <div
+          className="fixed inset-0 z-[9999]"
+          onClick={() => setSpellSuggestion(null)}
+        />
+      )}
+
       <div className="w-full h-[650px] border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 border-b border-gray-200 p-1.5 flex flex-wrap gap-1 items-center">
           <button
@@ -869,6 +1020,15 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
         div[contenteditable="true"] ul ul ul {
           list-style-type: square;
+        }
+
+        .spell-error {
+          text-decoration: underline wavy red;
+          cursor: pointer;
+        }
+
+        .spell-error:hover {
+          background-color: #fee;
         }
       `}</style>
     </div>

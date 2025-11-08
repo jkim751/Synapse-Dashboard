@@ -367,6 +367,27 @@ export async function shouldAutocorrectAsync(word: string): Promise<string | nul
   return null
 }
 
+// High-confidence typos that should be auto-corrected immediately
+const obviousTypos = new Set([
+  'teh', 'hte', 'recieve', 'recieved', 'occured', 'seperate', 'definately',
+  'wierd', 'untill', 'thier', 'freind', 'becuase', 'beleive', 'acheive',
+  'occassion', 'accomodate', 'tommorrow', 'neccessary', 'enviroment', 'begining',
+  'occuring', 'recomend', 'adress', 'refered', 'acheivement', 'assesment',
+  'curriculm', 'explaination', 'grammer', 'liason', 'liase', 'prefered',
+  'priviledge', 'seperated', 'sucessful', 'suceed'
+])
+
+// Check if a word should be auto-corrected immediately (obvious typos)
+export function shouldAutoCorrectImmediately(word: string): string | null {
+  const lowerWord = word.toLowerCase()
+  
+  if (obviousTypos.has(lowerWord)) {
+    return autocorrectDictionary[lowerWord] || null
+  }
+  
+  return null
+}
+
 // Synchronous version (uses cache and patterns only)
 export function shouldAutocorrect(word: string): string | null {
   // Skip empty or very short
@@ -378,10 +399,22 @@ export function shouldAutocorrect(word: string): string | null {
 
   const lowerWord = word.toLowerCase()
   
-  // Only use manual dictionary - don't guess
+  // Only use manual dictionary for high-confidence corrections
   const correction = autocorrectDictionary[lowerWord]
   
   if (correction && correction !== word) {
+    // Skip obvious typos (they're handled separately for auto-correction)
+    if (obviousTypos.has(lowerWord)) {
+      return null
+    }
+    
+    // Additional check: only suggest if it's a common mistake
+    // Skip corrections that might be valid words
+    const commonFalsePositives = ['own', 'no', 'on', 'in', 'it', 'is', 'an', 'as', 'at']
+    if (commonFalsePositives.includes(lowerWord)) {
+      return null
+    }
+    
     return correction
   }
 
@@ -390,10 +423,18 @@ export function shouldAutocorrect(word: string): string | null {
     return spellCheckCache.get(word) || null
   }
 
-  // Only suggest corrections if we have high confidence (distance = 1)
+  // Be very conservative with pattern-based suggestions
+  // Only suggest if the word is definitely not in our common words
+  // AND we have exactly one high-confidence correction
   const corrections = generateCorrections(word)
-  if (corrections.length === 1) {
-    // Only one clear suggestion
+  
+  // Don't suggest corrections for short words that might be intentional
+  if (word.length <= 3) {
+    return null
+  }
+  
+  if (corrections.length === 1 && corrections[0].length >= 4) {
+    // Only one clear suggestion and it's a substantial word
     return corrections[0]
   }
   
