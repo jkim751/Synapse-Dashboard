@@ -157,7 +157,7 @@ const ParentForm = ({
               {...register("paymentType")}
               defaultValue={data?.paymentType || "CASH"}
             >
-              <option value="XERO">Xero</option>
+              <option value="NO_PAYMENT">No Payment</option>
               <option value="BANK_TRANSFER">Bank transfer</option>
               <option value="CASH">Cash</option>
             </select>

@@ -47,6 +47,19 @@ const LessonForm = ({
   // IMPORTANT: use the right action state hook
   const [state, formAction] = useActionState(actionFn, { success: false, error: false, message: "" });
 
+  // Helper function to format date for datetime-local input
+  const formatDateTimeLocal = (date: Date | string | undefined): string | undefined => {
+    if (!date) return undefined;
+    const d = new Date(date);
+    // Format as YYYY-MM-DDTHH:mm (local time, no timezone conversion)
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   // Default values: prefill from `data` if present
   const defaults: Partial<LessonSchema> = data
     ? {
@@ -54,11 +67,11 @@ const LessonForm = ({
         subjectId: Number(data.subjectId || data.subject?.id) || undefined,
         classId: Number(data.classId || data.class?.id) || undefined,
         teacherId: String(data.teacherId || data.teacher?.id || ""),
-        startTime: data.startTime ? new Date(data.startTime).toISOString().slice(0, 16) : undefined,
-        endTime: data.endTime ? new Date(data.endTime).toISOString().slice(0, 16) : undefined,
+        startTime: formatDateTimeLocal(data.startTime),
+        endTime: formatDateTimeLocal(data.endTime),
         repeats: data.rrule ? "weekly" : "never",
         updateScope: isRecurring ? "instance" : undefined,
-        originalDate: isRecurring && data.startTime ? new Date(data.startTime).toISOString() : undefined,
+        originalDate: isRecurring && data.startTime ? formatDateTimeLocal(data.startTime) : undefined,
       }
     : { repeats: "never" };
 
@@ -104,10 +117,13 @@ const LessonForm = ({
         SU: RRule.SU.weekday 
       };
       
-      const startDate = new Date(formData.startTime);
-      const endDate = new Date(formData.endDate);
+      // Parse dates without timezone conversion
+      const [startDatePart, startTimePart] = formData.startTime.split('T');
+      const startDate = new Date(`${startDatePart}T${startTimePart}`);
       
-      // Create RRule with proper weekday
+      const endDate = new Date(formData.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      
       const rule = new RRule({
         freq: RRule.WEEKLY,
         byweekday: [dayMap[formData.day]],
@@ -119,14 +135,14 @@ const LessonForm = ({
       console.log("Generated RRule:", rruleString);
     }
 
-    // Prepare payload for the server action
+    // Keep the datetime-local format (no timezone conversion)
     const payload = {
       name: formData.name,
       subjectId: Number(formData.subjectId),
       classId: Number(formData.classId),
       teacherId: formData.teacherId,
-      startTime: new Date(formData.startTime).toISOString(),
-      endTime: new Date(formData.endTime).toISOString(),
+      startTime: formData.startTime, // Keep as-is (YYYY-MM-DDTHH:mm)
+      endTime: formData.endTime,     // Keep as-is (YYYY-MM-DDTHH:mm)
       repeats: formData.repeats,
       rrule: rruleString,
       variant: relatedData?.variant || (formData.repeats === "weekly" ? "recurring" : "single"),

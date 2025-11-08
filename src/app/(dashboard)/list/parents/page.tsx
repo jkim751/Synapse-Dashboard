@@ -59,8 +59,8 @@ const columns = [
 
 const renderRow = (item: ParentList) => {
   const prettyPayment =
-    item?.paymentType === "XERO"
-      ? "Xero"
+    item?.paymentType === "NO_PAYMENT"
+      ? "No Payment"
       : item?.paymentType === "BANK_TRANSFER"
       ? "Bank transfer"
       : item?.paymentType === "CASH"

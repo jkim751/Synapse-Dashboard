@@ -413,7 +413,7 @@ enum Day {
 }
 
 enum PaymentType {
-  XERO
+  NO_PAYMENT
   BANK_TRANSFER
   CASH
 }

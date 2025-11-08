@@ -28,33 +28,41 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const [tableRows, setTableRows] = useState(3)
   const [tableCols, setTableCols] = useState(3)
   const isInitializedRef = useRef(false)
+  const previousValueRef = useRef('')
   const [selectedFont, setSelectedFont] = useState('Monaco')
   const [selectedFontSize, setSelectedFontSize] = useState('16')
+  const isUpdatingRef = useRef(false)
+  const hasInitializedRef = useRef(false)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
   useEffect(() => {
-    // Initialize editor content when component mounts or value changes from parent
-    if (editorRef.current && !isInitializedRef.current) {
-      editorRef.current.innerHTML = value
-      isInitializedRef.current = true
-    }
-  }, [value])
-
-  useEffect(() => {
-    // Update content only if we're not actively editing and content has changed externally
-    if (editorRef.current && 
-        document.activeElement !== editorRef.current && 
-        editorRef.current.innerHTML !== value) {
-      const savedSelection = saveSelection()
-      editorRef.current.innerHTML = value
-      if (savedSelection) {
-        restoreSelection(savedSelection)
+    // Initialize content immediately when component mounts or value changes
+    if (editorRef.current && isClient) {
+      // First time initialization or external value change
+      if (!hasInitializedRef.current || (value !== previousValueRef.current && document.activeElement !== editorRef.current)) {
+        editorRef.current.innerHTML = value || ''
+        previousValueRef.current = value
+        hasInitializedRef.current = true
+        
+        // Focus at the end of content if this is a fresh edit
+        if (value && !hasInitializedRef.current) {
+          setTimeout(() => {
+            const range = document.createRange()
+            const sel = window.getSelection()
+            if (editorRef.current && sel) {
+              range.selectNodeContents(editorRef.current)
+              range.collapse(false)
+              sel.removeAllRanges()
+              sel.addRange(range)
+            }
+          }, 0)
+        }
       }
     }
-  }, [value])
+  }, [value, isClient])
 
   const saveSelection = () => {
     const selection = window.getSelection()
@@ -124,10 +132,18 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   }
 
   const handleInput = () => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
-      checkForMention()
-      handleAutocorrect()
+    if (editorRef.current && !isUpdatingRef.current) {
+      isUpdatingRef.current = true
+      const newContent = editorRef.current.innerHTML
+      previousValueRef.current = newContent
+      onChange(newContent)
+      
+      // Run these after a tick to avoid interfering with typing
+      setTimeout(() => {
+        checkForMention()
+        handleAutocorrect()
+        isUpdatingRef.current = false
+      }, 0)
     }
   }
 
@@ -250,9 +266,152 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      document.execCommand('insertLineBreak')
+    // Handle space key for auto-list conversion
+    if (e.key === ' ') {
+      const selection = window.getSelection()
+      if (!selection || !selection.rangeCount || !editorRef.current) return
+
+      const range = selection.getRangeAt(0)
+      const container = range.startContainer
+      
+      // Get the text content before cursor
+      let textBefore = ''
+      if (container.nodeType === Node.TEXT_NODE) {
+        textBefore = container.textContent?.substring(0, range.startOffset) || ''
+      }
+      
+      // Check if we're not already in a list
+      let node: Node | null = container
+      let inList = false
+      while (node && node !== editorRef.current) {
+        if (node.nodeName === 'UL' || node.nodeName === 'OL') {
+          inList = true
+          break
+        }
+        node = node.parentNode
+      }
+      
+      if (inList) return // Already in a list, don't convert
+
+      const trimmedText = textBefore.trim()
+      
+      // Check for dash
+      if (trimmedText === '-') {
+        e.preventDefault()
+        
+        // Get all content in the current line/block
+        let lineContent = ''
+        if (container.nodeType === Node.TEXT_NODE) {
+          const fullText = container.textContent || ''
+          lineContent = fullText.substring(range.startOffset)
+        }
+        
+        // Create list
+        const ul = document.createElement('ul')
+        const li = document.createElement('li')
+        const textNode = document.createTextNode(lineContent)
+        li.appendChild(textNode)
+        ul.appendChild(li)
+        
+        // Find and replace the current block
+        let blockElement: Node | null = container
+        while (blockElement && blockElement.parentNode !== editorRef.current) {
+          blockElement = blockElement.parentNode
+        }
+        
+        if (blockElement && blockElement.parentNode === editorRef.current) {
+          editorRef.current.replaceChild(ul, blockElement)
+        } else {
+          // Fallback: just insert at cursor
+          range.deleteContents()
+          range.insertNode(ul)
+        }
+        
+        // Set cursor in the list item
+        const newRange = document.createRange()
+        newRange.setStart(textNode, 0)
+        newRange.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(newRange)
+        
+        onChange(editorRef.current.innerHTML)
+        return
+      }
+      
+      // Check for "1."
+      if (trimmedText === '1.') {
+        e.preventDefault()
+        
+        // Get all content in the current line/block
+        let lineContent = ''
+        if (container.nodeType === Node.TEXT_NODE) {
+          const fullText = container.textContent || ''
+          lineContent = fullText.substring(range.startOffset)
+        }
+        
+        // Create list
+        const ol = document.createElement('ol')
+        const li = document.createElement('li')
+        const textNode = document.createTextNode(lineContent)
+        li.appendChild(textNode)
+        ol.appendChild(li)
+        
+        // Find and replace the current block
+        let blockElement: Node | null = container
+        while (blockElement && blockElement.parentNode !== editorRef.current) {
+          blockElement = blockElement.parentNode
+        }
+        
+        if (blockElement && blockElement.parentNode === editorRef.current) {
+          editorRef.current.replaceChild(ol, blockElement)
+        } else {
+          // Fallback: just insert at cursor
+          range.deleteContents()
+          range.insertNode(ol)
+        }
+        
+        // Set cursor in the list item
+        const newRange = document.createRange()
+        newRange.setStart(textNode, 0)
+        newRange.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(newRange)
+        
+        onChange(editorRef.current.innerHTML)
+        return
+      }
+    }
+
+    // Handle Enter key for lists
+    if (e.key === 'Enter') {
+      const selection = window.getSelection()
+      if (!selection || !selection.rangeCount) return
+
+      const range = selection.getRangeAt(0)
+      let node = range.startContainer
+
+      // Find if we're inside a list item
+      while (node && node !== editorRef.current) {
+        if (node.nodeName === 'LI') {
+          // Check if the list item is empty
+          const listItem = node as HTMLElement
+          if (listItem.textContent?.trim() === '') {
+            // Empty list item - exit the list
+            e.preventDefault()
+            document.execCommand('outdent')
+            return
+          }
+          // Non-empty list item - let browser handle it (creates new list item)
+          return
+        }
+        node = node.parentNode as Node
+      }
+
+      // Not in a list - insert line break
+      if (!e.shiftKey) {
+        e.preventDefault()
+        document.execCommand('insertLineBreak')
+      }
     }
   }
 
@@ -263,7 +422,10 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   }
 
   const insertList = (type: 'ul' | 'ol') => {
-    execCommand(`insert${type === 'ul' ? 'Unordered' : 'Ordered'}List`)
+    const command = type === 'ul' ? 'insertUnorderedList' : 'insertOrderedList'
+    document.execCommand(command, false)
+    editorRef.current?.focus()
+    handleInput()
   }
 
   const highlightText = () => {
@@ -319,30 +481,38 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     const selection = window.getSelection()
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       document.execCommand('fontName', false, fontFamily)
+      editorRef.current?.focus()
+      handleInput()
     }
-    editorRef.current?.focus()
-    handleInput()
   }
 
   const changeFontSize = (fontSize: string) => {
     setSelectedFontSize(fontSize)
     const selection = window.getSelection()
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      // Wrap selected text in a span with the font size
       const range = selection.getRangeAt(0)
       const span = document.createElement('span')
       span.style.fontSize = `${fontSize}px`
       
       try {
-        range.surroundContents(span)
-      } catch (e) {
-        // If surroundContents fails, use alternative method
-        const fragment = range.extractContents()
-        span.appendChild(fragment)
+        const contents = range.extractContents()
+        span.appendChild(contents)
         range.insertNode(span)
+        
+        // Restore selection
+        const newRange = document.createRange()
+        newRange.selectNodeContents(span)
+        selection.removeAllRanges()
+        selection.addRange(newRange)
+        
+        handleInput()
+      } catch (e) {
+        console.error('Error applying font size:', e)
       }
+      
+      editorRef.current?.focus()
     }
-    editorRef.current?.focus()
-    handleInput()
   }
 
   if (!isClient) {
@@ -643,9 +813,12 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           onKeyDown={handleKeyDown}
           className="w-full h-[calc(100%-36px)] px-2 overflow-y-auto focus:outline-none"
           style={{
+            fontFamily: selectedFont,
             lineHeight: '32px',
-            paddingTop: '0px',
-            paddingBottom: '0px'
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            minHeight: 'calc(100% - 36px)',
+            backgroundColor: 'transparent'
           }}
           suppressContentEditableWarning={true}
         />
@@ -654,8 +827,10 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           <div 
             className="absolute left-2 text-gray-400 pointer-events-none"
             style={{
+              fontFamily: selectedFont,
+              fontSize: `${selectedFontSize}px`,
               lineHeight: '32px',
-              top: '36px'
+              top: '44px'
             }}
           >
             {placeholder || 'Start typing your notes...'}
@@ -670,6 +845,32 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           onClose={() => setShowMentions(false)}
         />
       )}
+      <style jsx global>{`
+        div[contenteditable="true"] ul {
+          list-style-type: disc;
+          padding-left: 40px;
+          margin: 8px 0;
+        }
+        
+        div[contenteditable="true"] ol {
+          list-style-type: decimal;
+          padding-left: 40px;
+          margin: 8px 0;
+        }
+        
+        div[contenteditable="true"] li {
+          display: list-item;
+          margin: 4px 0;
+        }
+
+        div[contenteditable="true"] ul ul {
+          list-style-type: circle;
+        }
+
+        div[contenteditable="true"] ul ul ul {
+          list-style-type: square;
+        }
+      `}</style>
     </div>
   )
 }

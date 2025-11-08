@@ -16,12 +16,7 @@ export default function NotesEditor({
 
   useEffect(() => {
     setIsClient(true)
-    console.log('NotesEditor received content:', editableContent.substring(0, 100))
   }, [])
-
-  useEffect(() => {
-    console.log('NotesEditor content changed:', editableContent.substring(0, 100))
-  }, [editableContent])
 
   if (!isClient) {
     return (
@@ -34,7 +29,6 @@ export default function NotesEditor({
   return (
     <div className="space-y-2"> 
       <SimpleRichEditor
-        key={editableContent ? 'editing' : 'new'}
         value={editableContent}
         onChange={setEditableContent}
         placeholder="Start typing your notes... Use @ to mention students"

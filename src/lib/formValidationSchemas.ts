@@ -173,7 +173,7 @@ export const parentSchema = z.object({
     }),
   phone: z.string().min(1, { message: "Phone is required!" }),
   address: z.string().min(1, { message: "Address is required!" }),
-  paymentType: z.enum(["XERO", "BANK_TRANSFER", "CASH"]),
+  paymentType: z.enum(["NO_PAYMENT", "BANK_TRANSFER", "CASH"]),
   students: z.array(z.string()).optional(),
 });
 export type ParentSchema = z.infer<typeof parentSchema>;

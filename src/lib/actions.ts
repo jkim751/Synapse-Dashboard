@@ -872,7 +872,7 @@ export const deleteExam = async (
     console.log(err);
     return { success: false, error: true, message: "Failed to delete exam!" };
   }
-};
+}
 
 // The form now passes an extra 'rrule' property
 interface LessonFormData extends LessonSchema {
@@ -892,9 +892,12 @@ export async function createRecurringLesson(payload: {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
-    // Parse as local time
-    const startDate = new Date(payload.startTime);
-    const endDate = new Date(payload.endTime);
+    // Parse datetime-local input as local time
+    const [startDatePart, startTimePart] = payload.startTime.split('T');
+    const [endDatePart, endTimePart] = payload.endTime.split('T');
+    
+    const startDate = new Date(`${startDatePart}T${startTimePart}`);
+    const endDate = new Date(`${endDatePart}T${endTimePart}`);
     
     // Validate the RRule
     try {
@@ -946,14 +949,20 @@ export async function updateLesson(payload: {
     if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
     if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
+    
     if (rest.startTime !== undefined) {
-      const startDate = new Date(rest.startTime);
+      const [datePart, timePart] = rest.startTime.split('T');
+      const startDate = new Date(`${datePart}T${timePart}`);
       updateData.startTime = startDate;
-      // Update day based on local time
+      
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
       updateData.day = dayNames[startDate.getDay()];
     }
-    if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
+    
+    if (rest.endTime !== undefined) {
+      const [datePart, timePart] = rest.endTime.split('T');
+      updateData.endTime = new Date(`${datePart}T${timePart}`);
+    }
 
     await prisma.lesson.update({
       where: { id: Number(id) },
@@ -963,6 +972,7 @@ export async function updateLesson(payload: {
     revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Lesson updated" };
   } catch (e: any) {
+    console.error("Error updating lesson:", e);
     return { success: false, error: true, message: e.message || "Update failed" };
   }
 }
@@ -991,8 +1001,17 @@ export async function updateRecurringLesson(payload: {
       if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
       if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
-      if (rest.startTime !== undefined) updateData.startTime = new Date(rest.startTime);
-      if (rest.endTime !== undefined) updateData.endTime = new Date(rest.endTime);
+      
+      if (rest.startTime !== undefined) {
+        const [datePart, timePart] = rest.startTime.split('T');
+        updateData.startTime = new Date(`${datePart}T${timePart}`);
+      }
+      
+      if (rest.endTime !== undefined) {
+        const [datePart, timePart] = rest.endTime.split('T');
+        updateData.endTime = new Date(`${datePart}T${timePart}`);
+      }
+      
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
 
       await prisma.recurringLesson.update({
@@ -1004,12 +1023,17 @@ export async function updateRecurringLesson(payload: {
       return { success: true, error: false, message: "Recurring series updated" };
     }
 
-    // updateScope === "instance" → copy-on-write an occurrence as a single lesson
+    // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const startDate = new Date(rest.startTime ?? originalDate);
+    const [startDatePart, startTimePart] = (rest.startTime ?? originalDate).split('T');
+    const [endDatePart, endTimePart] = (rest.endTime ?? originalDate).split('T');
+    
+    const startDate = new Date(`${startDatePart}T${startTimePart}`);
+    const endDate = new Date(`${endDatePart}T${endTimePart}`);
+    
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()]; // Use local getDay()
+    const dayOfWeek = dayNames[startDate.getDay()];
 
     await prisma.lesson.create({
       data: {
@@ -1018,15 +1042,16 @@ export async function updateRecurringLesson(payload: {
         classId: Number(rest.classId ?? series.classId),
         teacherId: rest.teacherId ?? series.teacherId,
         startTime: startDate,
-        endTime: new Date(rest.endTime ?? originalDate),
+        endTime: endDate,
         day: dayOfWeek,
-        recurringLessonId: Number(id), // link to series
+        recurringLessonId: Number(id),
       },
     });
 
     revalidatePath("/list/lessons");
     return { success: true, error: false, message: "This instance updated (exception created)" };
   } catch (e: any) {
+    console.error("Error updating recurring lesson:", e);
     return { success: false, error: true, message: e.message || "Update failed" };
   }
 }
@@ -1083,10 +1108,17 @@ export async function createLesson(payload: {
   endTime: string;
 }) {
   try {
-    // Parse as local time
-    const startDate = new Date(payload.startTime);
+    // Parse the datetime-local input (which is in local time) as a local date
+    // Split the ISO string and reconstruct without timezone conversion
+    const [startDatePart, startTimePart] = payload.startTime.split('T');
+    const [endDatePart, endTimePart] = payload.endTime.split('T');
+    
+    const startDate = new Date(`${startDatePart}T${startTimePart}`);
+    const endDate = new Date(`${endDatePart}T${endTimePart}`);
+    
+    // Get day of week based on local time
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()]; // Use local getDay()
+    const dayOfWeek = dayNames[startDate.getDay()];
     
     await prisma.lesson.create({
       data: {
@@ -1095,13 +1127,14 @@ export async function createLesson(payload: {
         classId: Number(payload.classId),
         teacherId: payload.teacherId,
         startTime: startDate,
-        endTime: new Date(payload.endTime),
+        endTime: endDate,
         day: dayOfWeek,
         recurringLessonId: null,
       },
     });
     return { success: true, error: false, message: "Lesson created" };
   } catch (e: any) {
+    console.error("Error creating lesson:", e);
     return { success: false, error: true, message: e.message || "Create failed" };
   }
 }
@@ -1139,10 +1172,9 @@ export const createParent = async (
         email: validatedData.email || undefined,
         phone: validatedData.phone,
         address: validatedData.address,
-        // NEW: persist payment type
         paymentType: validatedData.paymentType,
       },
-    });
+    });     
 
     // Update students to link them to this parent if students were selected
     if (validatedData.students && validatedData.students.length > 0) {

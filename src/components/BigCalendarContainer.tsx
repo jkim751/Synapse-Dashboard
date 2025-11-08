@@ -319,7 +319,8 @@ const BigCalendarContainer = async ({
 
   // Map exceptions by their occurrence key
   for (const exception of exceptionsRes) {
-    const exceptionKey = `${exception.recurringLessonId}-${exception.startTime.toISOString().slice(0, 10)}`;
+    const exceptionDate = new Date(exception.startTime);
+    const exceptionKey = `${exception.recurringLessonId}-${exceptionDate.getFullYear()}-${String(exceptionDate.getMonth() + 1).padStart(2, '0')}-${String(exceptionDate.getDate()).padStart(2, '0')}`;
     allExceptions.set(exceptionKey, exception);
   }
 
@@ -330,21 +331,22 @@ const BigCalendarContainer = async ({
       const occurrences = rrule.between(expansionStart, expansionEnd);
 
       for (const occurrenceDate of occurrences) {
-        const occurrenceKey = `${recurringLesson.id}-${occurrenceDate.toISOString().slice(0, 10)}`;
+        const occKey = `${recurringLesson.id}-${occurrenceDate.getFullYear()}-${String(occurrenceDate.getMonth() + 1).padStart(2, '0')}-${String(occurrenceDate.getDate()).padStart(2, '0')}`;
         
         // Check if this occurrence has an exception
-        const exception = allExceptions.get(occurrenceKey);
+        const exception = allExceptions.get(occKey);
         
         if (exception) {
           if (exception.isCancelled) {
-            // Skip cancelled occurrences
             continue;
           } else {
-            // Use exception data for modified occurrences
+            const exStart = new Date(exception.startTime);
+            const exEnd = new Date(exception.endTime);
+            
             recurringLessonInstances.push({
               title: `${exception.subject?.name || recurringLesson.subject?.name || 'Unknown Subject'} - ${exception.name}`,
-              start: new Date(exception.startTime),
-              end: new Date(exception.endTime),
+              start: exStart,
+              end: exEnd,
               subject: exception.subject?.name || recurringLesson.subject?.name,
               teacher: exception.teacher ? `${exception.teacher.name} ${exception.teacher.surname}` : (recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher'),
               classroom: exception.class?.name || recurringLesson.class?.name || 'Unknown Classroom',
@@ -355,20 +357,16 @@ const BigCalendarContainer = async ({
             });
           }
         } else {
-          // Use recurring lesson template data with actual occurrence date
+          // Get time components from the template
+          const templateStart = new Date(recurringLesson.startTime);
+          const templateEnd = new Date(recurringLesson.endTime);
+          
+          // Apply time to occurrence date
           const start = new Date(occurrenceDate);
-          start.setHours(
-            recurringLesson.startTime.getUTCHours(),
-            recurringLesson.startTime.getUTCMinutes(),
-            0, 0
-          );
+          start.setHours(templateStart.getHours(), templateStart.getMinutes(), 0, 0);
           
           const end = new Date(occurrenceDate);
-          end.setHours(
-            recurringLesson.endTime.getUTCHours(),
-            recurringLesson.endTime.getUTCMinutes(),
-            0, 0
-          );
+          end.setHours(templateEnd.getHours(), templateEnd.getMinutes(), 0, 0);
 
           recurringLessonInstances.push({
             title: `${recurringLesson.name}`,
@@ -378,7 +376,7 @@ const BigCalendarContainer = async ({
             teacher: recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher',
             classroom: recurringLesson.class?.name || 'Unknown Classroom',
             description: `${recurringLesson.subject?.name || 'Unknown Subject'} lesson with ${recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher'}`,
-            lessonId: undefined, // No specific lesson ID for template instances
+            lessonId: undefined,
             recurringLessonId: recurringLesson.id,
             type: 'lesson' as const,
             isRecurring: true,
@@ -390,19 +388,25 @@ const BigCalendarContainer = async ({
     }
   }
 
-  // Transform regular lessons data (keep original dates)
-  const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => ({
-    title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
-    start: new Date(lesson.startTime),
-    end: new Date(lesson.endTime),
-    subject: lesson.subject?.name,
-    teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
-    classroom: lesson.class?.name || 'Unknown Classroom',
-    description: `${lesson.subject?.name || 'Unknown Subject'} lesson with ${lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher'}`,
-    lessonId: lesson.id,
-    type: 'lesson' as const,
-    isRecurring: false,
-  }));
+  // Transform regular lessons data (treat stored times as local)
+  const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => {
+    // Create dates from stored values (treating them as local time)
+    const storedStart = new Date(lesson.startTime);
+    const storedEnd = new Date(lesson.endTime);
+    
+    return {
+      title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
+      start: storedStart,
+      end: storedEnd,
+      subject: lesson.subject?.name,
+      teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
+      classroom: lesson.class?.name || 'Unknown Classroom',
+      description: `${lesson.subject?.name || 'Unknown Subject'} lesson with ${lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher'}`,
+      lessonId: lesson.id,
+      type: 'lesson' as const,
+      isRecurring: false,
+    };
+  });
 
   // Transform events data (keep original dates)
   const eventsData = eventsRes.map((event: any) => ({
