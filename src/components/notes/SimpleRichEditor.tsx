@@ -31,7 +31,7 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   const previousValueRef = useRef('')
   const [selectedFont, setSelectedFont] = useState('Monaco')
   const [selectedFontSize, setSelectedFontSize] = useState('16')
-  const isUpdatingRef = useRef(false)
+  const isUpdatingRef = useRef(false) 
   const hasInitializedRef = useRef(false)
   const [spellSuggestion, setSpellSuggestion] = useState<{
     word: string
@@ -736,11 +736,11 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
           }}
         >
           <div className="text-sm mb-2">
-            <span className="text-gray-600">Change "</span>
+            <span className="text-gray-600">Change &quot;</span>
             <span className="font-semibold text-red-600">{spellSuggestion.word}</span>
-            <span className="text-gray-600">" to "</span>
+            <span className="text-gray-600">&quot; to &quot;</span>
             <span className="font-semibold text-green-600">{spellSuggestion.suggestion}</span>
-            <span className="text-gray-600">"?</span>
+            <span className="text-gray-600">&quot;?</span>
           </div>
           <div className="flex gap-2">
             <button
