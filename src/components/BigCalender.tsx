@@ -7,6 +7,7 @@ moment.locale("en-gb"); // keep header & grid aligned
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useState, useMemo } from "react";
 
+// This tells moment to parse the UTC date from the server and display it in the user's local timezone.
 const localizer = momentLocalizer(moment);
 
 // Predefined color mapping for common subjects
@@ -368,6 +369,7 @@ const BigCalendar = ({
                     day: "numeric",
                     hour: "2-digit",
                     minute: "2-digit",
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use browser's timezone
                   })}
                 </p>
               </div>
@@ -382,6 +384,7 @@ const BigCalendar = ({
                     day: "numeric",
                     hour: "2-digit",
                     minute: "2-digit",
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use browser's timezone
                   })}
                 </p>
               </div>

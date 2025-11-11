@@ -150,17 +150,8 @@ const BigCalendarContainer = async ({
   expansionEnd.setMonth(currentDate.getMonth() + 6);
   expansionEnd.setHours(23, 59, 59, 999);
 
-  // Helper function to create a date from UTC timestamp treating it as local time
-  const utcToLocal = (utcDate: Date): Date => {
-    const year = utcDate.getUTCFullYear();
-    const month = utcDate.getUTCMonth();
-    const day = utcDate.getUTCDate();
-    const hours = utcDate.getUTCHours();
-    const minutes = utcDate.getUTCMinutes();
-    const seconds = utcDate.getUTCSeconds();
-    
-    return new Date(year, month, day, hours, minutes, seconds);
-  };
+  // REMOVE the utcToLocal helper function.
+  // The client will handle date conversion.
 
   // Fetch all data in parallel
   const [
@@ -352,13 +343,11 @@ const BigCalendarContainer = async ({
           if (exception.isCancelled) {
             continue;
           } else {
-            const exStart = utcToLocal(new Date(exception.startTime));
-            const exEnd = utcToLocal(new Date(exception.endTime));
-            
+            // Pass dates directly
             recurringLessonInstances.push({
               title: `${exception.subject?.name || recurringLesson.subject?.name || 'Unknown Subject'} - ${exception.name}`,
-              start: exStart,
-              end: exEnd,
+              start: exception.startTime,
+              end: exception.endTime,
               subject: exception.subject?.name || recurringLesson.subject?.name,
               teacher: exception.teacher ? `${exception.teacher.name} ${exception.teacher.surname}` : (recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher'),
               classroom: exception.class?.name || recurringLesson.class?.name || 'Unknown Classroom',
@@ -378,9 +367,15 @@ const BigCalendarContainer = async ({
           const templateMinutes = dbTemplateStart.getUTCMinutes();
           const durationMs = dbTemplateEnd.getTime() - dbTemplateStart.getTime();
           
-          // Apply time to occurrence date (as local time)
-          const start = new Date(occurrenceDate);
-          start.setHours(templateHours, templateMinutes, 0, 0);
+          // Apply time to occurrence date.
+          // IMPORTANT: Create the date in UTC to avoid server timezone shifts.
+          const start = new Date(Date.UTC(
+            occurrenceDate.getFullYear(),
+            occurrenceDate.getMonth(),
+            occurrenceDate.getDate(),
+            templateHours,
+            templateMinutes
+          ));
           
           const end = new Date(start.getTime() + durationMs);
 
@@ -406,14 +401,11 @@ const BigCalendarContainer = async ({
 
   // Transform regular lessons data (treat UTC values as local)
   const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => {
-    // Database stores times in UTC, but we want to display them as local
-    const localStart = utcToLocal(new Date(lesson.startTime));
-    const localEnd = utcToLocal(new Date(lesson.endTime));
-    
+    // Pass dates directly
     return {
       title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
-      start: localStart,
-      end: localEnd,
+      start: lesson.startTime,
+      end: lesson.endTime,
       subject: lesson.subject?.name,
       teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
       classroom: lesson.class?.name || 'Unknown Classroom',
@@ -448,8 +440,8 @@ const BigCalendarContainer = async ({
     
     return {
       title: `📝 ${exam.title}`,
-      start: utcToLocal(new Date(exam.startTime)),
-      end: utcToLocal(new Date(exam.endTime)),
+      start: exam.startTime,
+      end: exam.endTime,
       subject: lessonData?.subject?.name,
       teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
       classroom: lessonData?.class?.name,
@@ -462,12 +454,11 @@ const BigCalendarContainer = async ({
   // Transform assignments data
   const assignmentsData = assignmentsRes.map((assignment: { lesson: any; recurringLesson: any; title: any; dueDate: Date; id: any; }) => {
     const lessonData = assignment.lesson || assignment.recurringLesson;
-    const localDueDate = utcToLocal(new Date(assignment.dueDate));
     
     return {
       title: `📋 ${assignment.title}`,
-      start: localDueDate,
-      end: new Date(localDueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
+      start: assignment.dueDate,
+      end: new Date(new Date(assignment.dueDate).getTime() + 60 * 60 * 1000), // 1 hour duration
       subject: lessonData?.subject?.name,
       teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
       classroom: lessonData?.class?.name,
