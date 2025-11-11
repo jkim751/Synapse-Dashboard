@@ -11,6 +11,7 @@ import { lessonSchema, LessonSchema } from "@/lib/formValidationSchemas";
 import { createLesson, updateLesson, updateRecurringLesson } from "@/lib/actions";
 import { RRule, Weekday } from "rrule";
 import { handleLessonFormSubmission } from "@/lib/lessonActions";
+import { formatDateTimeLocal } from "@/lib/dateUtils";
 
 const LessonForm = ({
   type,
@@ -46,21 +47,6 @@ const LessonForm = ({
 
   // IMPORTANT: use the right action state hook
   const [state, formAction] = useActionState(actionFn, { success: false, error: false, message: "" });
-
-  // Helper function to format date for datetime-local input
-  const formatDateTimeLocal = (date: Date | string | undefined): string | undefined => {
-    if (!date) return undefined;
-    const d = new Date(date);
-    
-    // Get local date/time components
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
 
   // Default values: prefill from `data` if present
   const defaults: Partial<LessonSchema> = data

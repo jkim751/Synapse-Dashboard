@@ -32,10 +32,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { RRule } from "rrule";
 import { handlePhotoUpload as handlePhotoUploadSync, handlePhotoDelete as handlePhotoDeleteSync } from "./photoSync";
 import { safeDeleteClerkUser } from "@/lib/clerkSafe";
-import { parseLocalDateTimeToUTC } from "./dateUtils";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
-
 
 export interface PhotoUploadResult {
   success: boolean;
@@ -875,6 +873,11 @@ export const deleteExam = async (
   }
 }
 
+// The form now passes an extra 'rrule' property
+interface LessonFormData extends LessonSchema {
+  rrule: string | null;
+}
+
 // CREATE — recurring (series)
 export async function createRecurringLesson(payload: {
   name: string;
@@ -886,27 +889,19 @@ export async function createRecurringLesson(payload: {
   rrule: string; // required for weekly
 }) {
   try {
-    console.log("Creating recurring lesson with payload:", payload);
-    
-    const startDate = parseLocalDateTimeToUTC(payload.startTime);
-    const endDate = parseLocalDateTimeToUTC(payload.endTime);
-    
-    console.log("Converted dates:", {
-      input: { start: payload.startTime, end: payload.endTime },
-      output: { start: startDate.toISOString(), end: endDate.toISOString() },
-      localOffset: new Date().getTimezoneOffset()
-    });
-    
+    // Treat datetime-local string as UTC by appending 'Z'
+    const startDate = new Date(payload.startTime + 'Z');
+    const endDate = new Date(payload.endTime + 'Z');
+
     // Validate the RRule
     try {
-      const testRule = RRule.fromString(payload.rrule);
-      console.log("RRule validation successful:", testRule.toString());
+      RRule.fromString(payload.rrule);
     } catch (rruleError) {
       console.error("Invalid RRule:", payload.rrule, rruleError);
       return { success: false, error: true, message: "Invalid recurrence rule" };
     }
 
-    const recurringLesson = await prisma.recurringLesson.create({
+    await prisma.recurringLesson.create({
       data: {
         name: payload.name,
         subjectId: Number(payload.subjectId),
@@ -918,7 +913,6 @@ export async function createRecurringLesson(payload: {
       },
     });
     
-    console.log("Recurring lesson created:", recurringLesson);
     revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Recurring lesson created" };
   } catch (e: any) {
@@ -949,19 +943,17 @@ export async function updateLesson(payload: {
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     
     if (rest.startTime !== undefined) {
-      const startDate = parseLocalDateTimeToUTC(rest.startTime);
+      // Treat as UTC
+      const startDate = new Date(rest.startTime + 'Z');
       updateData.startTime = startDate;
       
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-      // Use the original local time to determine day of week
-      const [datePart, timePart] = rest.startTime.split('T');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const localDate = new Date(year, month - 1, day);
-      updateData.day = dayNames[localDate.getDay()];
+      updateData.day = dayNames[startDate.getUTCDay()];
     }
     
     if (rest.endTime !== undefined) {
-      updateData.endTime = parseLocalDateTimeToUTC(rest.endTime);
+      // Treat as UTC
+      updateData.endTime = new Date(rest.endTime + 'Z');
     }
 
     await prisma.lesson.update({
@@ -1003,11 +995,11 @@ export async function updateRecurringLesson(payload: {
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
       
       if (rest.startTime !== undefined) {
-        updateData.startTime = parseLocalDateTimeToUTC(rest.startTime);
+        updateData.startTime = new Date(rest.startTime + 'Z');
       }
       
       if (rest.endTime !== undefined) {
-        updateData.endTime = parseLocalDateTimeToUTC(rest.endTime);
+        updateData.endTime = new Date(rest.endTime + 'Z');
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
@@ -1024,14 +1016,11 @@ export async function updateRecurringLesson(payload: {
     // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const startDate = rest.startTime ? parseLocalDateTimeToUTC(rest.startTime) : parseLocalDateTimeToUTC(originalDate);
-    const endDate = rest.endTime ? parseLocalDateTimeToUTC(rest.endTime) : parseLocalDateTimeToUTC(originalDate);
+    const startDate = new Date((rest.startTime || originalDate) + 'Z');
+    const endDate = new Date((rest.endTime || originalDate) + 'Z');
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const [datePart] = (rest.startTime || originalDate).split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
-    const dayOfWeek = dayNames[localDate.getDay()];
+    const dayOfWeek = dayNames[startDate.getUTCDay()];
 
     await prisma.lesson.create({
       data: {
@@ -1106,20 +1095,12 @@ export async function createLesson(payload: {
   endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
 }) {
   try {
-    const startDate = parseLocalDateTimeToUTC(payload.startTime);
-    const endDate = parseLocalDateTimeToUTC(payload.endTime);
-    
-    console.log("Creating lesson:", {
-      input: { start: payload.startTime, end: payload.endTime },
-      converted: { start: startDate.toISOString(), end: endDate.toISOString() },
-      offset: new Date().getTimezoneOffset()
-    });
+    // Treat datetime-local string as UTC by appending 'Z'
+    const startDate = new Date(payload.startTime + 'Z');
+    const endDate = new Date(payload.endTime + 'Z');
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const [datePart] = payload.startTime.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
-    const dayOfWeek = dayNames[localDate.getDay()];
+    const dayOfWeek = dayNames[startDate.getUTCDay()];
     
     await prisma.lesson.create({
       data: {
@@ -1141,8 +1122,6 @@ export async function createLesson(payload: {
     return { success: false, error: true, message: e.message || "Create failed" };
   }
 }
-
-
 
 export const createParent = async (
   currentState: CurrentState,
