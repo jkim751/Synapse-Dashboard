@@ -885,19 +885,15 @@ export async function createRecurringLesson(payload: {
   subjectId: number;
   classId: number;
   teacherId: string;
-  startTime: string;
-  endTime: string;
+  startTime: string; // Now expects ISO string
+  endTime: string;   // Now expects ISO string
   rrule: string; // required for weekly
 }) {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
-    // Parse datetime-local input as local time
-    const [startDatePart, startTimePart] = payload.startTime.split('T');
-    const [endDatePart, endTimePart] = payload.endTime.split('T');
-    
-    const startDate = new Date(`${startDatePart}T${startTimePart}`);
-    const endDate = new Date(`${endDatePart}T${endTimePart}`);
+    const startDate = new Date(payload.startTime);
+    const endDate = new Date(payload.endTime);
     
     // Validate the RRule
     try {
@@ -936,8 +932,8 @@ export async function updateLesson(payload: {
   subjectId?: number;
   classId?: number;
   teacherId?: string;
-  startTime?: string;
-  endTime?: string;
+  startTime?: string; // Now expects ISO string
+  endTime?: string;   // Now expects ISO string
 }) {
   try {
     const { id, ...rest } = payload;
@@ -951,8 +947,7 @@ export async function updateLesson(payload: {
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     
     if (rest.startTime !== undefined) {
-      const [datePart, timePart] = rest.startTime.split('T');
-      const startDate = new Date(`${datePart}T${timePart}`);
+      const startDate = new Date(rest.startTime);
       updateData.startTime = startDate;
       
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
@@ -960,8 +955,7 @@ export async function updateLesson(payload: {
     }
     
     if (rest.endTime !== undefined) {
-      const [datePart, timePart] = rest.endTime.split('T');
-      updateData.endTime = new Date(`${datePart}T${timePart}`);
+      updateData.endTime = new Date(rest.endTime);
     }
 
     await prisma.lesson.update({
@@ -986,8 +980,8 @@ export async function updateRecurringLesson(payload: {
   subjectId?: number;
   classId?: number;
   teacherId?: string;
-  startTime?: string;
-  endTime?: string;
+  startTime?: string; // Now expects ISO string
+  endTime?: string;   // Now expects ISO string
   rrule?: string | null;
 }) {
   try {
@@ -1003,13 +997,11 @@ export async function updateRecurringLesson(payload: {
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
       
       if (rest.startTime !== undefined) {
-        const [datePart, timePart] = rest.startTime.split('T');
-        updateData.startTime = new Date(`${datePart}T${timePart}`);
+        updateData.startTime = new Date(rest.startTime);
       }
       
       if (rest.endTime !== undefined) {
-        const [datePart, timePart] = rest.endTime.split('T');
-        updateData.endTime = new Date(`${datePart}T${timePart}`);
+        updateData.endTime = new Date(rest.endTime);
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
@@ -1026,11 +1018,8 @@ export async function updateRecurringLesson(payload: {
     // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const [startDatePart, startTimePart] = (rest.startTime ?? originalDate).split('T');
-    const [endDatePart, endTimePart] = (rest.endTime ?? originalDate).split('T');
-    
-    const startDate = new Date(`${startDatePart}T${startTimePart}`);
-    const endDate = new Date(`${endDatePart}T${endTimePart}`);
+    const startDate = rest.startTime ? new Date(rest.startTime) : new Date(originalDate);
+    const endDate = rest.endTime ? new Date(rest.endTime) : new Date(originalDate);
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
     const dayOfWeek = dayNames[startDate.getDay()];
@@ -1104,19 +1093,13 @@ export async function createLesson(payload: {
   subjectId: number;
   classId: number;
   teacherId: string;
-  startTime: string;
-  endTime: string;
+  startTime: string; // Now expects ISO string
+  endTime: string;   // Now expects ISO string
 }) {
   try {
-    // Parse the datetime-local input (which is in local time) as a local date
-    // Split the ISO string and reconstruct without timezone conversion
-    const [startDatePart, startTimePart] = payload.startTime.split('T');
-    const [endDatePart, endTimePart] = payload.endTime.split('T');
+    const startDate = new Date(payload.startTime);
+    const endDate = new Date(payload.endTime);
     
-    const startDate = new Date(`${startDatePart}T${startTimePart}`);
-    const endDate = new Date(`${endDatePart}T${endTimePart}`);
-    
-    // Get day of week based on local time
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
     const dayOfWeek = dayNames[startDate.getDay()];
     

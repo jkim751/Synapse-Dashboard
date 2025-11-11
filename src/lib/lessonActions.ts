@@ -18,11 +18,26 @@ type LessonFormPayload = {
   originalDate?: string;
 };
 
+// Helper function to parse datetime-local string as local time
+function parseLocalDateTime(dateTimeString: string): Date {
+  // datetime-local format: "YYYY-MM-DDTHH:mm"
+  const [datePart, timePart] = dateTimeString.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = timePart.split(':').map(Number);
+  
+  // Create date in local timezone
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
 export async function handleLessonFormSubmission(
   type: "create" | "update",
   payload: LessonFormPayload
 ) {
   try {
+    // Parse times as local
+    const startTime = parseLocalDateTime(payload.startTime);
+    const endTime = parseLocalDateTime(payload.endTime);
+    
     // For creation
     if (type === "create") {
       if (payload.repeats === "weekly" && payload.rrule) {
@@ -31,8 +46,8 @@ export async function handleLessonFormSubmission(
           subjectId: Number(payload.subjectId),
           classId: Number(payload.classId),
           teacherId: payload.teacherId,
-          startTime: payload.startTime,
-          endTime: payload.endTime,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
           rrule: payload.rrule,
         });
       } else {
@@ -41,8 +56,8 @@ export async function handleLessonFormSubmission(
           subjectId: Number(payload.subjectId),
           classId: Number(payload.classId),
           teacherId: payload.teacherId,
-          startTime: payload.startTime,
-          endTime: payload.endTime,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
         });
       }
     }
@@ -56,8 +71,8 @@ export async function handleLessonFormSubmission(
           subjectId: Number(payload.subjectId),
           classId: Number(payload.classId),
           teacherId: payload.teacherId,
-          startTime: payload.startTime,
-          endTime: payload.endTime,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
           updateScope: payload.updateScope,
           originalDate: payload.originalDate,
           rrule: payload.rrule,
@@ -69,8 +84,8 @@ export async function handleLessonFormSubmission(
           subjectId: Number(payload.subjectId),
           classId: Number(payload.classId),
           teacherId: payload.teacherId,
-          startTime: payload.startTime,
-          endTime: payload.endTime,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
         });
       }
     }

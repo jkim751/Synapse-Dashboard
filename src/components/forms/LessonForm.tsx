@@ -51,12 +51,14 @@ const LessonForm = ({
   const formatDateTimeLocal = (date: Date | string | undefined): string | undefined => {
     if (!date) return undefined;
     const d = new Date(date);
-    // Format as YYYY-MM-DDTHH:mm (local time, no timezone conversion)
+    
+    // Get local date/time components
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
+    
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
@@ -117,12 +119,15 @@ const LessonForm = ({
         SU: RRule.SU.weekday 
       };
       
-      // Parse dates without timezone conversion
-      const [startDatePart, startTimePart] = formData.startTime.split('T');
-      const startDate = new Date(`${startDatePart}T${startTimePart}`);
+      // Parse datetime-local as local time
+      const [datePart, timePart] = formData.startTime.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+      const startDate = new Date(year, month - 1, day, hours, minutes);
       
-      const endDate = new Date(formData.endDate);
-      endDate.setHours(23, 59, 59, 999);
+      // Parse end date as local time (end of day)
+      const [endYear, endMonth, endDay] = formData.endDate.split('-').map(Number);
+      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
       
       const rule = new RRule({
         freq: RRule.WEEKLY,
@@ -135,14 +140,14 @@ const LessonForm = ({
       console.log("Generated RRule:", rruleString);
     }
 
-    // Keep the datetime-local format (no timezone conversion)
+    // Keep datetime-local format (browser will send it as-is)
     const payload = {
       name: formData.name,
       subjectId: Number(formData.subjectId),
       classId: Number(formData.classId),
       teacherId: formData.teacherId,
-      startTime: formData.startTime, // Keep as-is (YYYY-MM-DDTHH:mm)
-      endTime: formData.endTime,     // Keep as-is (YYYY-MM-DDTHH:mm)
+      startTime: formData.startTime,
+      endTime: formData.endTime,
       repeats: formData.repeats,
       rrule: rruleString,
       variant: relatedData?.variant || (formData.repeats === "weekly" ? "recurring" : "single"),
