@@ -91,8 +91,16 @@ const BigCalendar = ({
   initialEvents?: CalendarEvent[];
   showNotifications?: boolean; 
 }) => {
-  const [lessons] = useState<CalendarEvent[]>(initialLessons);
-  const [events] = useState<CalendarEvent[]>(initialEvents);
+  const processedEvents = useMemo(() => {
+    const allEvents = [...initialLessons, ...initialEvents];
+    // Convert date strings to Date objects.
+    // This is crucial because react-big-calendar expects Date objects.
+    return allEvents.map(event => ({
+      ...event,
+      start: new Date(event.start),
+      end: new Date(event.end),
+    }));
+  }, [initialLessons, initialEvents]);
 
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
@@ -102,17 +110,17 @@ const BigCalendar = ({
   const [isNotifying, setIsNotifying] = useState(false);
 
   const sortedEvents = useMemo(() => {
-    const allEvents = [...lessons, ...events];
-    return allEvents.sort((a, b) => {
+    return processedEvents.sort((a, b) => {
       // Primary sort: alphabetical by title
       const titleComparison = a.title.localeCompare(b.title);
       if (titleComparison !== 0) {
         return titleComparison;
       }
       // Secondary sort: by start time if titles are the same
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
+      // Now we can safely use getTime() as they are Date objects
+      return (a.start as Date).getTime() - (b.start as Date).getTime();
     });
-  }, [lessons, events]);
+  }, [processedEvents]);
 
   const handleView = (newView: View) => setView(newView);
   const handleNavigate = (newDate: Date) => setDate(newDate);
