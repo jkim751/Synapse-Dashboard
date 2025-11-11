@@ -70,8 +70,8 @@ const generateColor = (subject: string, type: 'lesson' | 'event' | 'exam' | 'ass
 
 interface CalendarEvent {
   title: string;
-  start: Date;
-  end: Date;
+  start: Date | string; // Can be a Date object or a string
+  end: Date | string;   // Can be a Date object or a string
   subject?: string;
   teacher?: string;
   classroom?: string;
@@ -110,7 +110,7 @@ const BigCalendar = ({
         return titleComparison;
       }
       // Secondary sort: by start time if titles are the same
-      return a.start.getTime() - b.start.getTime();
+      return new Date(a.start).getTime() - new Date(b.start).getTime();
     });
   }, [lessons, events]);
 
@@ -362,7 +362,7 @@ const BigCalendar = ({
               <div>
                 <span className="font-semibold text-gray-700">Start Time:</span>
                 <p className="text-gray-600">
-                  {selectedEvent.start.toLocaleString("en-GB", {
+                  {new Date(selectedEvent.start).toLocaleString("en-GB", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -377,7 +377,7 @@ const BigCalendar = ({
               <div>
                 <span className="font-semibold text-gray-700">End Time:</span>
                 <p className="text-gray-600">
-                  {selectedEvent.end.toLocaleString("en-GB", {
+                  {new Date(selectedEvent.end).toLocaleString("en-GB", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -392,7 +392,7 @@ const BigCalendar = ({
               <div>
                 <span className="font-semibold text-gray-700">Duration:</span>
                 <p className="text-gray-600">
-                  {Math.round((selectedEvent.end.getTime() - selectedEvent.start.getTime()) / (1000 * 60))} minutes
+                  {Math.round((new Date(selectedEvent.end).getTime() - new Date(selectedEvent.start).getTime()) / (1000 * 60))} minutes
                 </p>
               </div>
 

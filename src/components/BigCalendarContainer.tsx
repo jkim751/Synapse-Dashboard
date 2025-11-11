@@ -150,8 +150,17 @@ const BigCalendarContainer = async ({
   expansionEnd.setMonth(currentDate.getMonth() + 6);
   expansionEnd.setHours(23, 59, 59, 999);
 
-  // REMOVE the utcToLocal helper function.
-  // The client will handle date conversion.
+  // Helper to convert a Date object into a timezone-naive ISO string
+  const toLocalISOString = (date: Date): string => {
+    const d = new Date(date);
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const hours = String(d.getUTCHours()).padStart(2, '0');
+    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(d.getUTCSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  };
 
   // Fetch all data in parallel
   const [
@@ -343,11 +352,11 @@ const BigCalendarContainer = async ({
           if (exception.isCancelled) {
             continue;
           } else {
-            // Pass dates directly
+            // Pass dates as timezone-naive strings
             recurringLessonInstances.push({
               title: `${exception.subject?.name || recurringLesson.subject?.name || 'Unknown Subject'} - ${exception.name}`,
-              start: exception.startTime,
-              end: exception.endTime,
+              start: toLocalISOString(exception.startTime),
+              end: toLocalISOString(exception.endTime),
               subject: exception.subject?.name || recurringLesson.subject?.name,
               teacher: exception.teacher ? `${exception.teacher.name} ${exception.teacher.surname}` : (recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher'),
               classroom: exception.class?.name || recurringLesson.class?.name || 'Unknown Classroom',
@@ -381,8 +390,8 @@ const BigCalendarContainer = async ({
 
           recurringLessonInstances.push({
             title: `${recurringLesson.name}`,
-            start,
-            end,
+            start: toLocalISOString(start),
+            end: toLocalISOString(end),
             subject: recurringLesson.subject?.name,
             teacher: recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher',
             classroom: recurringLesson.class?.name || 'Unknown Classroom',
@@ -401,11 +410,11 @@ const BigCalendarContainer = async ({
 
   // Transform regular lessons data (treat UTC values as local)
   const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => {
-    // Pass dates directly
+    // Pass dates as timezone-naive strings
     return {
       title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
-      start: lesson.startTime,
-      end: lesson.endTime,
+      start: toLocalISOString(new Date(lesson.startTime)),
+      end: toLocalISOString(new Date(lesson.endTime)),
       subject: lesson.subject?.name,
       teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
       classroom: lesson.class?.name || 'Unknown Classroom',
@@ -419,8 +428,8 @@ const BigCalendarContainer = async ({
   // Transform events data (keep original dates)
   const eventsData = eventsRes.map((event: any) => ({
     title: event.title,
-    start: new Date(event.startTime),
-    end: new Date(event.endTime),
+    start: toLocalISOString(new Date(event.startTime)),
+    end: toLocalISOString(new Date(event.endTime)),
     subject: undefined,
     teacher: undefined,
     classroom: undefined, // Remove classroom for events
@@ -440,8 +449,8 @@ const BigCalendarContainer = async ({
     
     return {
       title: `📝 ${exam.title}`,
-      start: exam.startTime,
-      end: exam.endTime,
+      start: toLocalISOString(new Date(exam.startTime)),
+      end: toLocalISOString(new Date(exam.endTime)),
       subject: lessonData?.subject?.name,
       teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
       classroom: lessonData?.class?.name,
@@ -454,11 +463,12 @@ const BigCalendarContainer = async ({
   // Transform assignments data
   const assignmentsData = assignmentsRes.map((assignment: { lesson: any; recurringLesson: any; title: any; dueDate: Date; id: any; }) => {
     const lessonData = assignment.lesson || assignment.recurringLesson;
+    const localDueDate = new Date(assignment.dueDate);
     
     return {
       title: `📋 ${assignment.title}`,
-      start: assignment.dueDate,
-      end: new Date(new Date(assignment.dueDate).getTime() + 60 * 60 * 1000), // 1 hour duration
+      start: toLocalISOString(localDueDate),
+      end: toLocalISOString(new Date(localDueDate.getTime() + 60 * 60 * 1000)), // 1 hour duration
       subject: lessonData?.subject?.name,
       teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
       classroom: lessonData?.class?.name,
