@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import BigCalendar from "./BigCalender";
 import { RRule } from 'rrule';
+import { utcToLocalDate } from "@/lib/dateUtils";
 
 const BigCalendarContainer = async ({
   type,
@@ -352,11 +353,8 @@ const BigCalendarContainer = async ({
           if (exception.isCancelled) {
             continue;
           } else {
-            const dbExStart = new Date(exception.startTime);
-            const dbExEnd = new Date(exception.endTime);
-            
-            const exStart = utcToLocal(dbExStart);
-            const exEnd = utcToLocal(dbExEnd);
+            const exStart = utcToLocalDate(new Date(exception.startTime));
+            const exEnd = utcToLocalDate(new Date(exception.endTime));
             
             recurringLessonInstances.push({
               title: `${exception.subject?.name || recurringLesson.subject?.name || 'Unknown Subject'} - ${exception.name}`,
@@ -410,11 +408,8 @@ const BigCalendarContainer = async ({
   // Transform regular lessons data (treat UTC values as local)
   const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => {
     // Database stores times in UTC, but we want to display them as local
-    const dbStart = new Date(lesson.startTime);
-    const dbEnd = new Date(lesson.endTime);
-    
-    const localStart = utcToLocal(dbStart);
-    const localEnd = utcToLocal(dbEnd);
+    const localStart = utcToLocalDate(new Date(lesson.startTime));
+    const localEnd = utcToLocalDate(new Date(lesson.endTime));
     
     return {
       title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
@@ -451,13 +446,11 @@ const BigCalendarContainer = async ({
   // Transform exams data
   const examsData = examsRes.map((exam: { lesson: any; recurringLesson: any; title: any; startTime: any; endTime: any; id: any; }) => {
     const lessonData = exam.lesson || exam.recurringLesson;
-    const dbStart = new Date(exam.startTime);
-    const dbEnd = new Date(exam.endTime);
     
     return {
       title: `📝 ${exam.title}`,
-      start: utcToLocal(dbStart),
-      end: utcToLocal(dbEnd),
+      start: utcToLocalDate(new Date(exam.startTime)),
+      end: utcToLocalDate(new Date(exam.endTime)),
       subject: lessonData?.subject?.name,
       teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
       classroom: lessonData?.class?.name,
@@ -470,8 +463,7 @@ const BigCalendarContainer = async ({
   // Transform assignments data
   const assignmentsData = assignmentsRes.map((assignment: { lesson: any; recurringLesson: any; title: any; dueDate: Date; id: any; }) => {
     const lessonData = assignment.lesson || assignment.recurringLesson;
-    const dbDueDate = new Date(assignment.dueDate);
-    const localDueDate = utcToLocal(dbDueDate);
+    const localDueDate = utcToLocalDate(new Date(assignment.dueDate));
     
     return {
       title: `📋 ${assignment.title}`,
