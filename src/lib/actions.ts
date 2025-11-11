@@ -875,22 +875,6 @@ export const deleteExam = async (
   }
 }
 
-// The form now passes an extra 'rrule' property
-interface LessonFormData extends LessonSchema {
-  rrule: string | null;
-}
-
-// Helper function to parse datetime-local string as local time
-function parseLocalDateTime(dateTimeString: string): Date {
-  // datetime-local format: "YYYY-MM-DDTHH:mm"
-  const [datePart, timePart] = dateTimeString.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hours, minutes] = timePart.split(':').map(Number);
-  
-  // Create date in local timezone (month is 0-indexed)
-  return new Date(year, month - 1, day, hours, minutes, 0, 0);
-}
-
 // CREATE — recurring (series)
 export async function createRecurringLesson(payload: {
   name: string;
@@ -904,13 +888,13 @@ export async function createRecurringLesson(payload: {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
-    // Parse as local time
-    const startDate = parseLocalDateTime(payload.startTime);
-    const endDate = parseLocalDateTime(payload.endTime);
+    const startDate = parseLocalDateTimeToUTC(payload.startTime);
+    const endDate = parseLocalDateTimeToUTC(payload.endTime);
     
-    console.log("Parsed dates:", {
-      start: startDate.toISOString(),
-      end: endDate.toISOString()
+    console.log("Converted dates:", {
+      input: { start: payload.startTime, end: payload.endTime },
+      output: { start: startDate.toISOString(), end: endDate.toISOString() },
+      localOffset: new Date().getTimezoneOffset()
     });
     
     // Validate the RRule
@@ -965,15 +949,19 @@ export async function updateLesson(payload: {
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     
     if (rest.startTime !== undefined) {
-      const startDate = parseLocalDateTime(rest.startTime);
+      const startDate = parseLocalDateTimeToUTC(rest.startTime);
       updateData.startTime = startDate;
       
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-      updateData.day = dayNames[startDate.getDay()];
+      // Use the original local time to determine day of week
+      const [datePart, timePart] = rest.startTime.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      updateData.day = dayNames[localDate.getDay()];
     }
     
     if (rest.endTime !== undefined) {
-      updateData.endTime = parseLocalDateTime(rest.endTime);
+      updateData.endTime = parseLocalDateTimeToUTC(rest.endTime);
     }
 
     await prisma.lesson.update({
@@ -1015,11 +1003,11 @@ export async function updateRecurringLesson(payload: {
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
       
       if (rest.startTime !== undefined) {
-        updateData.startTime = parseLocalDateTime(rest.startTime);
+        updateData.startTime = parseLocalDateTimeToUTC(rest.startTime);
       }
       
       if (rest.endTime !== undefined) {
-        updateData.endTime = parseLocalDateTime(rest.endTime);
+        updateData.endTime = parseLocalDateTimeToUTC(rest.endTime);
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
@@ -1036,11 +1024,14 @@ export async function updateRecurringLesson(payload: {
     // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const startDate = rest.startTime ? parseLocalDateTime(rest.startTime) : parseLocalDateTime(originalDate);
-    const endDate = rest.endTime ? parseLocalDateTime(rest.endTime) : parseLocalDateTime(originalDate);
+    const startDate = rest.startTime ? parseLocalDateTimeToUTC(rest.startTime) : parseLocalDateTimeToUTC(originalDate);
+    const endDate = rest.endTime ? parseLocalDateTimeToUTC(rest.endTime) : parseLocalDateTimeToUTC(originalDate);
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()];
+    const [datePart] = (rest.startTime || originalDate).split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    const dayOfWeek = dayNames[localDate.getDay()];
 
     await prisma.lesson.create({
       data: {
@@ -1115,17 +1106,20 @@ export async function createLesson(payload: {
   endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
 }) {
   try {
-    // Parse as local time
-    const startDate = parseLocalDateTime(payload.startTime);
-    const endDate = parseLocalDateTime(payload.endTime);
+    const startDate = parseLocalDateTimeToUTC(payload.startTime);
+    const endDate = parseLocalDateTimeToUTC(payload.endTime);
     
     console.log("Creating lesson:", {
       input: { start: payload.startTime, end: payload.endTime },
-      parsed: { start: startDate.toISOString(), end: endDate.toISOString() }
+      converted: { start: startDate.toISOString(), end: endDate.toISOString() },
+      offset: new Date().getTimezoneOffset()
     });
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getDay()];
+    const [datePart] = payload.startTime.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    const dayOfWeek = dayNames[localDate.getDay()];
     
     await prisma.lesson.create({
       data: {
