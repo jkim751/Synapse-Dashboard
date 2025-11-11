@@ -879,21 +879,38 @@ interface LessonFormData extends LessonSchema {
   rrule: string | null;
 }
 
+// Helper function to parse datetime-local string as local time
+function parseLocalDateTime(dateTimeString: string): Date {
+  // datetime-local format: "YYYY-MM-DDTHH:mm"
+  const [datePart, timePart] = dateTimeString.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = timePart.split(':').map(Number);
+  
+  // Create date in local timezone (month is 0-indexed)
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
 // CREATE — recurring (series)
 export async function createRecurringLesson(payload: {
   name: string;
   subjectId: number;
   classId: number;
   teacherId: string;
-  startTime: string; // Now expects ISO string
-  endTime: string;   // Now expects ISO string
+  startTime: string; // datetime-local string
+  endTime: string;   // datetime-local string
   rrule: string; // required for weekly
 }) {
   try {
     console.log("Creating recurring lesson with payload:", payload);
     
-    const startDate = new Date(payload.startTime);
-    const endDate = new Date(payload.endTime);
+    // Parse as local time
+    const startDate = parseLocalDateTime(payload.startTime);
+    const endDate = parseLocalDateTime(payload.endTime);
+    
+    console.log("Parsed dates:", {
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
+    });
     
     // Validate the RRule
     try {
@@ -932,8 +949,8 @@ export async function updateLesson(payload: {
   subjectId?: number;
   classId?: number;
   teacherId?: string;
-  startTime?: string; // Now expects ISO string
-  endTime?: string;   // Now expects ISO string
+  startTime?: string; // datetime-local string
+  endTime?: string;   // datetime-local string
 }) {
   try {
     const { id, ...rest } = payload;
@@ -947,7 +964,7 @@ export async function updateLesson(payload: {
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     
     if (rest.startTime !== undefined) {
-      const startDate = new Date(rest.startTime);
+      const startDate = parseLocalDateTime(rest.startTime);
       updateData.startTime = startDate;
       
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
@@ -955,7 +972,7 @@ export async function updateLesson(payload: {
     }
     
     if (rest.endTime !== undefined) {
-      updateData.endTime = new Date(rest.endTime);
+      updateData.endTime = parseLocalDateTime(rest.endTime);
     }
 
     await prisma.lesson.update({
@@ -980,8 +997,8 @@ export async function updateRecurringLesson(payload: {
   subjectId?: number;
   classId?: number;
   teacherId?: string;
-  startTime?: string; // Now expects ISO string
-  endTime?: string;   // Now expects ISO string
+  startTime?: string; // datetime-local string
+  endTime?: string;   // datetime-local string
   rrule?: string | null;
 }) {
   try {
@@ -997,11 +1014,11 @@ export async function updateRecurringLesson(payload: {
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
       
       if (rest.startTime !== undefined) {
-        updateData.startTime = new Date(rest.startTime);
+        updateData.startTime = parseLocalDateTime(rest.startTime);
       }
       
       if (rest.endTime !== undefined) {
-        updateData.endTime = new Date(rest.endTime);
+        updateData.endTime = parseLocalDateTime(rest.endTime);
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
@@ -1018,8 +1035,8 @@ export async function updateRecurringLesson(payload: {
     // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const startDate = rest.startTime ? new Date(rest.startTime) : new Date(originalDate);
-    const endDate = rest.endTime ? new Date(rest.endTime) : new Date(originalDate);
+    const startDate = rest.startTime ? parseLocalDateTime(rest.startTime) : parseLocalDateTime(originalDate);
+    const endDate = rest.endTime ? parseLocalDateTime(rest.endTime) : parseLocalDateTime(originalDate);
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
     const dayOfWeek = dayNames[startDate.getDay()];
@@ -1093,12 +1110,18 @@ export async function createLesson(payload: {
   subjectId: number;
   classId: number;
   teacherId: string;
-  startTime: string; // Now expects ISO string
-  endTime: string;   // Now expects ISO string
+  startTime: string; // datetime-local string "YYYY-MM-DDTHH:mm"
+  endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
 }) {
   try {
-    const startDate = new Date(payload.startTime);
-    const endDate = new Date(payload.endTime);
+    // Parse as local time
+    const startDate = parseLocalDateTime(payload.startTime);
+    const endDate = parseLocalDateTime(payload.endTime);
+    
+    console.log("Creating lesson:", {
+      input: { start: payload.startTime, end: payload.endTime },
+      parsed: { start: startDate.toISOString(), end: endDate.toISOString() }
+    });
     
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
     const dayOfWeek = dayNames[startDate.getDay()];
@@ -1115,6 +1138,8 @@ export async function createLesson(payload: {
         recurringLessonId: null,
       },
     });
+    
+    revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Lesson created" };
   } catch (e: any) {
     console.error("Error creating lesson:", e);
