@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import MentionAutocomplete from './MentionAutocomplete'
 import { getLastWord, shouldAutocorrect, shouldAutoCorrectImmediately } from '@/utils/autocorrect'
+import TableControls from './TableControls'
 
 interface SimpleRichEditorProps {
   value: string
@@ -38,6 +39,11 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     suggestion: string
     rect: DOMRect
   } | null>(null)
+  const [activeTable, setActiveTable] = useState<{
+    table: HTMLTableElement
+    row: HTMLTableRowElement
+    cell: HTMLTableCellElement
+  } | null>(null)
 
   useEffect(() => {
     setIsClient(true)
@@ -68,6 +74,46 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
       }
     }
   }, [value, isClient])
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      if (!editorRef.current) return
+      const selection = window.getSelection()
+      if (!selection || !selection.rangeCount) {
+        setActiveTable(null)
+        return
+      }
+
+      const range = selection.getRangeAt(0)
+      let node = range.startContainer
+
+      let table: HTMLTableElement | null = null
+      let row: HTMLTableRowElement | null = null
+      let cell: HTMLTableCellElement | null = null
+
+      while (node && node !== editorRef.current) {
+        const nodeName = node.nodeName
+        if (nodeName === 'TD' || nodeName === 'TH') cell = node as HTMLTableCellElement
+        if (nodeName === 'TR') row = node as HTMLTableRowElement
+        if (nodeName === 'TABLE') {
+          table = node as HTMLTableElement
+          break
+        }
+        node = node.parentNode as Node
+      }
+
+      if (table && row && cell) {
+        setActiveTable({ table, row, cell })
+      } else {
+        setActiveTable(null)
+      }
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange)
+    }
+  }, [])
 
   const saveSelection = () => {
     const selection = window.getSelection()
@@ -587,6 +633,99 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
     setTableCols(3)
   }
 
+  const addRow = (above: boolean) => {
+    if (!activeTable || !editorRef.current) return
+    const { table, row } = activeTable
+    
+    const rowIndex = above ? row.rowIndex : row.rowIndex + 1
+    const newRow = table.insertRow(rowIndex)
+    
+    const cellCount = row.cells.length
+    for (let i = 0; i < cellCount; i++) {
+      const cell = row.cells[i]
+      const isHeader = cell.tagName === 'TH'
+      
+      const newCell = isHeader 
+        ? document.createElement('th')
+        : newRow.insertCell(i)
+      
+      if (isHeader) {
+        newRow.appendChild(newCell)
+        newCell.style.cssText = 'border: 1px solid #ddd; padding: 8px; background-color: #f3f4f6; font-weight: 600;'
+      } else {
+        newCell.style.cssText = 'border: 1px solid #ddd; padding: 8px;'
+      }
+      
+      newCell.innerHTML = 'Cell'
+    }
+    
+    onChange(editorRef.current.innerHTML)
+  }
+
+  const deleteRow = () => {
+    if (!activeTable || !editorRef.current) return
+    const { table, row } = activeTable
+    
+    // Don't delete if it's in the header
+    if (row.parentElement?.tagName === 'THEAD') return
+    
+    // Don't delete if it's the last body row
+    const tbody = table.querySelector('tbody')
+    if (tbody && tbody.rows.length <= 1) return
+    
+    table.deleteRow(row.rowIndex)
+    onChange(editorRef.current.innerHTML)
+    setActiveTable(null)
+  }
+
+  const addColumn = (before: boolean) => {
+    if (!activeTable || !editorRef.current) return
+    const { table, cell } = activeTable
+    const colIndex = cell.cellIndex
+    const insertIndex = before ? colIndex : colIndex + 1
+
+    // Add to all rows
+    for (let i = 0; i < table.rows.length; i++) {
+      const row = table.rows[i]
+      const isHeaderRow = row.parentElement?.tagName === 'THEAD'
+      
+      if (isHeaderRow) {
+        const newHeader = document.createElement('th')
+        newHeader.style.cssText = 'border: 1px solid #ddd; padding: 8px; background-color: #f3f4f6; font-weight: 600;'
+        newHeader.innerHTML = 'Header'
+        
+        if (insertIndex < row.cells.length) {
+          row.insertBefore(newHeader, row.cells[insertIndex])
+        } else {
+          row.appendChild(newHeader)
+        }
+      } else {
+        const newCell = row.insertCell(insertIndex)
+        newCell.style.cssText = 'border: 1px solid #ddd; padding: 8px;'
+        newCell.innerHTML = 'Cell'
+      }
+    }
+    
+    onChange(editorRef.current.innerHTML)
+  }
+
+  const deleteColumn = () => {
+    if (!activeTable || !editorRef.current) return
+    const { table, cell } = activeTable
+    const colIndex = cell.cellIndex
+
+    // Don't delete if it's the only column
+    if (table.rows[0].cells.length <= 1) return
+
+    // Delete from all rows
+    for (let i = 0; i < table.rows.length; i++) {
+      table.rows[i].deleteCell(colIndex)
+    }
+    
+    onChange(editorRef.current.innerHTML)
+    setActiveTable(null)
+  }
+
   const changeFontFamily = (fontFamily: string) => {
     setSelectedFont(fontFamily)
     const selection = window.getSelection()
@@ -972,6 +1111,15 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
             backgroundColor: 'transparent'
           }}
           suppressContentEditableWarning={true}
+        />
+
+        <TableControls
+          editorRef={editorRef}
+          activeTable={activeTable}
+          onAddRow={addRow}
+          onDeleteRow={deleteRow}
+          onAddColumn={addColumn}
+          onDeleteColumn={deleteColumn}
         />
 
         {!value && (
