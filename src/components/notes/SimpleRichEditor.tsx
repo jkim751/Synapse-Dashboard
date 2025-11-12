@@ -649,12 +649,12 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
                 <input
                   type="range"
                   min="2"
-                  max="10"
+                  max="30"
                   value={tableRows}
                   onChange={(e) => setTableRows(parseInt(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-200"
                   style={{
-                    background: `linear-gradient(to right, #fed7aa 0%, #fed7aa ${((tableRows - 2) / 8) * 100}%, #e5e7eb ${((tableRows - 2) / 8) * 100}%, #e5e7eb 100%)`
+                    background: `linear-gradient(to right, #fed7aa 0%, #fed7aa ${((tableRows - 2) / 28) * 100}%, #e5e7eb ${((tableRows - 2) / 24) * 100}%, #e5e7eb 100%)`
                   }}
                 />
               </div>
