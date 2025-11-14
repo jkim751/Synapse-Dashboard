@@ -423,6 +423,20 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Undo (Ctrl+Z)
+    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      document.execCommand('undo')
+      return
+    }
+
+    // Handle Redo (Ctrl+Y or Ctrl+Shift+Z)
+    if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+      e.preventDefault()
+      document.execCommand('redo')
+      return
+    }
+
     // Handle space key for auto-list conversion
     if (e.key === ' ') {
       const selection = window.getSelection()
@@ -908,6 +922,25 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
 
       <div className="w-full h-[650px] border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 border-b border-gray-200 p-1.5 flex flex-wrap gap-1 items-center">
+          <button
+            type="button"
+            onClick={() => document.execCommand('undo')}
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
+            title="Undo (Ctrl+Z)"
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            onClick={() => document.execCommand('redo')}
+            className="p-1.5 hover:bg-gray-200 rounded text-sm w-7 h-7 flex items-center justify-center"
+            title="Redo (Ctrl+Y)"
+          >
+            ↷
+          </button>
+
+          <div className="w-px bg-gray-300 h-6 mx-1" />
+
           <button
             type="button"
             onClick={() => execCommand('bold')}
