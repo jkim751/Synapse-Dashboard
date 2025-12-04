@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth()
     
@@ -10,14 +10,42 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch ALL notes regardless of userId - everyone can see all notes
+    // Get query parameters for pagination and filtering
+    const searchParams = request.nextUrl.searchParams
+    const limit = parseInt(searchParams.get('limit') || '100')
+    const skip = parseInt(searchParams.get('skip') || '0')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    // Build date filter - default to last 90 days if no dates provided
+    const dateFilter: any = {}
+    if (startDate && endDate) {
+      dateFilter.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    } else {
+      // Default to last 90 days to reduce data size
+      const ninetyDaysAgo = new Date()
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+      dateFilter.date = {
+        gte: ninetyDaysAgo
+      }
+    }
+
+    // Fetch notes with pagination and date filtering
     const notes = await prisma.note.findMany({
+      where: dateFilter,
+      take: limit,
+      skip: skip,
       include: {
         comments: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          take: 50 // Limit comments per note
         },
         actionItems: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          take: 50 // Limit action items per note
         },
         StudentTag: {
           include: {
@@ -29,7 +57,8 @@ export async function GET() {
                 img: true
               }
             }
-          }
+          },
+          take: 20 // Limit student tags per note
         }
       },
       orderBy: { date: 'desc' }
