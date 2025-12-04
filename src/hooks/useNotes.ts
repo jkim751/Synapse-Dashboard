@@ -19,19 +19,7 @@ export function useNotes() {
   const loadNotes = async () => {
     try {
       setIsLoading(true)
-      
-      // Fetch only last 30 days by default to reduce data size
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 30)
-      
-      const params = new URLSearchParams({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: '50'
-      })
-      
-      const response = await fetch(`/api/notes?${params}`)
+      const response = await fetch('/api/notes')
       if (response.ok) {
         const loadedNotes = await response.json()
         setNotes(loadedNotes.map((note: any) => ({
