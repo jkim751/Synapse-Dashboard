@@ -20,15 +20,15 @@ export function useNotes() {
     try {
       setIsLoading(true)
       
-      // Fetch only last 90 days by default to reduce data size
+      // Fetch only last 30 days by default to reduce data size
       const endDate = new Date()
       const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 90)
+      startDate.setDate(startDate.getDate() - 30)
       
       const params = new URLSearchParams({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        limit: '100'
+        limit: '50'
       })
       
       const response = await fetch(`/api/notes?${params}`)
