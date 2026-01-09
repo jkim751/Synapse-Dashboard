@@ -28,7 +28,7 @@
     "autoprefixer": "^10.4.21",
     "dependencies": "^0.0.1",
     "moment": "^2.30.1",
-    "next": "^15.3.4",
+    "next": "15.3.8",
     "next-cloudinary": "^6.13.0",
     "next-sitemap": "^4.2.3",
     "prisma": "^5.19.1",
