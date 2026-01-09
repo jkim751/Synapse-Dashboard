@@ -10,45 +10,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get query parameters for pagination and filtering
     const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '100')
+    const limit = parseInt(searchParams.get('limit') || '5')
     const skip = parseInt(searchParams.get('skip') || '0')
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
 
-    // Build date filter - default to last 90 days if no dates provided
-    const dateFilter: any = {}
-    if (startDate && endDate) {
-      dateFilter.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    } else {
-      // Default to last 90 days to reduce data size
-      const ninetyDaysAgo = new Date()
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-      dateFilter.date = {
-        gte: ninetyDaysAgo
-      }
-    }
-
-    // Fetch notes with pagination and date filtering
+    // Fetch notes with strict limits
     const notes = await prisma.note.findMany({
-      where: dateFilter,
       take: limit,
       skip: skip,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        author: true,
+        date: true,
         comments: {
+          select: {
+            id: true,
+            content: true,
+            author: true,
+            createdAt: true
+          },
           orderBy: { createdAt: 'desc' },
-          take: 50 // Limit comments per note
+          take: 5
         },
         actionItems: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            completed: true,
+            author: true,
+            createdAt: true,
+            completedAt: true
+          },
           orderBy: { createdAt: 'desc' },
-          take: 50 // Limit action items per note
+          take: 5
         },
         StudentTag: {
-          include: {
+          select: {
+            id: true,
+            studentId: true,
+            noteId: true,
+            createdAt: true,
             student: {
               select: {
                 id: true,
@@ -58,16 +62,20 @@ export async function GET(request: NextRequest) {
               }
             }
           },
-          take: 20 // Limit student tags per note
+          take: 10
         }
       },
       orderBy: { date: 'desc' }
     })
 
-    const formattedNotes = notes.map((note: { id: any; title: any; content: any; author: any; date: any; comments: any; actionItems: any; StudentTag: any }) => ({
+    // Truncate large content
+    const MAX_CONTENT_LENGTH = 50000
+    const formattedNotes = notes.map((note: { id: any; title: any; content: string; author: any; date: any; comments: any; actionItems: any; StudentTag: any }) => ({
       id: note.id,
       title: note.title || '',
-      content: note.content,
+      content: note.content.length > MAX_CONTENT_LENGTH 
+        ? note.content.substring(0, MAX_CONTENT_LENGTH) + '... [Content truncated]'
+        : note.content,
       author: note.author,
       createdAt: note.date,
       comments: note.comments,

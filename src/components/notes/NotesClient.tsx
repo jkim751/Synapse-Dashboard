@@ -6,6 +6,7 @@ import DateNavigation from './DateNavigation'
 import SearchBar from './SearchBar'
 import NotesEditor from './NotesEditor'
 import NotesDisplay from './NotesDisplay'
+import PaginationControls from './PaginationControls'
 
 interface Note {
   id: string
@@ -19,14 +20,18 @@ export default function NotesClient() {
   const { 
     notes, 
     isLoaded, 
-    isLoading, 
+    isLoading,
+    currentPage,
+    hasMore,
     saveNotesForDate,
     addComment,
     deleteComment,
     addActionItem,
     toggleActionItem,
     deleteActionItem,
-    deleteNote
+    deleteNote,
+    loadNextPage,
+    loadPreviousPage
   } = useNotes()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isEditing, setIsEditing] = useState(false)
@@ -238,7 +243,7 @@ export default function NotesClient() {
       )}
       
       <div className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs opacity-75">
-        ← → use arrows to Navigate days
+        ← → use arrows to Navigate days • Use pagination for more notes
       </div>
       
       <DateNavigation
@@ -293,7 +298,6 @@ export default function NotesClient() {
                   onDeleteActionItem={deleteActionItem}
                 />
                 
-                {/* Add New Note Button */}
                 <button
                   onClick={() => handleEdit()}
                   className="mt-6 w-full py-3 border-2 border-dashed border-orange-300 rounded-lg text-orange-500 hover:bg-orange-50 hover:border-orange-400 transition-colors"
@@ -304,6 +308,17 @@ export default function NotesClient() {
             )}
           </div>
         </div>
+
+        {!isEditing && !searchQuery && (
+          <PaginationControls
+            currentPage={currentPage}
+            hasMore={hasMore}
+            isLoading={isLoading}
+            onPrevious={loadPreviousPage}
+            onNext={loadNextPage}
+            totalNotes={notes.length}
+          />
+        )}
       </div>
     </div>
   )
