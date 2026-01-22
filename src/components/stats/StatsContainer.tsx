@@ -1,5 +1,4 @@
 import { getStudentStats, getPaymentTypeStats, getEnrollmentStats, getStudentCountTrends } from "@/lib/stats";
-import StatsFilters from "./StatsFilters";
 import CombinedChartCarousel from "./CombinedChartCarousel";
 import StatsCards from "./StatsCards";
 import prisma from "@/lib/prisma";
@@ -46,10 +45,7 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
 
   return (
     <div className="mt-4 space-y-4">
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-md">
-        <StatsFilters searchParams={searchParams} />
-      </div>
+  
       
       {/* Summary Cards */}
       <StatsCards stats={studentStats} />
