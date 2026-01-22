@@ -11,13 +11,21 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '5')
-    const skip = parseInt(searchParams.get('skip') || '0')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
-    // Fetch notes with strict limits
+    // Build date filter
+    const dateFilter: any = {}
+    if (startDate && endDate) {
+      dateFilter.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    }
+
+    // Fetch notes for the specific date range
     const notes = await prisma.note.findMany({
-      take: limit,
-      skip: skip,
+      where: dateFilter,
       select: {
         id: true,
         title: true,
@@ -32,7 +40,7 @@ export async function GET(request: NextRequest) {
             createdAt: true
           },
           orderBy: { createdAt: 'desc' },
-          take: 5
+          take: 20
         },
         actionItems: {
           select: {
@@ -45,7 +53,7 @@ export async function GET(request: NextRequest) {
             completedAt: true
           },
           orderBy: { createdAt: 'desc' },
-          take: 5
+          take: 20
         },
         StudentTag: {
           select: {
@@ -61,21 +69,16 @@ export async function GET(request: NextRequest) {
                 img: true
               }
             }
-          },
-          take: 10
+          }
         }
       },
       orderBy: { date: 'desc' }
     })
 
-    // Truncate large content
-    const MAX_CONTENT_LENGTH = 50000
-    const formattedNotes = notes.map((note: { id: any; title: any; content: string; author: any; date: any; comments: any; actionItems: any; StudentTag: any }) => ({
+    const formattedNotes = notes.map((note: { id: any; title: any; content: any; author: any; date: any; comments: any; actionItems: any; StudentTag: any }) => ({
       id: note.id,
       title: note.title || '',
-      content: note.content.length > MAX_CONTENT_LENGTH 
-        ? note.content.substring(0, MAX_CONTENT_LENGTH) + '... [Content truncated]'
-        : note.content,
+      content: note.content,
       author: note.author,
       createdAt: note.date,
       comments: note.comments,

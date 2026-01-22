@@ -21,6 +21,15 @@ const PaymentTypeChart = ({ data }: PaymentTypeChartProps) => {
 
   const total = data.reduce((sum, item) => sum + item.count, 0);
 
+  const formatPaymentType = (type: string) => {
+    const typeMap: { [key: string]: string } = {
+      'BANK_TRANSFER': 'Bank Transfer',
+      'CASH': 'Cash',
+      'NO_PAYMENT': 'No Payment',
+    };
+    return typeMap[type] || type.toLowerCase().replace('_', ' ');
+  };
+
   return (
     <div className="h-[300px] flex flex-col">
       {data.length === 0 ? (
@@ -33,8 +42,8 @@ const PaymentTypeChart = ({ data }: PaymentTypeChartProps) => {
           <div className="flex-1 space-y-3">
             {data.map((item, index) => (
               <div key={item.paymentType} className="flex items-center gap-3">
-                <div className="w-16 text-xs font-medium text-gray-700 capitalize">
-                  {item.paymentType.toLowerCase().replace('_', ' ')}
+                <div className="w-24 text-xs font-medium text-gray-700">
+                  {formatPaymentType(item.paymentType)}
                 </div>
                 <div className="flex-1 bg-gray-100 rounded-full h-4 relative overflow-hidden">
                   <div

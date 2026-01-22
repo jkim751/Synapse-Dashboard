@@ -6,7 +6,6 @@ import DateNavigation from './DateNavigation'
 import SearchBar from './SearchBar'
 import NotesEditor from './NotesEditor'
 import NotesDisplay from './NotesDisplay'
-import PaginationControls from './PaginationControls'
 
 interface Note {
   id: string
@@ -18,27 +17,34 @@ interface Note {
 
 export default function NotesClient() {
   const { 
-    notes, 
     isLoaded, 
     isLoading,
-    currentPage,
-    hasMore,
+    loadedDates,
+    loadNotesForDate,
+    getNotesForDate,
     saveNotesForDate,
     addComment,
     deleteComment,
     addActionItem,
     toggleActionItem,
     deleteActionItem,
-    deleteNote,
-    loadNextPage,
-    loadPreviousPage
+    deleteNote
   } = useNotes()
+  
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isEditing, setIsEditing] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editableContent, setEditableContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResultDate, setSearchResultDate] = useState<Date | null>(null)
+
+  // Load notes when selected date changes
+  useEffect(() => {
+    if (isLoaded) {
+      const dateToLoad = searchResultDate || selectedDate
+      loadNotesForDate(dateToLoad)
+    }
+  }, [selectedDate, searchResultDate, isLoaded])
 
   // Handle search query changes
   useEffect(() => {
@@ -135,33 +141,30 @@ export default function NotesClient() {
   }
 
   const getCurrentNotes = () => {
-    let dayNotes = notes
+    const dateToUse = searchResultDate || selectedDate
+    let dayNotes = getNotesForDate(dateToUse)
     
-    if (searchQuery.trim()) {
+    if (searchQuery.trim() && !searchResultDate) {
       const query = searchQuery.toLowerCase()
       
-      if (searchResultDate) {
-        dayNotes = notes.filter(note => note.createdAt.toDateString() === searchResultDate.toDateString())
+      // Search across all loaded notes
+      const allNotes = loadedDates.flatMap(dateKey => getNotesForDate(new Date(dateKey)))
+      
+      const monthMatch = allNotes.filter(note => {
+        const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
+        const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
+        return noteMonth.includes(query) || noteMonthShort.includes(query)
+      })
+      
+      if (monthMatch.length > 0) {
+        dayNotes = monthMatch
       } else {
-        const monthMatch = notes.filter(note => {
-          const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
-          const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
-          return noteMonth.includes(query) || noteMonthShort.includes(query)
-        })
-        
-        if (monthMatch.length > 0) {
-          dayNotes = monthMatch
-        } else {
-          dayNotes = notes.filter(note => 
-            note.title.toLowerCase().includes(query) ||
-            stripHtml(note.content).toLowerCase().includes(query) ||
-            note.author.toLowerCase().includes(query)
-          )
-        }
+        dayNotes = allNotes.filter(note => 
+          note.title.toLowerCase().includes(query) ||
+          stripHtml(note.content).toLowerCase().includes(query) ||
+          note.author.toLowerCase().includes(query)
+        )
       }
-    } else {
-      const dateKey = selectedDate.toDateString()
-      dayNotes = notes.filter(note => note.createdAt.toDateString() === dateKey)
     }
     
     return dayNotes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -182,10 +185,8 @@ export default function NotesClient() {
       const studentIds = extractStudentIdsFromContent(content)
       
       if (editingNoteId) {
-        // Update existing note
         await saveNotesForDate(content, targetDate, editingNoteId, studentIds)
       } else {
-        // Create new note
         await saveNotesForDate(content, targetDate, undefined, studentIds)
       }
       
@@ -209,7 +210,8 @@ export default function NotesClient() {
 
   const handleDelete = async (noteId: string) => {
     try {
-      await deleteNote(noteId)
+      const targetDate = searchResultDate || selectedDate
+      await deleteNote(noteId, targetDate)
     } catch (error) {
       console.error('Failed to delete note:', error)
     }
@@ -220,6 +222,32 @@ export default function NotesClient() {
     setSearchQuery('')
     setIsEditing(false)
     setEditingNoteId(null)
+  }
+
+  // Wrapper functions that include date parameter
+  const handleAddComment = async (noteId: string, content: string) => {
+    const targetDate = searchResultDate || selectedDate
+    await addComment(noteId, content, targetDate)
+  }
+
+  const handleDeleteComment = async (noteId: string, commentId: string) => {
+    const targetDate = searchResultDate || selectedDate
+    await deleteComment(noteId, commentId, targetDate)
+  }
+
+  const handleAddActionItem = async (noteId: string, title: string, description?: string) => {
+    const targetDate = searchResultDate || selectedDate
+    await addActionItem(noteId, title, targetDate, description)
+  }
+
+  const handleToggleActionItem = async (noteId: string, actionId: string, completed: boolean) => {
+    const targetDate = searchResultDate || selectedDate
+    await toggleActionItem(noteId, actionId, completed, targetDate)
+  }
+
+  const handleDeleteActionItem = async (noteId: string, actionId: string) => {
+    const targetDate = searchResultDate || selectedDate
+    await deleteActionItem(noteId, actionId, targetDate)
   }
 
   if (!isLoaded) {
@@ -238,13 +266,11 @@ export default function NotesClient() {
     <div className="min-h-screen bg-gray-100 p-4">
       {isLoading && (
         <div className="fixed top-4 right-4 bg-orange-300 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          Saving...
+          Loading...
         </div>
       )}
       
-      <div className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs opacity-75">
-        ← → use arrows to Navigate days • Use pagination for more notes
-      </div>
+     
       
       <DateNavigation
         selectedDate={searchResultDate || selectedDate}
@@ -291,11 +317,11 @@ export default function NotesClient() {
                   currentNotes={currentNotes}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  onAddComment={addComment}
-                  onDeleteComment={deleteComment}
-                  onAddActionItem={addActionItem}
-                  onToggleActionItem={toggleActionItem}
-                  onDeleteActionItem={deleteActionItem}
+                  onAddComment={handleAddComment}
+                  onDeleteComment={handleDeleteComment}
+                  onAddActionItem={handleAddActionItem}
+                  onToggleActionItem={handleToggleActionItem}
+                  onDeleteActionItem={handleDeleteActionItem}
                 />
                 
                 <button
@@ -308,17 +334,6 @@ export default function NotesClient() {
             )}
           </div>
         </div>
-
-        {!isEditing && !searchQuery && (
-          <PaginationControls
-            currentPage={currentPage}
-            hasMore={hasMore}
-            isLoading={isLoading}
-            onPrevious={loadPreviousPage}
-            onNext={loadNextPage}
-            totalNotes={notes.length}
-          />
-        )}
       </div>
     </div>
   )

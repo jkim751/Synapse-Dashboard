@@ -7,6 +7,10 @@ interface DateFilter {
   gradeId?: number;
 }
 
+interface StudentCountFilter extends DateFilter {
+  subjectId?: number;
+}
+
 export async function getTrialConversionRate(filters: DateFilter) {
   const { startDate, endDate, gradeId } = filters;
 
@@ -160,13 +164,21 @@ export async function getPaymentTypeStats(filters: DateFilter) {
     _count: { _all: number };
   }>;
 
+  console.log('Payment type data from DB:', paymentTypeData);
+
   const total = paymentTypeData.reduce((sum, item) => sum + item._count._all, 0);
 
-  return paymentTypeData.map(item => ({
-    paymentType: item.paymentType,
-    count: item._count._all,
-    percentage: total > 0 ? (item._count._all / total) * 100 : 0,
-  }));
+  const result = paymentTypeData
+    .map(item => ({
+      paymentType: item.paymentType,
+      count: item._count._all,
+      percentage: total > 0 ? (item._count._all / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  console.log('Formatted payment stats:', result);
+
+  return result;
 }
 
 export async function getEnrollmentStats(filters: DateFilter) {
@@ -213,6 +225,106 @@ export async function getEnrollmentStats(filters: DateFilter) {
   }
 
   return months;
+}
+
+export async function getStudentCountTrends(filters: StudentCountFilter) {
+  const { startDate, endDate, gradeId, subjectId } = filters;
+
+  // Generate monthly data between start and end dates
+  const months: StudentCountData[] = [];
+  const current = new Date(startDate);
+  current.setDate(1); // Start of month
+
+  while (current <= endDate) {
+    const monthStart = new Date(current);
+    const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+
+    // Build where clause with optional filters
+    const baseWhere: Prisma.StudentWhereInput = {
+      createdAt: {
+        lte: monthEnd,
+      },
+    };
+
+    if (gradeId) {
+      baseWhere.gradeId = gradeId;
+    }
+
+    if (subjectId) {
+      baseWhere.classes = {
+        some: {
+          class: {
+            OR: [
+              {
+                lessons: {
+                  some: {
+                    subjectId: subjectId,
+                  },
+                },
+              },
+              {
+                RecurringLesson: {
+                  some: {
+                    subjectId: subjectId,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    // Count students by status at the end of each month
+    const [totalCount, currentCount, trialCount, disenrolledCount] = await Promise.all([
+      prisma.student.count({
+        where: baseWhere,
+      }),
+      prisma.student.count({
+        where: {
+          ...baseWhere,
+          status: "CURRENT",
+          OR: [
+            { updatedAt: { gte: monthStart } },
+            { updatedAt: { lte: monthEnd } },
+          ],
+        },
+      }),
+      prisma.student.count({
+        where: {
+          ...baseWhere,
+          status: "TRIAL",
+        },
+      }),
+      prisma.student.count({
+        where: {
+          ...baseWhere,
+          status: "DISENROLLED",
+          updatedAt: {
+            lte: monthEnd,
+          },
+        },
+      }),
+    ]);
+
+    months.push({
+      month: current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      total: totalCount - disenrolledCount,
+      current: currentCount,
+      trial: trialCount,
+    });
+
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  return months;
+}
+
+interface StudentCountData {
+  month: string;
+  total: number;
+  current: number;
+  trial: number;
 }
 
 interface EnrollmentData {
