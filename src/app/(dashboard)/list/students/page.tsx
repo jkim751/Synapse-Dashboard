@@ -94,7 +94,7 @@ const StudentListPage = async ({
               showInfo={false}
             />
             <div className="flex flex-col">
-              <h3 className="font-semibold">{item.name}</h3>
+              <h3 className="font-semibold">{item.name} {item.surname}</h3>
               <div className="flex items-center gap-1">
                 <p className="text-xs text-gray-500">
                   {primaryClass?.name || "No class"}
