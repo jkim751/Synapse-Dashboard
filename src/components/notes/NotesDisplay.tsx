@@ -228,13 +228,9 @@ export default function NotesDisplay({
                 </div>
               </div>
 
-              {/* Hover overlay for comments and actions */}
+              {/* Comments and actions — inline inside the card so they stay within the orange border */}
               {isHovered && (onAddComment || onAddActionItem || hasComments || hasActions) && (
-                <div 
-                  className="absolute left-0 right-0 top-full mt-2 bg-white border-2 border-orange-400 rounded-lg shadow-2xl z-50 p-6 max-h-[500px] overflow-y-auto"
-                  onMouseEnter={() => setHoveredNoteId(note.id)}
-                  onMouseLeave={() => setHoveredNoteId(null)}
-                >
+                <div className="mt-4 pt-4 border-t border-orange-200">
                   {onAddComment && onDeleteComment && (
                     <CommentsSection
                       noteId={note.id}
