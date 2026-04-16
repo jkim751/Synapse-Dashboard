@@ -237,32 +237,26 @@ async function seedDevelopmentData() {
     }
   }
 
-  // EXAM
-  const exams = [];
+  // ASSESSMENTS (exams)
   for (let i = 1; i <= 10; i++) {
-    const exam = await prisma.exam.create({
+    await prisma.assessment.create({
       data: {
         title: `Exam ${i}`,
-        startTime: new Date(new Date().setHours(new Date().getHours() + 1)),
-        endTime: new Date(new Date().setHours(new Date().getHours() + 2)),
+        type: 'EXAM',
         lessonId: singleLesson.id,
       },
     });
-    exams.push(exam);
   }
 
-  // ASSIGNMENT
-  const assignments = [];
+  // ASSESSMENTS (assignments)
   for (let i = 1; i <= 10; i++) {
-    const assignment = await prisma.assignment.create({
+    await prisma.assessment.create({
       data: {
         title: `Assignment ${i}`,
-        startDate: new Date(new Date().setHours(new Date().getHours() + 1)),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+        type: 'ASSIGNMENT',
         recurringLessonId: recurringMath.id,
       },
     });
-    assignments.push(assignment);
   }
 
   // // RESULT

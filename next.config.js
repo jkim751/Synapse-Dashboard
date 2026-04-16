@@ -15,6 +15,12 @@ const nextConfig = {
         '@prisma/adapter-pg': false,
       }
     }
+    // Suppress the pg-native optional dependency warning
+    config.plugins.push(
+      new (require('webpack').IgnorePlugin)({
+        resourceRegExp: /^pg-native$/,
+      })
+    );
     return config
   },
   // Disable React strict mode if it's causing issues with Quill

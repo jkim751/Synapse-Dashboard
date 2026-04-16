@@ -907,7 +907,7 @@ export const updateAssessment = async (
 
     // Delete any files that were removed from the documents list
     const newSet = new Set(newDocuments);
-    const removedFiles = oldDocuments.filter((url) => !newSet.has(url));
+    const removedFiles = oldDocuments.filter((url: string) => !newSet.has(url));
     if (removedFiles.length > 0) await deleteBlobFiles(removedFiles);
 
     revalidatePath("/list/assessments");
@@ -1494,7 +1494,7 @@ export const updateResult = async (
 
     // Delete files removed from the documents list
     const newSet = new Set(newDocuments);
-    const removedFiles = oldDocuments.filter((url) => !newSet.has(url));
+    const removedFiles = oldDocuments.filter((url: string) => !newSet.has(url));
     if (removedFiles.length > 0) await deleteBlobFiles(removedFiles);
 
     revalidatePath("/list/results");

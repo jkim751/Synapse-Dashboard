@@ -67,7 +67,7 @@ const Announcements = async () => {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Announcements</h1>
       </div>
-      <AnnouncementsClient announcements={data.map((a) => ({ ...a, date: a.date.toISOString() }))} userId={userId!} />
+      <AnnouncementsClient announcements={data.map((a: typeof data[number]) => ({ ...a, date: a.date.toISOString() }))} userId={userId!} />
     </div>
   );
 };

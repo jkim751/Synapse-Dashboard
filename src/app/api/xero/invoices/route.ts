@@ -93,7 +93,7 @@ export async function POST(request: Request) {
               accountCode: '200',
             },
           ],
-          ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
+          ...(dueDate ? { dueDate: new Date(dueDate).toISOString().split('T')[0] } : {}),
           status: ('DRAFT' as any),
         },
       ],

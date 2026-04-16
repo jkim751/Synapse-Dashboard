@@ -84,15 +84,16 @@ const prismaClientSingleton = () => {
     });
 
   // Only apply the Accelerate extension when using an Accelerate URL
+  // @ts-ignore - TypeScript can't resolve the deeply-nested extension type chain
   return isAccelerate ? extended.$extends(withAccelerate()) : extended;
 };
 
 declare const globalThis: {
-  prismaGlobal: ReturnType<typeof prismaClientSingleton>;
+  prismaGlobal: any;
 } & typeof global;
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof prismaClientSingleton> | undefined;
+  prisma: any;
 };
 
 export const prisma =

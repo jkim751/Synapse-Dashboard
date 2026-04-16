@@ -33,7 +33,7 @@ const PayrollPage = async () => {
           <p className="text-gray-500">No teachers found.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {teachers.map(t => (
+            {teachers.map((t: { id: string; name: string; surname: string; xeroEmployeeId: string | null; subjects: { name: string }[]; classes: { id: number }[]; lessons: { id: number }[] }) => (
               <div key={t.id} className="rounded-xl bg-white p-6 shadow">
                 <h2 className="mb-4 text-base font-semibold">
                   {t.name} {t.surname}

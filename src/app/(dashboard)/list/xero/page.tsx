@@ -31,11 +31,11 @@ const AdminXeroPage = async () => {
   ]);
 
   const contacts = [
-    ...parents.map(p => ({
+    ...parents.map((p: { xeroContactId: string | null; name: string; surname: string }) => ({
       contactId: p.xeroContactId!,
       name: `${p.name} ${p.surname} (Parent)`,
     })),
-    ...students.map(s => ({
+    ...students.map((s: { xeroContactId: string | null; name: string; surname: string }) => ({
       contactId: s.xeroContactId!,
       name: `${s.name} ${s.surname} (Student)`,
     })),

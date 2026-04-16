@@ -69,7 +69,7 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
       <div className="bg-white p-4 rounded-md border border-gray-200">
         <h3 className="text-base font-semibold mb-1">Trial → Current Conversions</h3>
         <p className="text-xs text-gray-500 mb-4">Students who converted from trial to a current enrolment</p>
-        <RecentConversions conversions={recentConversions.map(c => ({ ...c, changedAt: c.changedAt.toISOString() }))} />
+        <RecentConversions conversions={recentConversions.map((c: typeof recentConversions[number]) => ({ ...c, changedAt: c.changedAt.toISOString() }))} />
       </div>
     </div>
   );

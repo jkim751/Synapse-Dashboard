@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/lib/prisma';
 import { doesRecurringLessonOccurOnDate, getDayFromDate, isDateWithinLessonPeriod } from '../src/lib/rruleUtils';
-
-const prisma = new PrismaClient();
 
 interface InvalidAttendanceRecord {
   id: number;
@@ -203,7 +201,7 @@ async function main() {
     console.error('❌ Script failed:', error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    // prisma singleton manages its own connection
   }
 }
 

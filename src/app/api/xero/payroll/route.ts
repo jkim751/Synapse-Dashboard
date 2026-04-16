@@ -91,12 +91,14 @@ export async function GET() {
     for (const run of sortedRuns.slice(0, 5)) {
       const runId = (run as any).payRunID;
       if (!runId) continue;
-      const slipsResponse = await xero.payrollAUApi.getPayRunPaySlips(activeTenantId, runId);
-      const slips = slipsResponse.body.payslips ?? [];
-      const found = slips.find((s: any) => s.employeeID === employeeId);
-      if (found) {
-        payslip = found;
-        break;
+      // getPayRun returns the full pay run including payslip stubs with employeeID + payslipID
+      const runDetail = await xero.payrollAUApi.getPayRun(activeTenantId, runId);
+      const stubs: any[] = runDetail.body.payRuns?.[0]?.payslips ?? [];
+      const stub = stubs.find((s: any) => s.employeeID === employeeId);
+      if (stub?.payslipID) {
+        const slipRes = await xero.payrollAUApi.getPayslip(activeTenantId, stub.payslipID);
+        payslip = slipRes.body.payslip ?? null;
+        if (payslip) break;
       }
     }
 
