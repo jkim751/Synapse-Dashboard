@@ -13,7 +13,7 @@ const prismaClientSingleton = () => {
   const isAccelerate = dbUrl.startsWith('prisma://') || dbUrl.startsWith('prisma+postgres://');
 
   const base = isAccelerate
-    ? new PrismaClient({ log: ['query'], accelerateUrl: dbUrl })
+    ? new PrismaClient({ log: ['query'], datasourceUrl: dbUrl })
     : new PrismaClient({ log: ['query'], adapter: new PrismaPg({ connectionString: dbUrl }) });
 
   const extended = base
