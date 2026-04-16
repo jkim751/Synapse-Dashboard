@@ -1,72 +1,46 @@
 interface DocumentListProps {
   documents: string[];
-  type: "exam" | "assignment" | "result";
+  type: "assessment" | "result";
   maxVisible?: number;
 }
 
-const DocumentList = ({ documents, type, maxVisible = 3 }: DocumentListProps) => {
-  if (!documents || documents.length === 0) {
-    return <span className="text-black-400 text-xs">No documents</span>;
-  }
-
-  const getDocumentName = (url: string, index: number) => {
-    // Try to extract filename from URL
-    const filename = url.split('/').pop()?.split('?')[0];
-    if (filename && filename !== 'undefined') {
-      return filename.length > 15 ? filename.substring(0, 15) + '...' : filename;
-    }
-    return `Doc ${index + 1}`;
-  };
-
-  const getFileNameFromUrl = (input: string) => {
+/**
+ * Extracts a human-readable filename from a Vercel Blob URL.
+ * Upload route stores files as: uploads/{folder}/{timestamp}-{sanitized-name}
+ * so we strip the leading "{digits}-" prefix produced by the upload route.
+ * Falls back gracefully for older URLs that may have different prefixes.
+ */
+function getLabelFromUrl(url: string): string {
+  try {
+    const raw = decodeURIComponent(new URL(url).pathname.split("/").pop() || url);
+    // Strip timestamp prefix (e.g. "1714000000000-filename.pdf" → "filename.pdf")
+    return raw.replace(/^\d+-/, "");
+  } catch {
+    const raw = url.split(/[?#]/)[0].split("/").pop() || url;
     try {
-      // Absolute URL
-      const u = new URL(input);
-      return decodeURIComponent(u.pathname.split("/").pop() || input);
+      return decodeURIComponent(raw).replace(/^\d+-/, "");
     } catch {
-      // Relative path
-      const noQuery = input.split(/[?#]/)[0];
-      const base = noQuery.split("/").pop() || noQuery;
-      try { return decodeURIComponent(base); } catch { return base; }
+      return raw;
     }
-  };
-  const humanizeFileName = (filename: string) => {
-    // 1) remove leading long digit blocks (6+ digits) + '-'/'_'
-    let name = filename.replace(/^\d{6,}[-_]/, "");
-    // 2) remove UUID v4 + '-'/'_'
-    name = name.replace(
-      /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}[-_]/i,
-      ""
-    );
-    // 3) remove hex hash (8–32 chars) + '-'/'_'
-    name = name.replace(/^[a-f0-9]{8,32}[-_]/i, "");
+  }
+}
 
-    // If you prefer to hide the extension in the UI, uncomment:
-    // const dot = name.lastIndexOf(".");
-    // if (dot > 0) name = name.slice(0, dot);
-
-    return name;
-  };
-
-
-  const colorClasses = {
-    exam: "bg-lightblue-100 text-lightblue-800 hover:bg-lightblue-200",
-    assignment: "bg-lightgreen-100 text-lightgreen-800 hover:bg-lightgreen-200"
-  };
+const DocumentList = ({ documents, maxVisible = 3 }: DocumentListProps) => {
+  if (!documents || documents.length === 0) {
+    return <span className="text-gray-400 text-xs">No documents</span>;
+  }
 
   const visibleDocs = documents.slice(0, maxVisible);
   const remainingCount = documents.length - maxVisible;
-  const normalizeUrl = (u: string) => (u.startsWith("http") ? u : `/${u.replace(/^\/+/, "")}`);
 
   return (
     <div className="flex flex-wrap gap-1">
       {visibleDocs.map((doc, index) => {
-        const filename = getFileNameFromUrl(doc);
-        const label = humanizeFileName(filename);
+        const label = getLabelFromUrl(doc);
         return (
           <a
             key={index}
-            href={normalizeUrl(doc)}
+            href={doc}
             target="_blank"
             rel="noopener noreferrer"
             download

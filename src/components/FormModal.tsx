@@ -2,12 +2,11 @@
 
 import {
   deleteClass,
-  deleteExam,
+  deleteAssessment,
   deleteStudent,
   deleteSubject,
   deleteTeacher,
   deleteAnnouncement,
-  deleteAssignment,
   deleteEvent,
   deleteLesson,
   deleteRecurringLesson,
@@ -39,16 +38,14 @@ const deleteActionMap: { [key: string]: DeleteAction } = {
   teachers: deleteTeacher,
   student: deleteStudent,
   students: deleteStudent,
-  exam: deleteExam,
-  exams: deleteExam,
+  assessment: deleteAssessment,
+  assessments: deleteAssessment,
   parent: deleteParent,
   parents: deleteParent,
   lesson: deleteLesson,
   lessons: deleteLesson,
   recurringLesson: deleteRecurringLesson,
   recurringLessons: deleteRecurringLesson,
-  assignment: deleteAssignment,
-  assignments: deleteAssignment,
   result: deleteResult,
   results: deleteResult,
   event: deleteEvent,
@@ -71,16 +68,13 @@ const SubjectForm = dynamic(() => import("./forms/SubjectForm"), {
 const ClassForm = dynamic(() => import("./forms/ClassForm"), {
   loading: () => <h1>Loading...</h1>,
 });
-const ExamForm = dynamic(() => import("./forms/ExamForm"), {
+const AssessmentForm = dynamic(() => import("./forms/AssessmentForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const LessonForm = dynamic(() => import("./forms/LessonForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const ParentForm = dynamic(() => import("./forms/ParentForm"), {
-  loading: () => <h1>Loading...</h1>,
-});
-const AssignmentForm = dynamic(() => import("./forms/AssignmentForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const ResultForm = dynamic(() => import("./forms/ResultForm"), {
@@ -160,16 +154,16 @@ const forms: {
       relatedData={relatedData}
     />
   ),
-  exam: (setOpen, type, data, relatedData) => (
-    <ExamForm
+  assessment: (setOpen, type, data, relatedData) => (
+    <AssessmentForm
       type={type}
       data={data}
       setOpen={setOpen}
       relatedData={relatedData}
     />
   ),
-  exams: (setOpen, type, data, relatedData) => (
-    <ExamForm
+  assessments: (setOpen, type, data, relatedData) => (
+    <AssessmentForm
       type={type}
       data={data}
       setOpen={setOpen}
@@ -220,22 +214,6 @@ const forms: {
   ),
   parents: (setOpen, type, data, relatedData) => (
     <ParentForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-  ),
-  assignment: (setOpen, type, data, relatedData) => (
-    <AssignmentForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-  ),
-  assignments: (setOpen, type, data, relatedData) => (
-    <AssignmentForm
       type={type}
       data={data}
       setOpen={setOpen}

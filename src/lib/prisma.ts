@@ -1,101 +1,107 @@
-import { PrismaClient } from '@prisma/client'
-import { withAccelerate } from '@prisma/extension-accelerate' // 1. IMPORT
+import { PrismaClient, type StudentStatus } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const prismaClientSingleton = () => {
-  // Prevent execution in browser environment
   if (typeof window !== 'undefined') {
     throw new Error('PrismaClient cannot be used in the browser');
   }
 
-  const basePrisma = new PrismaClient({
-    log: ['query'],
-  });
+  // Prisma 7 client engine requires either accelerateUrl (Prisma Accelerate)
+  // or an adapter (direct connection). We detect which to use from the URL protocol.
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  const isAccelerate = dbUrl.startsWith('prisma://') || dbUrl.startsWith('prisma+postgres://');
 
-  // Add middleware to track student status changes
-  basePrisma.$use(async (params, next) => {
-    // Only track Student updates
-    if (params.model === 'Student' && params.action === 'update') {
-      const studentId = params.args.where.id;
-      
-      if (studentId && params.args.data.status) {
-        const currentStudent = await basePrisma.student.findUnique({
-          where: { id: studentId },
-          select: { status: true }
-        });
+  const base = isAccelerate
+    ? new PrismaClient({ log: ['query'], accelerateUrl: dbUrl })
+    : new PrismaClient({ log: ['query'], adapter: new PrismaPg({ connectionString: dbUrl }) });
 
-        const oldStatus = currentStudent?.status;
-        const newStatus = params.args.data.status;
+  const extended = base
+    .$extends({
+      query: {
+        student: {
+          // Track status changes on single-record updates
+          async update({ args, query }) {
+            const newStatus = args.data?.status;
 
-        // Perform the update
-        const result = await next(params);
+            if (newStatus && args.where?.id) {
+              const current = await base.student.findUnique({
+                where: { id: args.where.id as string },
+                select: { status: true },
+              });
 
-        // If status changed, create history entry
-        if (oldStatus && oldStatus !== newStatus) {
-          await basePrisma.studentStatusHistory.create({
-            data: {
-              studentId,
-              fromStatus: oldStatus,
-              toStatus: newStatus,
-              changedAt: new Date(),
+              const result = await query(args);
+
+              if (current?.status && current.status !== newStatus) {
+                await base.studentStatusHistory.create({
+                  data: {
+                    studentId: args.where.id as string,
+                    fromStatus: current.status,
+                    toStatus: newStatus as StudentStatus,
+                    changedAt: new Date(),
+                  },
+                });
+              }
+
+              return result;
             }
-          });
-        }
 
-        return result;
-      }
-    }
+            return query(args);
+          },
 
-    // For updateMany, we need to handle differently
-    if (params.model === 'Student' && params.action === 'updateMany' && params.args.data.status) {
-      const studentsToUpdate = await basePrisma.student.findMany({
-        where: params.args.where,
-        select: { id: true, status: true }
-      });
+          // Track status changes on bulk updates
+          async updateMany({ args, query }) {
+            const newStatus = args.data?.status;
 
-      const result = await next(params);
+            if (newStatus) {
+              const studentsToUpdate = await base.student.findMany({
+                where: args.where,
+                select: { id: true, status: true },
+              });
 
-      const newStatus = params.args.data.status;
-      const historyEntries = studentsToUpdate
-        .filter(student => student.status !== newStatus)
-        .map(student => ({
-          studentId: student.id,
-          fromStatus: student.status,
-          toStatus: newStatus,
-          changedAt: new Date(),
-        }));
+              const result = await query(args);
 
-      if (historyEntries.length > 0) {
-        await basePrisma.studentStatusHistory.createMany({
-          data: historyEntries
-        });
-      }
+              const historyEntries = studentsToUpdate
+                .filter(s => s.status !== newStatus)
+                .map(s => ({
+                  studentId: s.id,
+                  fromStatus: s.status,
+                  toStatus: newStatus as StudentStatus,
+                  changedAt: new Date(),
+                }));
 
-      return result;
-    }
+              if (historyEntries.length > 0) {
+                await base.studentStatusHistory.createMany({ data: historyEntries });
+              }
 
-    return next(params);
-  });
+              return result;
+            }
 
-  // Apply Accelerate extension after middleware
-  return basePrisma.$extends(withAccelerate());
-}
+            return query(args);
+          },
+        },
+      },
+    });
+
+  // Only apply the Accelerate extension when using an Accelerate URL
+  return isAccelerate ? extended.$extends(withAccelerate()) : extended;
+};
 
 declare const globalThis: {
   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
 } & typeof global;
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof prismaClientSingleton> | undefined
-}
+  prisma: ReturnType<typeof prismaClientSingleton> | undefined;
+};
 
-// Only initialize prisma on server-side
-export const prisma = typeof window === 'undefined' 
-  ? (globalForPrisma.prisma ?? prismaClientSingleton())
-  : null as any;
+export const prisma =
+  typeof window === 'undefined'
+    ? (globalForPrisma.prisma ?? prismaClientSingleton())
+    : (null as any);
 
 if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
   globalForPrisma.prisma = prisma;
 }
 
-// Make sure we export as default as well
-export default prisma
+export default prisma;

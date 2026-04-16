@@ -37,6 +37,7 @@ const AdminPage = async ({
             <UserCard type="teacher" />
             <UserCard type="student" />
             <UserCard type="parent" />
+            <UserCard type="enrollment" />
           </div>
           {/* MASTER CALENDAR */}
           <div className="w-full h-[1000px]">

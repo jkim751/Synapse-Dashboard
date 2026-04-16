@@ -24,7 +24,6 @@ export async function POST(req: Request) {
 
   // Get the body
   const payload = await req.text()
-  const body = JSON.parse(payload)
 
   // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET)
@@ -77,6 +76,12 @@ export async function POST(req: Request) {
       switch (role) {
         case 'admin':
           await prisma.admin.update({
+            where: { id: id },
+            data: updateData,
+          })
+          break
+        case 'director':
+          await prisma.director.update({
             where: { id: id },
             data: updateData,
           })

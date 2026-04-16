@@ -3,9 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+}
+
+model Director {
+  id    String   @id
+  username String   @unique
+  email    String?  @unique
+  img      String?  
+  name     String
+  surname  String
+  phone    String
 }
 
 model Admin {
@@ -46,9 +54,9 @@ model Student {
   classes       StudentClass[]
   statusHistory StudentStatusHistory[]
 
-  StudentNote StudentNote[]
-
-  StudentTag StudentTag[]
+  StudentNote    StudentNote[]
+  StudentTag     StudentTag[]
+  makeupLessons  MakeupStudent[]
 }
 
 model Teacher {
@@ -126,39 +134,38 @@ model Lesson {
   classId           Int?
   teacherId         String?
   isCancelled       Boolean          @default(false)
+  isMakeup          Boolean          @default(false)
   day               Day
-  assignments       Assignment[]
+  assessments       Assessment[]
   attendances       Attendance[]
-  exams             Exam[]
   class             Class?           @relation(fields: [classId], references: [id])
   recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id], onDelete: Cascade)
   subject           Subject?         @relation(fields: [subjectId], references: [id])
   teacher           Teacher?         @relation(fields: [teacherId], references: [id])
   notifications     Notification[]
+  makeupStudents    MakeupStudent[]
 }
 
-model Exam {
-  id                Int              @id @default(autoincrement())
-  title             String
-  startTime         DateTime
-  endTime           DateTime
-  documents         String[]         @default([])
-  lessonId          Int?
-  recurringLessonId Int?
-  lesson            Lesson?          @relation(fields: [lessonId], references: [id])
-  recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id])
-  results           Result[]
+model MakeupStudent {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  studentId String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([lessonId, studentId])
+  @@map("makeup_students")
 }
 
-model Assignment {
-  id                Int              @id @default(autoincrement())
+model Assessment {
+  id                Int            @id @default(autoincrement())
   title             String
-  startDate         DateTime
-  dueDate           DateTime
-  documents         String[]         @default([])
+  type              AssessmentType
+  documents         String[]       @default([])
   lessonId          Int?
   recurringLessonId Int?
-  lesson            Lesson?          @relation(fields: [lessonId], references: [id])
+  lesson            Lesson?        @relation(fields: [lessonId], references: [id])
   recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id])
   results           Result[]
 }
@@ -167,12 +174,10 @@ model Result {
   id           Int         @id @default(autoincrement())
   score        Int
   title        String
-  examId       Int?
-  assignmentId Int?
+  assessmentId Int?
   studentId    String
   documents    String[]    @default([])
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
-  exam         Exam?       @relation(fields: [examId], references: [id])
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id])
   student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
@@ -184,6 +189,7 @@ model Attendance {
   lessonId          Int?
   recurringLessonId Int?
   status            String?          @default("present")
+  recordedByName    String?
   lesson            Lesson?          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   recurringLesson   RecurringLesson? @relation(fields: [recurringLessonId], references: [id], onDelete: Cascade)
   student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -228,6 +234,7 @@ model Announcement {
   description        String
   date               DateTime
   classId            Int?
+  allParents         Boolean             @default(false)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @default(now())
   class              Class?              @relation(fields: [classId], references: [id])
@@ -305,9 +312,8 @@ model RecurringLesson {
   subjectId       Int
   classId         Int
   teacherId       String
-  assignments     Assignment[]
+  assessments     Assessment[]
   attendances     Attendance[]
-  exams           Exam[]
   lessonInstances Lesson[]
   class           Class        @relation(fields: [classId], references: [id])
   subject         Subject      @relation(fields: [subjectId], references: [id])
@@ -422,4 +428,9 @@ enum StudentStatus {
   CURRENT
   TRIAL
   DISENROLLED
+}
+
+enum AssessmentType {
+  EXAM
+  ASSIGNMENT
 }

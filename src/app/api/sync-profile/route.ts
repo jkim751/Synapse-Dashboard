@@ -4,8 +4,9 @@ import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId: currentUserId } = await auth();
-    
+    const { userId: currentUserId, sessionClaims } = await auth();
+    const currentUserRole = (sessionClaims?.metadata as { role?: string })?.role;
+
     if (!currentUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -13,15 +14,8 @@ export async function POST(req: NextRequest) {
     const { userId, userData, role } = await req.json();
 
     // Only allow users to sync their own profile or admins to sync any profile
-    if (currentUserId !== userId) {
-      // Check if current user is admin
-      const currentUserRole = await prisma.admin.findUnique({
-        where: { id: currentUserId }
-      });
-      
-      if (!currentUserRole) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (currentUserId !== userId && currentUserRole !== 'admin' && currentUserRole !== 'director') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Only include fields that have actual values
@@ -43,6 +37,12 @@ export async function POST(req: NextRequest) {
     switch (role) {
       case 'admin':
         updatedUser = await prisma.admin.update({
+          where: { id: userId },
+          data: updateData,
+        });
+        break;
+      case 'director':
+        updatedUser = await prisma.director.update({
           where: { id: userId },
           data: updateData,
         });

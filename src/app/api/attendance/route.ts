@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!userId || !["admin", "teacher"].includes(role || "")) {
+    if (!userId || !["admin", "director", "teacher"].includes(role || "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,6 +19,19 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    // Resolve the recorder's display name from their role table
+    let recordedByName: string | undefined;
+    if (role === "teacher") {
+      const teacher = await prisma.teacher.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
+      if (teacher) recordedByName = `${teacher.name} ${teacher.surname}`;
+    } else if (role === "admin") {
+      const admin = await prisma.admin.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
+      if (admin) recordedByName = `${admin.name} ${admin.surname}`;
+    } else if (role === "director") {
+      const director = await prisma.director.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
+      if (director) recordedByName = `${director.name} ${director.surname}`;
     }
 
     const attendanceDate = new Date(date);
@@ -82,12 +95,13 @@ export async function POST(request: NextRequest) {
         data: {
           present: status === "present",
           status,
+          ...(recordedByName ? { recordedByName } : {}),
         },
       });
     } else {
       // Create new record
       attendance = await prisma.attendance.create({
-        data: attendanceData,
+        data: { ...attendanceData, ...(recordedByName ? { recordedByName } : {}) },
       });
     }
 
@@ -138,7 +152,7 @@ export async function DELETE(request: NextRequest) {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!userId || !["admin", "teacher"].includes(role || "")) {
+    if (!userId || !["admin", "director", "teacher"].includes(role || "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

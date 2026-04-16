@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
           data: { img: photoUrl }
         });
         break;
+      case "director":
+        await prisma.director.update({
+          where: { id: targetUserId },
+          data: { img: photoUrl }
+        });
+        break;
       case "teacher":
         await prisma.teacher.update({
           where: { id: targetUserId },

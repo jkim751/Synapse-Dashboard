@@ -11,7 +11,7 @@ const StatsPage = async ({
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   // Only allow admins to access stats
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "director") {
     redirect("/");
   }
 

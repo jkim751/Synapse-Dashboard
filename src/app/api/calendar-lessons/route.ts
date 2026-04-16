@@ -13,10 +13,18 @@ export async function GET(request: Request) {
 
     const role = (sessionClaims?.metadata as { role?: string })?.role;
     const { searchParams } = new URL(request.url);
-    
+
     // Get the visible date range from the calendar's query parameters
-    const viewStart = new Date(searchParams.get('start')!);
-    const viewEnd = new Date(searchParams.get('end')!);
+    const startStr = searchParams.get('start');
+    const endStr = searchParams.get('end');
+    if (!startStr || !endStr) {
+      return NextResponse.json({ error: 'Missing required date parameters' }, { status: 400 });
+    }
+    const viewStart = new Date(startStr);
+    const viewEnd = new Date(endStr);
+    if (isNaN(viewStart.getTime()) || isNaN(viewEnd.getTime())) {
+      return NextResponse.json({ error: 'Invalid date parameters' }, { status: 400 });
+    }
 
     // Build user-based filters
     const userFilter = role === "teacher" ? { teacherId: userId } : {};

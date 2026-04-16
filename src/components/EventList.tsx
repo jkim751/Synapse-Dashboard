@@ -17,7 +17,7 @@ const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
     },
   };
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "director") {
     const userSpecificClauses: any[] = [
       // Events for everyone
       {

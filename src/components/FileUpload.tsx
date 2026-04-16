@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".doc", ".docx", ".txt"]);
+
 interface FileUploadProps {
   label: string;
   name: string;
@@ -27,6 +30,24 @@ const FileUpload = ({
     const selectedFiles = event.target.files;
     if (!selectedFiles) return;
 
+    // Client-side validation before uploading
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+        event.target.value = "";
+        return;
+      }
+
+      const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        toast.error(`"${file.name}" is not an allowed file type. Use PDF, DOC, DOCX, or TXT.`);
+        event.target.value = "";
+        return;
+      }
+    }
+
     setUploading(true);
     const newFiles: string[] = [];
 
@@ -46,18 +67,22 @@ const FileUpload = ({
           const { url } = await response.json();
           newFiles.push(url);
         } else {
-          toast.error(`Failed to upload ${file.name}`);
+          const { error } = await response.json().catch(() => ({}));
+          toast.error(error || `Failed to upload ${file.name}`);
         }
       }
 
-      const updatedFiles = [...files, ...newFiles];
-      setFiles(updatedFiles);
-      onFilesChange(updatedFiles);
-      toast.success(`${newFiles.length} file(s) uploaded successfully`);
-    } catch (error) {
+      if (newFiles.length > 0) {
+        const updatedFiles = [...files, ...newFiles];
+        setFiles(updatedFiles);
+        onFilesChange(updatedFiles);
+        toast.success(`${newFiles.length} file(s) uploaded successfully`);
+      }
+    } catch {
       toast.error("Upload failed");
     } finally {
       setUploading(false);
+      event.target.value = "";
     }
   };
 
@@ -70,23 +95,19 @@ const FileUpload = ({
     try {
       const response = await fetch("/api/upload/delete", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: fileToRemove }),
       });
 
       if (!response.ok) {
         toast.error("Failed to delete file from storage.");
-        // Optionally, revert state if deletion fails
         setFiles(files);
         onFilesChange(files);
       } else {
         toast.success("File removed successfully.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error removing file.");
-      // Optionally, revert state if deletion fails
       setFiles(files);
       onFilesChange(files);
     }
@@ -104,18 +125,18 @@ const FileUpload = ({
         className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
       />
       {uploading && <p className="text-xs text-blue-500">Uploading...</p>}
-      
+
       {files.length > 0 && (
         <div className="mt-2">
           <p className="text-xs text-gray-500 mb-1">Uploaded Documents:</p>
           <div className="space-y-1">
             {files.map((file, index) => (
               <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs">
-                <span className="truncate">{decodeURIComponent(file.split('/').pop() || '')}</span>
+                <span className="truncate">{decodeURIComponent(file.split("/").pop() || "")}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="text-red-500 hover:text-red-700 ml-2"
+                  className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
                 >
                   ×
                 </button>

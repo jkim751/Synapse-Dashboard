@@ -103,7 +103,7 @@ export const studentSchema = z.object({
   birthday: z.coerce.date({ message: "Birthday is required!" }),
   sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
   gradeId: z.coerce.number().min(1, { message: "Grade is required!" }),
-  classIds: z.array(z.coerce.number()).min(1, { message: "At least one class is required!" }), // Changed from classId to classIds array
+  classIds: z.array(z.coerce.number()).min(1, { message: "At least one class is required!" }),
   parentId: z.string().optional(),
   school: z.string().optional(),
   status: z.enum(["CURRENT","TRIAL","DISENROLLED"], { message: "Status is required!" }), // NEW
@@ -111,22 +111,20 @@ export const studentSchema = z.object({
 export type StudentSchema = z.infer<typeof studentSchema>;
 
 
-export const examSchema = z.object({
+export const assessmentSchema = z.object({
   id: z.coerce.number().optional(),
   title: z.string().min(1, { message: "Title is required!" }),
-  startTime: z.coerce.date({ message: "Start time is required!" }),
-  endTime: z.coerce.date({ message: "End time is required!" }),
+  type: z.enum(["EXAM", "ASSIGNMENT"], { message: "Type is required!" }),
   lessonId: z.coerce.number().optional().nullable(),
   recurringLessonId: z.coerce.number().optional().nullable(),
   documents: z.array(z.string()).optional(),
 }).refine(data => {
-  // Ensure that either lessonId or recurringLessonId is provided, but not both.
   return (data.lessonId != null && data.recurringLessonId == null) || (data.lessonId == null && data.recurringLessonId != null);
 }, {
-  message: "An exam must be linked to either a single lesson or a recurring series, but not both.",
-  path: ["lessonId"], // Where to display the error
+  message: "An assessment must be linked to either a single lesson or a recurring series, but not both.",
+  path: ["lessonId"],
 });
-export type ExamSchema = z.infer<typeof examSchema>;
+export type AssessmentSchema = z.infer<typeof assessmentSchema>;
 
 
 export const lessonSchema = z.object({
@@ -179,30 +177,11 @@ export const parentSchema = z.object({
 export type ParentSchema = z.infer<typeof parentSchema>;
 
 
-export const assignmentSchema = z.object({
-  id: z.coerce.number().optional(),
-  title: z.string().min(1, { message: "Title is required!" }),
-  startDate: z.coerce.date({ message: "Start date is required!" }),
-  dueDate: z.coerce.date({ message: "Due date is required!" }),
-  lessonId: z.coerce.number().optional().nullable(),
-  recurringLessonId: z.coerce.number().optional().nullable(),
-  documents: z.array(z.string()).optional(),
-}).refine(data => {
-  // Ensure that either lessonId or recurringLessonId is provided, but not both.
-  return (data.lessonId != null && data.recurringLessonId == null) || (data.lessonId == null && data.recurringLessonId != null);
-}, {
-  message: "An assignment must be linked to either a single lesson or a recurring series, but not both.",
-  path: ["lessonId"], // Where to display the error
-});
-export type AssignmentSchema = z.infer<typeof assignmentSchema>;
-
-
 export const resultSchema = z.object({
   id: z.coerce.number().optional(),
   title: z.string().min(1, { message: "Title is required!" }),
   score: z.coerce.number().min(0, { message: "Score must be at least 0!" }).max(100, { message: "Score must be at most 100!" }),
-  examId: z.coerce.number().optional().nullable(),
-  assignmentId: z.coerce.number().optional().nullable(),
+  assessmentId: z.coerce.number().optional().nullable(),
   studentId: z.string().min(1, { message: "Student is required!" }),
   documents: z.array(z.string()).optional(),
 });
@@ -228,6 +207,7 @@ export const announcementSchema = z.object({
   description: z.string().min(1, { message: "Description is required!" }),
   date: z.coerce.date({ message: "Date is required!" }),
   classId: z.coerce.number().optional().nullable(), // This allows a number, null, or undefined. Perfect!
+  allParents: z.boolean().optional().default(false),
   userIds: z.array(z.string()).optional().nullable(),
   gradeIds: z.array(z.coerce.number()).optional().nullable(),
 });

@@ -1,8 +1,6 @@
 "use client"
 
 import { useUser } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,72 +13,66 @@ const menuItems = [
         icon: "/home.png",
         label: "Home",
         href: "/",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["admin", "director", "teacher", "student", "parent"],
       },
       {
         icon: "/admin.png",
         label: "Admins",
         href: "/list/admins",
-        visible: ["admin"],
+        visible: ["admin", "director"],
       },
       {
         icon: "/teacher.png",
         label: "Teachers",
         href: "/list/teachers",
-        visible: ["admin",],
+        visible: ["admin", "director"],
       },
       {
         icon: "/student.png",
         label: "Students",
         href: "/list/students",
-        visible: ["admin", "teacher"],
+        visible: ["admin", "director", "teacher"],
       },
       {
         icon: "/parent.png",
         label: "Parents",
         href: "/list/parents",
-        visible: ["admin",],
+        visible: ["admin", "director"],
       },
       {
         icon: "/stats.png",
         label: "Statistics",
         href: "/list/stats",
-        visible: ["admin",],
+        visible: ["admin", "director"],
       },
       {
         icon: "/handover.png",
         label: "Notes",
         href: "/list/notes",
-        visible: ["admin",],
+        visible: ["admin", "director"],
       },
       {
         icon: "/subject.png",
         label: "Subjects",
         href: "/list/subjects",
-        visible: ["admin"],
+        visible: ["admin", "director"],
       },
       {
         icon: "/class.png",
         label: "Classes",
         href: "/list/classes",
-        visible: ["admin", "teacher"],
+        visible: ["admin", "director", "teacher"],
       },
       {
         icon: "/lesson.png",
         label: "Lessons",
         href: "/list/lessons",
-        visible: ["admin", "teacher"],
+        visible: ["admin", "director", "teacher"],
       },
       {
         icon: "/exam.png",
-        label: "Exams",
-        href: "/list/exams",
-        visible: ["teacher", "student", "parent"],
-      },
-      {
-        icon: "/assignment.png",
-        label: "Assignments",
-        href: "/list/assignments",
+        label: "Assessments",
+        href: "/list/assessments",
         visible: ["teacher", "student", "parent"],
       },
       {
@@ -93,25 +85,26 @@ const menuItems = [
         icon: "/attendance.png",
         label: "Attendance",
         href: "/list/attendance",
-        visible: ["admin", "teacher",],
+        visible: ["admin", "director", "teacher"],
       },
       {
         label: "Attendance History",
         href: "/list/attendance/history",
         icon: "/singleLesson.png",
-        visible: ["admin", "teacher"],
+        visible: ["admin", "director"
+        ],
       },
       {
         icon: "/calendar.png",
         label: "Events",
         href: "/list/events",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["admin", "director"],
       },
       {
         icon: "/announcement.png",
         label: "Announcements",
         href: "/list/announcements",
-        visible: ["admin", "teacher", "student", "parent"],
+        visible: ["admin", "director"],
       },
       {
         icon: "/finance.png",
@@ -123,13 +116,13 @@ const menuItems = [
         icon: "/finance.png",
         label: "Xero Dashboard",
         href: "/list/xero",
-        visible: ["admin"],
+        visible: ["admin", "director"],
       },
       {
         icon: "/finance.png",
         label: "Payroll",
         href: "/list/payroll",
-        visible: ["admin", "teacher"],
+        visible: ["director", "teacher"],
       },
     ],  
   },

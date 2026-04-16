@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
     // Only allow admin users
-    if (role !== "admin") {
+    if (role !== "admin" && role !== "director") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest) {
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
     // Only allow admin users
-    if (role !== "admin") {
+    if (role !== "admin" && role !== "director") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

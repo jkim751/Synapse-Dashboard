@@ -11,8 +11,7 @@ export type FormContainerProps = {
   | "class"
   | "lesson"
   | "recurringLesson"
-  | "exam"
-  | "assignment"
+  | "assessment"
   | "result"
   | "event"
   | "announcement"
@@ -103,53 +102,35 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         };
         break;
 
-      case "exam":
-        // Only teachers and students should see exams, not admins
-        if (role === "admin") {
-          relatedData = { singleLessons: [], recurringLessons: [] };
-          break;
-        }
+      case "assessment": {
+        let assessmentLessonsQuery: any = {};
 
-        let examLessonsQuery: any = {};
-        
         if (role === "teacher") {
-          examLessonsQuery = { teacherId: currentUserId! };
+          assessmentLessonsQuery = { teacherId: currentUserId! };
         } else if (role === "student") {
-          // For students, only show lessons from classes they're enrolled in
           const studentClasses = await prisma.student.findUnique({
             where: { id: currentUserId! },
-            include: {
-              classes: {
-                select: { classId: true }
-              }
-            }
+            include: { classes: { select: { classId: true } } },
           });
-
           if (studentClasses?.classes.length) {
-            examLessonsQuery = {
-              classId: {
-                in: studentClasses.classes.map((sc: { classId: any; }) => sc.classId)
-              }
-            };
+            assessmentLessonsQuery = { classId: { in: studentClasses.classes.map((sc: any) => sc.classId) } };
           } else {
-            // Student not enrolled in any classes
             relatedData = { singleLessons: [], recurringLessons: [] };
             break;
           }
         }
 
         const singleLessons = await prisma.lesson.findMany({
-          where: { ...examLessonsQuery, recurringLessonId: null },
+          where: { ...assessmentLessonsQuery, recurringLessonId: null, isMakeup: false },
           select: { id: true, name: true },
         });
-
         const recurringLessons = await prisma.recurringLesson.findMany({
-          where: examLessonsQuery,
+          where: assessmentLessonsQuery,
           select: { id: true, name: true },
         });
-
         relatedData = { singleLessons, recurringLessons };
         break;
+      }
 
       case "lesson": {
         const [subjects, classes, teachers] = await Promise.all([
@@ -210,155 +191,29 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         relatedData = { students: parentStudents };
         break;
 
-      case "assignment":
-        // Only teachers and students should see assignments, not admins
-        if (role === "admin") {
-          relatedData = { singleLessons: [], recurringLessons: [] };
+      case "result": {
+        if (role === "admin" || role === "director" || role === "student") {
+          relatedData = { assessments: [] };
           break;
         }
 
-        let assignmentLessonsQuery: any = {};
-        
-        if (role === "teacher") {
-          assignmentLessonsQuery = { teacherId: currentUserId! };
-        } else if (role === "student") {
-          // For students, only show lessons from classes they're enrolled in
-          const studentClasses = await prisma.student.findUnique({
-            where: { id: currentUserId! },
-            include: {
-              classes: {
-                select: { classId: true }
-              }
-            }
-          });
-
-          if (studentClasses?.classes.length) {
-            assignmentLessonsQuery = {
-              classId: {
-                in: studentClasses.classes.map((sc: { classId: any; }) => sc.classId)
-              }
-            };
-          } else {
-            // Student not enrolled in any classes
-            relatedData = { singleLessons: [], recurringLessons: [] };
-            break;
-          }
-        }
-
-        const singleLessonsForAssignment = await prisma.lesson.findMany({
-          where: { ...assignmentLessonsQuery, recurringLessonId: null },
-          select: { id: true, name: true },
-        });
-
-        const recurringLessonsForAssignment = await prisma.recurringLesson.findMany({
-          where: assignmentLessonsQuery,
-          select: { id: true, name: true },
-        });
-
-        relatedData = { singleLessons: singleLessonsForAssignment, recurringLessons: recurringLessonsForAssignment };
-        console.log("[FormContainer] Fetched Related Data for Assignment:", relatedData);
-        break;
-
-      case "result":
-        // Only teachers should create results, not admins or students
-        if (role === "admin" || role === "student") {
-          relatedData = { students: [], exams: [], assignments: [] };
-          break;
-        }
-
-        const currentDate = new Date();
-
-        // Only teachers can create results - filter exams for their lessons only
-        const examQuery = {
-          startTime: {
-            gte: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000), // Allow exams from last 7 days
+        const assessments = await prisma.assessment.findMany({
+          where: {
+            OR: [
+              { lesson: { teacherId: currentUserId! } },
+              { recurringLesson: { teacherId: currentUserId! } },
+            ],
           },
-          OR: [
-            {
-              lesson: {
-                teacherId: currentUserId!,
-              }
-            },
-            {
-              recurringLesson: {
-                teacherId: currentUserId!,
-              }
-            }
-          ]
-        };
-
-        const resultExams = await prisma.exam.findMany({
-          where: examQuery,
           include: {
-            lesson: {
-              include: {
-                subject: true,
-                class: true,
-                teacher: true
-              }
-            },
-            recurringLesson: {
-              include: {
-                subject: true,
-                class: true,
-                teacher: true
-              }
-            }
+            lesson: { include: { subject: true, class: true, teacher: true } },
+            recurringLesson: { include: { subject: true, class: true, teacher: true } },
           },
-          orderBy: {
-            startTime: 'desc'
-          }
+          orderBy: { title: "asc" },
         });
 
-        // Filter assignments for the teacher only
-        const assignmentQuery = {
-          OR: [
-            {
-              lesson: {
-                teacherId: currentUserId!,
-              }
-            },
-            {
-              recurringLesson: {
-                teacherId: currentUserId!,
-              }
-            }
-          ]
-        };
-
-        const resultAssignments = await prisma.assignment.findMany({
-          where: assignmentQuery,
-          include: {
-            lesson: {
-              include: {
-                subject: true,
-                class: true,
-                teacher: true
-              }
-            },
-            recurringLesson: {
-              include: {
-                subject: true,
-                class: true,
-                teacher: true
-              }
-            }
-          },
-          orderBy: {
-            dueDate: 'desc'
-          }
-        });
-
-        console.log("[FormContainer] Result exams found:", resultExams.length);
-        console.log("[FormContainer] Result assignments found:", resultAssignments.length);
-
-        // Students will be filtered dynamically based on selected exam/assignment
-        relatedData = {
-          students: [], // Will be populated dynamically
-          exams: resultExams,
-          assignments: resultAssignments,
-        };
+        relatedData = { assessments };
         break;
+      }
 
       case "event":
         const eventClassesQuery = role === "teacher"

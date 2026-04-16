@@ -2,59 +2,41 @@
 
 import { useState, useEffect } from "react";
 
-// The interfaces remain the same
-interface Student {
-  id: string;
-  name: string;
-  surname: string;
-  xeroContactId: string | null;
-}
-
 interface Invoice {
   id: string;
-  studentName: string;
-  amount: number;
-  dueDate: string;
+  invoiceNumber: string;
+  total: number;
+  amountDue: number;
+  amountPaid: number;
+  dueDate: string | null;
   status: string;
   description: string;
 }
 
-const InvoicesList = ({ students }: { students: Student[] }) => {
+const statusColour: Record<string, string> = {
+  AUTHORISED: "bg-yellow-100 text-yellow-800",
+  PAID: "bg-green-100 text-green-800",
+  VOIDED: "bg-gray-100 text-gray-500",
+  DRAFT: "bg-blue-100 text-blue-800",
+  SUBMITTED: "bg-orange-100 text-orange-800",
+};
+
+const InvoicesList = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // This function will now fetch REAL invoices
     const fetchInvoices = async () => {
-      // 1. Get only the valid Xero Contact IDs from the students prop
-      const contactIDs = students
-        .map(s => s.xeroContactId)
-        .filter((id): id is string => id !== null);
-
-      // If no students are synced with Xero yet, don't make an API call
-      if (contactIDs.length === 0) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        // 2. Call our new backend API route
-        const response = await fetch('/api/xero/invoices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contactIDs }),
-        });
-
+        const response = await fetch("/api/xero/invoices");
         if (!response.ok) {
-          throw new Error('Failed to fetch invoices from the server.');
+          const data = await response.json();
+          throw new Error(data.error || "Failed to fetch invoices.");
         }
-
-        const data = await response.json();
+        const data: Invoice[] = await response.json();
         setInvoices(data);
-
       } catch (err: any) {
-        console.error("Error fetching invoices:", err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -62,23 +44,57 @@ const InvoicesList = ({ students }: { students: Student[] }) => {
     };
 
     fetchInvoices();
-  }, [students]); // 3. The effect depends on the list of students
+  }, []);
 
-  if (loading) return <div>Loading invoices...</div>;
-  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (loading) return <div className="text-sm text-gray-500">Loading invoices…</div>;
+  if (error) return <div className="text-sm text-red-500">Error: {error}</div>;
+  if (invoices.length === 0)
+    return <p className="text-sm text-gray-500">No invoices found for your account.</p>;
 
   return (
-    // Your JSX for rendering the table remains exactly the same. It's already perfect!
-    <div className="space-y-4">
-      {invoices.length === 0 ? (
-        <p className="text-gray-500">No invoices found for your children.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            {/* ... your table JSX ... */}
-          </table>
-        </div>
-      )}
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-b text-left text-gray-500">
+            <th className="pb-2 pr-4 font-medium">Invoice #</th>
+            <th className="pb-2 pr-4 font-medium">Description</th>
+            <th className="pb-2 pr-4 font-medium text-right">Total</th>
+            <th className="pb-2 pr-4 font-medium text-right">Amount Due</th>
+            <th className="pb-2 pr-4 font-medium">Due Date</th>
+            <th className="pb-2 font-medium">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoices.map(inv => (
+            <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50">
+              <td className="py-2 pr-4 font-mono text-xs">{inv.invoiceNumber || "—"}</td>
+              <td className="py-2 pr-4 text-gray-700">{inv.description}</td>
+              <td className="py-2 pr-4 text-right">${inv.total.toFixed(2)}</td>
+              <td className="py-2 pr-4 text-right font-semibold">
+                ${inv.amountDue.toFixed(2)}
+              </td>
+              <td className="py-2 pr-4 text-gray-600">
+                {inv.dueDate
+                  ? new Date(inv.dueDate).toLocaleDateString("en-AU", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—"}
+              </td>
+              <td className="py-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    statusColour[inv.status] ?? "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {inv.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -153,7 +153,7 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
             <div className="relative h-8 bg-gray-100 rounded overflow-hidden">
               {/* Current students bar */}
               <div
-                className="absolute left-0 top-0 h-8 bg-lamaSky flex items-center justify-start px-2 transition-all duration-300"
+                className="absolute left-0 top-0 h-8 bg-orange-400 flex items-center justify-start px-2 transition-all duration-300"
                 style={{ width: `${Math.max((item.current / maxValue) * 100, 5)}%` }}
               >
                 {item.current > 0 && (
@@ -165,7 +165,7 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
               
               {/* Trial students bar */}
               <div
-                className="absolute h-8 bg-lamaYellow flex items-center justify-start px-2 transition-all duration-300"
+                className="absolute h-8 bg-orange-200 flex items-center justify-start px-2 transition-all duration-300"
                 style={{ 
                   left: `${(item.current / maxValue) * 100}%`,
                   width: `${Math.max((item.trial / maxValue) * 100, 5)}%` 
@@ -185,11 +185,11 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
       {/* Legend */}
       <div className="flex justify-center gap-4 pt-3 mt-3 border-t border-gray-100">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-lamaSky rounded"></div>
+          <div className="w-3 h-3 bg-orange-400 rounded"></div>
           <span className="text-xs text-gray-600">Current Students</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-lamaYellow rounded"></div>
+          <div className="w-3 h-3 bg-orange-200 rounded"></div>
           <span className="text-xs text-gray-600">Trial Students</span>
         </div>
       </div>

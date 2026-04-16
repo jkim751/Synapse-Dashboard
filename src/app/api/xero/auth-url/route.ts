@@ -4,8 +4,9 @@ import xero from '@/lib/xero';
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const { userId, sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    if (!userId || (role !== 'admin' && role !== 'director')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -7,9 +7,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,7 +19,6 @@ export async function GET(
     const comments = await prisma.comment.findMany({
       where: {
         noteId: id,
-        userId
       },
       orderBy: { createdAt: 'asc' }
     })
@@ -35,9 +35,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

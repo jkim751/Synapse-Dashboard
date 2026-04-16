@@ -19,7 +19,7 @@ const AdminListPage = async ({
   const { sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "director") {
     redirect("/");
   }
 

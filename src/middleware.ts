@@ -22,7 +22,7 @@ export default clerkMiddleware(async (auth, req) => {
 
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!allowedRoles.includes(role!)) {
+    if (!role || !allowedRoles.includes(role)) {
       return NextResponse.redirect(new URL("/", req.url));
     }
   }

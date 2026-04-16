@@ -4,6 +4,7 @@ import { useState } from "react";
 import PaymentTypeChart from "./PaymentTypeChart";
 import EnrollmentChart from "./EnrollmentChart";
 import StudentCountChart from "./StudentCountChart";
+import TrialConversionChart from "./TrialConversionChart";
 
 interface PaymentTypeData {
   paymentType: string;
@@ -35,20 +36,27 @@ interface Subject {
   name: string;
 }
 
+interface ConversionTrendData {
+  month: string;
+  conversions: number;
+}
+
 interface CombinedChartCarouselProps {
   paymentData: PaymentTypeData[];
   enrollmentData: EnrollmentData[];
   studentCountData: StudentCountData[];
+  conversionTrendData: ConversionTrendData[];
   grades: Grade[];
   subjects: Subject[];
 }
 
-const CombinedChartCarousel = ({ 
-  paymentData, 
+const CombinedChartCarousel = ({
+  paymentData,
   enrollmentData,
   studentCountData,
+  conversionTrendData,
   grades,
-  subjects
+  subjects,
 }: CombinedChartCarouselProps) => {
   const [activeChart, setActiveChart] = useState(0);
 
@@ -67,7 +75,12 @@ const CombinedChartCarousel = ({
       title: "Student Count Trends",
       subtitle: "Active students over time",
       component: <StudentCountChart data={studentCountData} grades={grades} subjects={subjects} />
-    }
+    },
+    {
+      title: "Trial Conversion Trend",
+      subtitle: "Monthly trial → current conversions",
+      component: <TrialConversionChart data={conversionTrendData} />
+    },
   ];
 
   const goToPrevious = () => {

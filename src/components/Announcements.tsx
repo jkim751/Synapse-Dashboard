@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
-import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, AwaitedReactNode } from "react";
+import AnnouncementsClient from "./AnnouncementsClient";
 
 const Announcements = async () => {
   const { userId, sessionClaims } = await auth();
@@ -10,7 +10,7 @@ const Announcements = async () => {
   let userClassIds: number[] = [];
 
   // --- NEW: Step 1 - Get the relevant class IDs based on the user's role ---
-  if (userId && !userRoles.includes('admin')) {
+  if (userId && !userRoles.includes('admin') || userRoles.includes('director')) {
     if (userRoles.includes('student')) {
       const studentClasses = await prisma.studentClass.findMany({
         where: { studentId: userId },
@@ -45,7 +45,7 @@ const Announcements = async () => {
     where: {
       // Admins see everything, so the where clause is empty for them
       // Other roles see global announcements OR announcements for their classes
-      ...(userRoles.includes('admin') ? {} : {
+      ...(userRoles.includes('admin') || userRoles.includes('director') ? {} : {
         OR: [
           {
             // Condition 1: The announcement is global (no class assigned)
@@ -62,26 +62,12 @@ const Announcements = async () => {
     },
   });
 
-  // The rest of your rendering logic is perfect and doesn't need to change.
   return (
     <div className="bg-white p-4 rounded-xl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Announcements</h1>
       </div>
-      <div className="flex flex-col gap-4 mt-4">
-        {data.length === 0 && <p className="text-sm text-gray-500 mt-2">No announcements found.</p>}
-        {data.map((announcement: { id: Key | null | undefined; title: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; date: number | Date | undefined; description: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }) => (
-          <div key={announcement.id} className="bg-lamaSkyLight bg-opacity-10 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-medium">{announcement.title}</h2>
-              <span className="text-xs text-black rounded-xl px-1 py-1">
-                {new Intl.DateTimeFormat("en-GB").format(announcement.date)}
-              </span>
-            </div>
-            <p className="text-sm text-black mt-1">{announcement.description}</p>
-          </div>
-        ))}
-      </div>
+      <AnnouncementsClient announcements={data.map((a) => ({ ...a, date: a.date.toISOString() }))} userId={userId!} />
     </div>
   );
 };

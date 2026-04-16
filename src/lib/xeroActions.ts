@@ -1,13 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
-import { getXeroClient } from "./xero";
+import { getAnyXeroClient } from "./xero";
 
 export const getXeroReports = async () => {
     try {
-      const { userId } = await auth();
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-      const xero = await getXeroClient(userId);
+      const xero = await getAnyXeroClient();
       
       if (!xero.tenants || xero.tenants.length === 0) {
         throw new Error('No active Xero tenant found. Please ensure you have connected a Xero organization.');

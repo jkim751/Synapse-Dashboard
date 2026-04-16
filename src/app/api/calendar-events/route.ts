@@ -13,7 +13,7 @@ export async function GET() {
     let userClassIds: number[] = [];
 
     // --- Get the relevant class IDs based on the user's role ---
-    if (!userRoles.includes('admin')) {
+    if (!userRoles.includes('admin') && !userRoles.includes('director')) {
       if (userRoles.includes('student')) {
         const studentClasses = await prisma.studentClass.findMany({
           where: { studentId: userId },
@@ -39,7 +39,7 @@ export async function GET() {
     // --- Fetch all relevant events ---
     const eventsFromDb = await prisma.event.findMany({
       where: {
-        ...(userRoles.includes('admin') ? {} : {
+        ...(userRoles.includes('admin') || userRoles.includes('director') ? {} : {
           OR: [
             { classId: null }, // Global events
             { classId: { in: userClassIds } }, // Class-specific events

@@ -327,6 +327,35 @@ export function useNotes() {
     }
   }
 
+  const searchNotes = async (query: string): Promise<Note[]> => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/notes?q=${encodeURIComponent(query)}`)
+      if (response.ok) {
+        const loadedNotes = await response.json()
+        return loadedNotes.map((note: any) => ({
+          ...note,
+          createdAt: new Date(note.createdAt),
+          comments: note.comments?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt)
+          })) || [],
+          actionItems: note.actionItems?.map((a: any) => ({
+            ...a,
+            createdAt: new Date(a.createdAt),
+            completedAt: a.completedAt ? new Date(a.completedAt) : undefined
+          })) || []
+        }))
+      }
+      return []
+    } catch (error) {
+      console.error('Search failed:', error)
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const deleteActionItem = async (noteId: string, actionId: string, date: Date) => {
     try {
       setIsLoading(true)
@@ -355,6 +384,7 @@ export function useNotes() {
     loadNotesForDate,
     getNotesForDate,
     saveNotesForDate,
+    searchNotes,
     deleteNote,
     addComment,
     deleteComment,

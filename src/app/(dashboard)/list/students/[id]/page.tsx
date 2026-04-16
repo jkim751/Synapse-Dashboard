@@ -4,6 +4,7 @@ import FormContainer from "@/components/FormContainer";
 import Performance from "@/components/Performance";
 import StudentAttendanceCard from "@/components/StudentAttendanceCard";
 import StudentNotes from "@/components/notes/StudentNotes";
+import StudentTaggedNotes from "@/components/notes/StudentTaggedNotes";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import Image from "next/image";
@@ -75,7 +76,7 @@ const SingleStudentPage = async ({
                 <h1 className="text-xl font-semibold">
                   {student.name + " " + student.surname}
                 </h1>
-                {role === "admin" && (
+                {(role === "admin" || role === "director") && (
                   <FormContainer table="student" type="update" data={student} />
                 )}
               </div>
@@ -233,9 +234,14 @@ const SingleStudentPage = async ({
         {/* Classes Card */}
 
           {/* Student Notes Section */}
-          {role === "admin" && (
-          <StudentNotes studentId={student.id} />
-        )}
+          {/* {(role === "admin" || role === "director") && (
+            <StudentNotes studentId={student.id} />
+          )} */}
+
+          {/* Notes from the main journal that mention this student */}
+          {(role === "admin" || role === "director") && (
+            <StudentTaggedNotes studentId={student.id} />
+          )}
 
         {allClasses.length > 0 && (
           <div className="bg-white p-4 rounded-xl">

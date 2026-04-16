@@ -33,7 +33,7 @@ const LessonListPage = async ({
     { header: "Subject Name", accessor: "name" },
     { header: "Class", accessor: "classes" },
     { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    ...((role === "admin" || role === "director") ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
   const renderRow = (item: LessonRow) => (
@@ -51,13 +51,13 @@ const LessonListPage = async ({
       </td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" && item.kind === "single" && (
+          {(role === "admin" || role === "director") && item.kind === "single" && (
             <>
               <FormContainer table="lesson" type="update" id={item.lessonId!} />
               <FormContainer table="lesson" type="delete" id={item.lessonId!} />
             </>
           )}
-          {role === "admin" && item.kind === "recurring" && (
+          {(role === "admin" || role === "director") && item.kind === "recurring" && (
             <>
               <FormContainer table="recurringLesson" type="update" id={item.recurringId!} />
               <FormContainer table="recurringLesson" type="delete" id={item.recurringId!} />
@@ -72,7 +72,8 @@ const LessonListPage = async ({
   const p = page ? parseInt(page) : 1;
 
   // ---- Build filters for both models (Lesson & RecurringLesson) ----
-  const lessonWhere: Prisma.LessonWhereInput = {};
+  // Exclude exception records (drag-and-drop rescheduled) and makeup lessons
+  const lessonWhere: Prisma.LessonWhereInput = { recurringLessonId: null, isMakeup: false };
   const recurringWhere: Prisma.RecurringLessonWhereInput = {};
 
   if (role === "teacher") {
@@ -170,7 +171,7 @@ const LessonListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {role === "admin" && <FormContainer table="lesson" type="create" />}
+            {(role === "admin" || role === "director") && <FormContainer table="lesson" type="create" />}
           </div>
         </div>
       </div>

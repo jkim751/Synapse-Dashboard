@@ -20,8 +20,6 @@ const BigCalendarContainer = async ({
   // Build the where clause for lessons based on the parameters
   let lessonsWhereClause = {};
   let recurringLessonsWhereClause = {};
-  let examsWhereClause = {};
-  let assignmentsWhereClause = {};
 
   if (type && id) {
     // Specific teacher or class view
@@ -30,112 +28,36 @@ const BigCalendarContainer = async ({
       : { classId: id as number };
     lessonsWhereClause = clause;
     recurringLessonsWhereClause = clause;
-    
-    // For exams and assignments, check both lesson and recurringLesson relationships
-    if (type === "teacherId") {
-      examsWhereClause = {
-        OR: [
-          { lesson: { teacherId: id as string } },
-          { recurringLesson: { teacherId: id as string } }
-        ]
-      };
-      assignmentsWhereClause = {
-        OR: [
-          { lesson: { teacherId: id as string } },
-          { recurringLesson: { teacherId: id as string } }
-        ]
-      };
-    } else {
-      examsWhereClause = {
-        OR: [
-          { lesson: { classId: id as number } },
-          { recurringLesson: { classId: id as number } }
-        ]
-      };
-      assignmentsWhereClause = {
-        OR: [
-          { lesson: { classId: id as number } },
-          { recurringLesson: { classId: id as number } }
-        ]
-      };
-    }
   } else if (classIds && classIds.length > 0) {
     // Multiple classes (for students/parents)
     const clause = { classId: { in: classIds } };
     lessonsWhereClause = clause;
     recurringLessonsWhereClause = clause;
-    examsWhereClause = {
-      OR: [
-        { lesson: { classId: { in: classIds } } },
-        { recurringLesson: { classId: { in: classIds } } }
-      ]
-    };
-    assignmentsWhereClause = {
-      OR: [
-        { lesson: { classId: { in: classIds } } },
-        { recurringLesson: { classId: { in: classIds } } }
-      ]
-    };
-  } else if (role !== "admin") {
+  } else if (role !== "admin" && role !== "director") {
     // Non-admin users should see their relevant lessons only
-    if (role === "teacher") {
-      const clause = { teacherId: userId! };
+    if (role === "teacher" && userId) {
+      const clause = { teacherId: userId };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
-      examsWhereClause = {
-        OR: [
-          { lesson: { teacherId: userId! } },
-          { recurringLesson: { teacherId: userId! } }
-        ]
-      };
-      assignmentsWhereClause = {
-        OR: [
-          { lesson: { teacherId: userId! } },
-          { recurringLesson: { teacherId: userId! } }
-        ]
-      };
-    } else if (role === "student") {
+    } else if (role === "student" && userId) {
       const studentClasses = await prisma.studentClass.findMany({
-        where: { studentId: userId! },
+        where: { studentId: userId },
         select: { classId: true },
       });
       const studentClassIds = studentClasses.map((sc: { classId: any; }) => sc.classId);
       const clause = { classId: { in: studentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
-      examsWhereClause = {
-        OR: [
-          { lesson: { classId: { in: studentClassIds } } },
-          { recurringLesson: { classId: { in: studentClassIds } } }
-        ]
-      };
-      assignmentsWhereClause = {
-        OR: [
-          { lesson: { classId: { in: studentClassIds } } },
-          { recurringLesson: { classId: { in: studentClassIds } } }
-        ]
-      };
-    } else if (role === "parent") {
+    } else if (role === "parent" && userId) {
       const parentClasses = await prisma.studentClass.findMany({
-        where: { student: { parentId: userId! } },
+        where: { student: { parentId: userId } },
         select: { classId: true },
+        distinct: ['classId'],
       });
       const parentClassIds = parentClasses.map((sc: { classId: any; }) => sc.classId);
       const clause = { classId: { in: parentClassIds } };
       lessonsWhereClause = clause;
       recurringLessonsWhereClause = clause;
-      examsWhereClause = {
-        OR: [
-          { lesson: { classId: { in: parentClassIds } } },
-          { recurringLesson: { classId: { in: parentClassIds } } }
-        ]
-      };
-      assignmentsWhereClause = {
-        OR: [
-          { lesson: { classId: { in: parentClassIds } } },
-          { recurringLesson: { classId: { in: parentClassIds } } }
-        ]
-      };
     }
   }
   // Admin sees all lessons (empty where clause)
@@ -150,15 +72,18 @@ const BigCalendarContainer = async ({
   expansionEnd.setMonth(currentDate.getMonth() + 6);
   expansionEnd.setHours(23, 59, 59, 999);
 
-  // Helper to convert a Date object into a timezone-naive ISO string
-  const toLocalISOString = (date: Date): string => {
-    const d = new Date(date);
-    const year = d.getUTCFullYear();
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const hours = String(d.getUTCHours()).padStart(2, '0');
-    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(d.getUTCSeconds()).padStart(2, '0');
+  // Convert a UTC Date to a timezone-naive Singapore time string (YYYY-MM-DDTHH:mm:ss).
+  // Passing a no-Z string to the calendar makes the browser treat it as "local" time,
+  // so the calendar always renders Singapore times regardless of the browser's timezone.
+  const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
+  const toSGTString = (date: Date): string => {
+    const sgt = new Date(date.getTime() + SGT_OFFSET_MS);
+    const year = sgt.getUTCFullYear();
+    const month = String(sgt.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(sgt.getUTCDate()).padStart(2, '0');
+    const hours = String(sgt.getUTCHours()).padStart(2, '0');
+    const minutes = String(sgt.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(sgt.getUTCSeconds()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   };
 
@@ -168,8 +93,6 @@ const BigCalendarContainer = async ({
     recurringLessonsRes,
     exceptionsRes,
     eventsRes,
-    examsRes,
-    assignmentsRes
   ] = await Promise.all([
     // Fetch regular lessons (no date restriction for past/future viewing)
     prisma.lesson.findMany({
@@ -197,10 +120,11 @@ const BigCalendarContainer = async ({
     // Fetch lesson exceptions (overrides/cancellations) within expansion range
     prisma.lesson.findMany({
       where: {
+        ...lessonsWhereClause,
         NOT: { recurringLessonId: null },
-        startTime: { 
+        startTime: {
           gte: expansionStart,
-          lte: expansionEnd 
+          lte: expansionEnd
         },
       },
       include: {
@@ -251,12 +175,12 @@ const BigCalendarContainer = async ({
           }
         }
       } else if (role === "parent") {
-        const child = await prisma.student.findFirst({
+        const children = await prisma.student.findMany({
           where: { parentId: userId },
           select: { id: true, gradeId: true, classes: { select: { classId: true } } },
         });
-        if (child) {
-          userSpecificClauses.push({ eventUsers: { some: { userId: child.id } } }); // For their child
+        for (const child of children) {
+          userSpecificClauses.push({ eventUsers: { some: { userId: child.id } } });
           if (child.gradeId) {
             userSpecificClauses.push({ eventGrades: { some: { gradeId: child.gradeId } } });
           }
@@ -265,15 +189,6 @@ const BigCalendarContainer = async ({
             userSpecificClauses.push({ classId: { in: classIds } });
           }
         }
-      } else if (role === "teacher") {
-        const teacher = await prisma.teacher.findUnique({
-          where: { id: userId },
-          select: { id: true }
-        });
-        if (teacher) {
-          // Teachers can see events for everyone, but not grade-specific events
-          // unless you have a different relationship structure
-        }
       }
       
       return prisma.event.findMany({
@@ -281,48 +196,6 @@ const BigCalendarContainer = async ({
         include: includeClause,
       });
     })(),
-
-    // Fetch exams - exclude for admins
-    role === "admin" ? Promise.resolve([]) : prisma.exam.findMany({
-      where: examsWhereClause,
-      include: {
-        lesson: {
-          include: {
-            subject: true,
-            class: true,
-            teacher: true,
-          }
-        },
-        recurringLesson: {
-          include: {
-            subject: true,
-            class: true,
-            teacher: true,
-          }
-        }
-      }
-    }),
-
-    // Fetch assignments - exclude for admins
-    role === "admin" ? Promise.resolve([]) : prisma.assignment.findMany({
-      where: assignmentsWhereClause,
-      include: {
-        lesson: {
-          include: {
-            subject: true,
-            class: true,
-            teacher: true,
-          }
-        },
-        recurringLesson: {
-          include: {
-            subject: true,
-            class: true,
-            teacher: true,
-          }
-        }
-      }
-    })
   ]);
 
   // Generate recurring lesson instances
@@ -352,11 +225,10 @@ const BigCalendarContainer = async ({
           if (exception.isCancelled) {
             continue;
           } else {
-            // Pass dates as timezone-naive strings
             recurringLessonInstances.push({
               title: `${exception.subject?.name || recurringLesson.subject?.name || 'Unknown Subject'} - ${exception.name}`,
-              start: toLocalISOString(exception.startTime),
-              end: toLocalISOString(exception.endTime),
+              start: toSGTString(new Date(exception.startTime)),
+              end: toSGTString(new Date(exception.endTime)),
               subject: exception.subject?.name || recurringLesson.subject?.name,
               teacher: exception.teacher ? `${exception.teacher.name} ${exception.teacher.surname}` : (recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher'),
               classroom: exception.class?.name || recurringLesson.class?.name || 'Unknown Classroom',
@@ -367,17 +239,12 @@ const BigCalendarContainer = async ({
             });
           }
         } else {
-          // Get time components from the template (stored in UTC)
           const dbTemplateStart = new Date(recurringLesson.startTime);
           const dbTemplateEnd = new Date(recurringLesson.endTime);
-          
-          // Extract hours and minutes from UTC time
           const templateHours = dbTemplateStart.getUTCHours();
           const templateMinutes = dbTemplateStart.getUTCMinutes();
           const durationMs = dbTemplateEnd.getTime() - dbTemplateStart.getTime();
-          
-          // Apply time to occurrence date.
-          // IMPORTANT: Create the date in UTC to avoid server timezone shifts.
+
           const start = new Date(Date.UTC(
             occurrenceDate.getFullYear(),
             occurrenceDate.getMonth(),
@@ -390,8 +257,8 @@ const BigCalendarContainer = async ({
 
           recurringLessonInstances.push({
             title: `${recurringLesson.name}`,
-            start: toLocalISOString(start),
-            end: toLocalISOString(end),
+            start: toSGTString(start),
+            end: toSGTString(end),
             subject: recurringLesson.subject?.name,
             teacher: recurringLesson.teacher ? `${recurringLesson.teacher.name} ${recurringLesson.teacher.surname}` : 'Unknown Teacher',
             classroom: recurringLesson.class?.name || 'Unknown Classroom',
@@ -408,13 +275,11 @@ const BigCalendarContainer = async ({
     }
   }
 
-  // Transform regular lessons data (treat UTC values as local)
   const lessonsData = lessonsRes.map((lesson: { subject: { name: any; }; name: any; startTime: string | number | Date; endTime: string | number | Date; teacher: { name: any; surname: any; }; class: { name: any; }; id: any; }) => {
-    // Pass dates as timezone-naive strings
     return {
       title: `${lesson.subject?.name || 'Unknown Subject'} - ${lesson.name}`,
-      start: toLocalISOString(new Date(lesson.startTime)),
-      end: toLocalISOString(new Date(lesson.endTime)),
+      start: toSGTString(new Date(lesson.startTime)),
+      end: toSGTString(new Date(lesson.endTime)),
       subject: lesson.subject?.name,
       teacher: lesson.teacher ? `${lesson.teacher.name} ${lesson.teacher.surname}` : 'Unknown Teacher',
       classroom: lesson.class?.name || 'Unknown Classroom',
@@ -422,14 +287,15 @@ const BigCalendarContainer = async ({
       lessonId: lesson.id,
       type: 'lesson' as const,
       isRecurring: false,
+      isMakeup: (lesson as any).isMakeup ?? false,
     };
   });
 
   // Transform events data (keep original dates)
   const eventsData = eventsRes.map((event: any) => ({
     title: event.title,
-    start: toLocalISOString(new Date(event.startTime)),
-    end: toLocalISOString(new Date(event.endTime)),
+    start: toSGTString(new Date(event.startTime)),
+    end: toSGTString(new Date(event.endTime)),
     subject: undefined,
     teacher: undefined,
     classroom: undefined, // Remove classroom for events
@@ -443,48 +309,13 @@ const BigCalendarContainer = async ({
     gradeIds: event.eventGrades.map((g: { gradeId: number }) => g.gradeId),
   }));
 
-  // Transform exams data
-  const examsData = examsRes.map((exam: { lesson: any; recurringLesson: any; title: any; startTime: any; endTime: any; id: any; }) => {
-    const lessonData = exam.lesson || exam.recurringLesson;
-    
-    return {
-      title: `📝 ${exam.title}`,
-      start: toLocalISOString(new Date(exam.startTime)),
-      end: toLocalISOString(new Date(exam.endTime)),
-      subject: lessonData?.subject?.name,
-      teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
-      classroom: lessonData?.class?.name,
-      description: `Exam: ${exam.title}`,
-      examId: exam.id,
-      type: 'exam' as const,
-    };
-  });
-
-  // Transform assignments data
-  const assignmentsData = assignmentsRes.map((assignment: { lesson: any; recurringLesson: any; title: any; dueDate: Date; id: any; }) => {
-    const lessonData = assignment.lesson || assignment.recurringLesson;
-    const localDueDate = new Date(assignment.dueDate);
-    
-    return {
-      title: `📋 ${assignment.title}`,
-      start: toLocalISOString(localDueDate),
-      end: toLocalISOString(new Date(localDueDate.getTime() + 60 * 60 * 1000)), // 1 hour duration
-      subject: lessonData?.subject?.name,
-      teacher: lessonData?.teacher ? `${lessonData.teacher.name} ${lessonData.teacher.surname}` : "",
-      classroom: lessonData?.class?.name,
-      description: `Assignment due: ${assignment.title}`,
-      assignmentId: assignment.id,
-      type: 'assignment' as const,
-    };
-  });
-
   // Combine all lesson events (regular + recurring instances)
   const allLessons = [
-    ...lessonsData, 
+    ...lessonsData,
     ...recurringLessonInstances,
-    ...examsData,
-    ...assignmentsData
   ];
+
+  const canDragDrop = role === 'admin' || role === 'director' || role === 'teacher';
 
   return (
     <div className="h-full overflow-hidden">
@@ -492,6 +323,7 @@ const BigCalendarContainer = async ({
         initialLessons={allLessons}
         initialEvents={eventsData}
         showNotifications={showNotifications}
+        canDragDrop={canDragDrop}
       />
     </div>
   );

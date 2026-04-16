@@ -6,7 +6,7 @@ export async function GET() {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || role !== "admin") {
+  if (!userId || (role !== "admin" && role !== "director")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

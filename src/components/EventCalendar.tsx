@@ -4,13 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import dynamic from "next/dynamic";
 
 type ValuePiece = Date | null;
 
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-const EventCalendarComponent = () => {
+const EventCalendar = () => {
   const [value, onChange] = useState<Value>(null);
   const router = useRouter();
 
@@ -27,12 +26,4 @@ const EventCalendarComponent = () => {
   return <Calendar onChange={onChange} value={value} />;
 };
 
-const EventCalendar = dynamic(() => import("./EventCalendar"), { ssr: false });
-
-export default function Page() {
-  return (
-    <div>
-      <EventCalendar />
-    </div>
-  );
-}
+export default EventCalendar;

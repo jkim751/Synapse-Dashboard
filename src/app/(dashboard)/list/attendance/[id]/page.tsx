@@ -8,6 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import AttendanceRow from "@/components/AttendanceRow";
 import DateSelector from "@/components/DateSelector";
+import MakeupClassButton from "@/components/MakeupClassButton";
 import { doesRecurringLessonOccurOnDate, getDayFromDate, isDateWithinLessonPeriod } from "@/lib/rruleUtils";
 
 type StudentWithAttendance = Student & {
@@ -39,7 +40,7 @@ const SingleClassAttendancePage = async ({
     const userRoles = role ? [role] : [];
     const resolvedSearchParams = await searchParams;
 
-    if (!userRoles.includes("admin") && !userRoles.includes("teacher")) {
+    if (!userRoles.includes("admin") && !userRoles.includes("director") && !userRoles.includes("teacher")) {
       redirect("/"); // Redirect non-admins/teachers immediately
     }
 
@@ -137,11 +138,26 @@ const SingleClassAttendancePage = async ({
       prisma.student.count({ where: query }),
     ]);
 
-    // Get regular lessons for the selected date for this class
+    // Get lessons for the selected date for this class.
+    // Standalone lessons (recurringLessonId: null) match by day of week — they recur weekly.
+    // Exception lessons (recurringLessonId != null) were rescheduled to a specific date via
+    // drag-and-drop, so match by actual startTime to avoid showing them on every occurrence
+    // of that weekday.
+    // Makeup lessons always match by actual date and include their specific student list.
     const dayLessons = await prisma.lesson.findMany({
       where: {
         classId: classId,
-        day: getDayFromDate(selectedDate),
+        isMakeup: false,
+        OR: [
+          {
+            recurringLessonId: null,
+            day: getDayFromDate(selectedDate),
+          },
+          {
+            recurringLessonId: { not: null },
+            startTime: { gte: startOfDay, lte: endOfDay },
+          },
+        ],
       },
       include: {
         subject: true,
@@ -149,6 +165,29 @@ const SingleClassAttendancePage = async ({
       },
       orderBy: { startTime: "asc" },
     });
+
+    // Fetch makeup lessons for this date separately so we can include their student lists
+    const makeupLessons = await prisma.lesson.findMany({
+      where: {
+        classId: classId,
+        isMakeup: true,
+        startTime: { gte: startOfDay, lte: endOfDay },
+      },
+      include: {
+        subject: true,
+        teacher: true,
+        makeupStudents: { select: { studentId: true } },
+      },
+      orderBy: { startTime: "asc" },
+    });
+
+    // Track which recurring series have an exception on this date so we can
+    // suppress the parent recurring occurrence (avoid double-showing).
+    const exceptionRecurringIds = new Set(
+      dayLessons
+        .filter((l: any) => l.recurringLessonId !== null)
+        .map((l: any) => l.recurringLessonId as number)
+    );
 
     // Get ALL recurring lessons for this class (we'll filter them below)
     const allRecurringLessons = await prisma.recurringLesson.findMany({
@@ -162,31 +201,48 @@ const SingleClassAttendancePage = async ({
       orderBy: { startTime: "asc" },
     });
 
-    // Filter recurring lessons to only include those that actually occur on the selected date
-    const dayRecurringLessons = allRecurringLessons.filter((lesson: { startTime: Date; rrule: string | undefined; }) => {
+    // Filter recurring lessons to only include those that actually occur on the selected date,
+    // and exclude any series that already have an exception lesson on this date.
+    const dayRecurringLessons = allRecurringLessons.filter((lesson: { id: number; startTime: Date; rrule: string | undefined; }) => {
+      // If there's an exception for this series on this date, show the exception instead
+      if (exceptionRecurringIds.has(lesson.id)) {
+        return false;
+      }
+
       // Skip lessons without rrule
       if (!lesson.rrule) {
         return false;
       }
-      
+
       // Check if the lesson period includes the selected date
       if (!isDateWithinLessonPeriod(lesson.startTime, selectedDate, lesson.rrule)) {
         return false;
       }
-      
+
       // Check if the lesson actually occurs on this specific date based on RRule
       return doesRecurringLessonOccurOnDate(lesson.rrule, lesson.startTime, selectedDate);
     });
 
     console.log(`Found ${allRecurringLessons.length} total recurring lessons, ${dayRecurringLessons.length} occur on ${selectedDate.toDateString()}`);
 
-    // Combine regular and recurring lessons
+    // Fetch subjects and teachers for the makeup class creation modal
+    const [allSubjects, allTeachers] = await Promise.all([
+      prisma.subject.findMany({ orderBy: { name: "asc" } }),
+      prisma.teacher.findMany({ orderBy: { name: "asc" } }),
+    ]);;
+
+    // Combine regular, recurring, and makeup lessons
     const allLessons = [
-      ...dayLessons.map((lesson: any) => ({ ...lesson, isRecurring: false, type: 'regular' as const })),
-      ...dayRecurringLessons.map((lesson: any) => ({ ...lesson, isRecurring: true, type: 'recurring' as const }))
-    ].sort((a, b) => {
-      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-    });
+      ...dayLessons.map((lesson: any) => ({ ...lesson, isRecurring: false, isMakeup: false, type: 'regular' as const, makeupStudentIds: undefined })),
+      ...dayRecurringLessons.map((lesson: any) => ({ ...lesson, isRecurring: true, isMakeup: false, type: 'recurring' as const, makeupStudentIds: undefined })),
+      ...makeupLessons.map((lesson: any) => ({
+        ...lesson,
+        isRecurring: false,
+        isMakeup: true,
+        type: 'regular' as const,
+        makeupStudentIds: lesson.makeupStudents.map((ms: any) => ms.studentId) as string[],
+      })),
+    ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     // Get attendance data for the selected date (both regular and recurring lessons)
     const attendanceData = await prisma.attendance.findMany({
@@ -269,20 +325,25 @@ const SingleClassAttendancePage = async ({
         }
       });
       
-      // Transform lessons to match expected type with unique IDs
+      // Transform lessons to match expected type with unique IDs.
+      // For makeup lessons, filter out if this student isn't enrolled.
       const validLessons = allLessons
         .filter(lesson => lesson.subject && lesson.teacher)
+        .filter(lesson => {
+          if (lesson.isMakeup && lesson.makeupStudentIds) {
+            return lesson.makeupStudentIds.includes(student.id);
+          }
+          return true;
+        })
         .map(lesson => {
-          // Ensure we have proper numeric IDs
           const originalId = lesson.id;
-          
           return {
             ...lesson,
             id: lesson.isRecurring ? `recurring_${originalId}` : `lesson_${originalId}`,
             originalId: originalId,
             originalType: lesson.type,
             subject: { name: lesson.subject!.name },
-            teacher: { name: lesson.teacher!.name, surname: lesson.teacher!.surname }
+            teacher: { name: lesson.teacher!.name, surname: lesson.teacher!.surname },
           };
         });
         
@@ -324,6 +385,15 @@ const SingleClassAttendancePage = async ({
          <DateSelector currentDate={selectedDate} classId={classId} />
               <input type="hidden" name="date" value={selectedDate.toISOString().split('T')[0]} />
             </form>
+            {(role === "admin" || role === "director") && (
+              <MakeupClassButton
+                classId={classId}
+                students={students.map((s: any) => ({ id: s.id, name: s.name, surname: s.surname }))}
+                subjects={allSubjects}
+                teachers={allTeachers}
+                defaultDate={selectedDateStr}
+              />
+            )}
           </div>
         </div>
 
@@ -361,12 +431,18 @@ const SingleClassAttendancePage = async ({
                 </span>
               ))}
             </div>
-            {/* Debug info for development */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-2 text-xs text-gray-500">
-                Debug: {dayLessons.length} regular lessons, {dayRecurringLessons.length} recurring lessons on this date
-              </div>
-            )}
+            {(() => {
+              const recorders = [...new Set(
+                attendanceData
+                  .map((a: any) => a.recordedByName)
+                  .filter(Boolean)
+              )] as string[];
+              return recorders.length > 0 ? (
+                <div className="mt-2 text-xs text-gray-500">
+                  Attendance recorded by {recorders.join(", ")}
+                </div>
+              ) : null;
+            })()}
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">

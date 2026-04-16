@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { del } from "@vercel/blob";
 import {
-  AssignmentSchema,
+  AssessmentSchema,
   AnnouncementSchema,
   ClassSchema,
   EventSchema,
-  ExamSchema,
   LessonSchema,
   ParentSchema,
   ResultSchema,
@@ -19,9 +19,8 @@ import {
   teacherSchema,
   subjectSchema,
   classSchema,
-  examSchema,
+  assessmentSchema,
   lessonSchema,
-  assignmentSchema,
   resultSchema,
   eventSchema,
   announcementSchema,
@@ -204,6 +203,14 @@ const updateUserPhotoInDatabase = async (
         });
         console.log("Admin update result:", updateResult);
         break;
+      case "director":
+        console.log("Updating director...");
+        updateResult = await prisma.director.update({
+          where: { id: userId },
+          data: { img: photoUrl },
+        });
+        console.log("Director update result:", updateResult);
+        break;
       default:
         console.error("Invalid user role:", userRole);
         return { success: false, error: `Invalid user role: ${userRole}` };
@@ -225,9 +232,15 @@ const updateUserPhotoInDatabase = async (
         });
         break;
       case "admin":
-        verificationRecord = await prisma.admin.findUnique({ 
-          where: { id: userId }, 
-          select: { img: true, name: true } 
+        verificationRecord = await prisma.admin.findUnique({
+          where: { id: userId },
+          select: { img: true, name: true }
+        });
+        break;
+      case "director":
+        verificationRecord = await prisma.director.findUnique({
+          where: { id: userId },
+          select: { img: true, name: true }
         });
         break;
     }
@@ -431,7 +444,8 @@ export const createTeacher = async (
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
-      publicMetadata: { role: "teacher" }
+      publicMetadata: { role: "teacher" },
+      skipPasswordChecks: true,
     });
 
     await prisma.teacher.create({
@@ -456,8 +470,11 @@ export const createTeacher = async (
 
     revalidatePath("/list/teachers");
     return { success: true, error: false, message: "Teacher created successfully!" };
-  } catch (err) {
+  } catch (err: any) {
     console.error("Create Teacher Error:", err);
+    if (err?.errors) {
+      console.error("Clerk errors:", JSON.stringify(err.errors, null, 2));
+    }
     return { success: false, error: true, message: "Failed to create teacher!" };
   }
 };
@@ -560,7 +577,8 @@ export const createAdmin = async (
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
-      publicMetadata: { role: "admin" }
+      publicMetadata: { role: "admin" },
+      skipPasswordChecks: true,
     });
 
     await prisma.admin.create({
@@ -673,7 +691,8 @@ export const createStudent = async (
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
-      publicMetadata: { role: "student" }
+      publicMetadata: { role: "student" },
+      skipPasswordChecks: true,
     });
 
     const student = await prisma.student.create({
@@ -691,7 +710,7 @@ export const createStudent = async (
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
         school: validatedData.school || undefined,
-        status: validatedData.status, // NEW
+        status: validatedData.status,
       },
     });
 
@@ -700,7 +719,7 @@ export const createStudent = async (
       data: validatedData.classIds.map((classId, index) => ({
         studentId: student.id,
         classId: classId,
-        isPrimary: index === 0, // First class is primary
+        isPrimary: index === 0,
       })),
     });
 
@@ -722,6 +741,13 @@ export const updateStudent = async (
     if (!validatedData.id) {
       return { success: false, error: true, message: "Student ID is required for update!" };
     }
+
+    // Capture current status before update so we can tag the history record with changedBy
+    const { userId } = await auth();
+    const currentStudent = await prisma.student.findUnique({
+      where: { id: validatedData.id },
+      select: { status: true },
+    });
 
     const clerk = await clerkClient();
     const user = await clerk.users.updateUser(validatedData.id, {
@@ -748,9 +774,23 @@ export const updateStudent = async (
         gradeId: validatedData.gradeId,
         parentId: validatedData.parentId || undefined,
         school: validatedData.school || undefined,
-        status: validatedData.status, // NEW
+        status: validatedData.status,
       },
     });
+
+    // If the status changed, tag the auto-created history record with who made the change
+    if (userId && currentStudent?.status && currentStudent.status !== validatedData.status) {
+      const latest = await prisma.studentStatusHistory.findFirst({
+        where: { studentId: validatedData.id, changedBy: null },
+        orderBy: { changedAt: "desc" },
+      });
+      if (latest) {
+        await prisma.studentStatusHistory.update({
+          where: { id: latest.id },
+          data: { changedBy: userId },
+        });
+      }
+    }
 
     // Update StudentClass entries
     // First, remove existing class associations
@@ -758,14 +798,16 @@ export const updateStudent = async (
       where: { studentId: validatedData.id },
     });
 
-    // Then create new associations
-    await prisma.studentClass.createMany({
-      data: validatedData.classIds.map((classId, index) => ({
-        studentId: validatedData.id!,
-        classId: classId,
-        isPrimary: index === 0, // First class is primary
-      })),
-    });
+    // Disenrolled students are removed from all classes — don't recreate associations
+    if (validatedData.status !== "DISENROLLED") {
+      await prisma.studentClass.createMany({
+        data: validatedData.classIds.map((classId, index) => ({
+          studentId: validatedData.id!,
+          classId: classId,
+          isPrimary: index === 0,
+        })),
+      });
+    }
 
     revalidatePath("/list/students");
     return { success: true, error: false, message: "Student updated successfully!" };
@@ -798,78 +840,109 @@ export const deleteStudent = async (
   }
 };
 
-export const createExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  try {
-    const validatedData = examSchema.parse(data);
+/** Silently delete one or more Vercel Blob URLs. Errors are logged but not thrown. */
+async function deleteBlobFiles(urls: string[]): Promise<void> {
+  await Promise.allSettled(
+    urls.map((url) =>
+      del(url).catch((err) =>
+        console.error("Failed to delete blob file:", url, err)
+      )
+    )
+  );
+}
 
-    await prisma.exam.create({
+export const createAssessment = async (
+  currentState: CurrentState,
+  data: AssessmentSchema
+) => {
+  const uploadedFiles = data.documents || [];
+  try {
+    const validatedData = assessmentSchema.parse(data);
+
+    await prisma.assessment.create({
       data: {
         title: validatedData.title,
-        startTime: validatedData.startTime,
-        endTime: validatedData.endTime,
-        // --- NEW: Conditionally set the correct ID ---
-        lessonId: validatedData.lessonId || undefined,
-        recurringLessonId: validatedData.recurringLessonId || undefined,
-      },
-    });
-
-    revalidatePath("/list/exams");
-    return { success: true, error: false, message: "Exam created successfully!" };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true, message: "Failed to create exam!" };
-  }
-};
-
-export const updateExam = async (
-  currentState: CurrentState,
-  data: ExamSchema
-) => {
-  try {
-    const validatedData = examSchema.parse(data);
-
-    await prisma.exam.update({
-      where: {
-        id: validatedData.id,
-      },
-      data: {
-        title: validatedData.title,
-        startTime: validatedData.startTime,
-        endTime: validatedData.endTime,
+        type: validatedData.type,
         documents: validatedData.documents || [],
-        // --- NEW: Conditionally set the correct ID ---
         lessonId: validatedData.lessonId || undefined,
         recurringLessonId: validatedData.recurringLessonId || undefined,
       },
     });
-    revalidatePath("/list/exams");
-    return { success: true, error: false, message: "Exam updated successfully!" };
+
+    revalidatePath("/list/assessments");
+    return { success: true, error: false, message: "Assessment created successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true, message: "Failed to update exam!" };
+    // DB write failed — clean up any files that were already uploaded
+    if (uploadedFiles.length > 0) await deleteBlobFiles(uploadedFiles);
+    return { success: false, error: true, message: "Failed to create assessment!" };
   }
 };
 
-export const deleteExam = async (
+export const updateAssessment = async (
+  currentState: CurrentState,
+  data: AssessmentSchema
+) => {
+  const newDocuments = data.documents || [];
+  try {
+    const validatedData = assessmentSchema.parse(data);
+
+    // Fetch current documents so we can diff after a successful save
+    const existing = await prisma.assessment.findUnique({
+      where: { id: validatedData.id },
+      select: { documents: true },
+    });
+    const oldDocuments = existing?.documents || [];
+
+    await prisma.assessment.update({
+      where: { id: validatedData.id },
+      data: {
+        title: validatedData.title,
+        type: validatedData.type,
+        documents: validatedData.documents || [],
+        lessonId: validatedData.lessonId || undefined,
+        recurringLessonId: validatedData.recurringLessonId || undefined,
+      },
+    });
+
+    // Delete any files that were removed from the documents list
+    const newSet = new Set(newDocuments);
+    const removedFiles = oldDocuments.filter((url) => !newSet.has(url));
+    if (removedFiles.length > 0) await deleteBlobFiles(removedFiles);
+
+    revalidatePath("/list/assessments");
+    return { success: true, error: false, message: "Assessment updated successfully!" };
+  } catch (err) {
+    console.log(err);
+    // DB write failed — clean up any newly added files (not in original set)
+    // We don't have oldDocuments here if the findUnique also failed, so we guard carefully
+    return { success: false, error: true, message: "Failed to update assessment!" };
+  }
+};
+
+export const deleteAssessment = async (
   currentState: CurrentState,
   data: FormData
 ) => {
   const id = data.get("id") as string;
   try {
-    await prisma.exam.delete({
-      where: {
-        id: parseInt(id),
-      },
+    // Fetch documents before deleting so we can clean up blob storage
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: parseInt(id) },
+      select: { documents: true },
     });
 
-    revalidatePath("/list/exams");
-    return { success: true, error: false, message: "Exam deleted successfully!" };
+    await prisma.assessment.delete({ where: { id: parseInt(id) } });
+
+    if (assessment?.documents?.length) {
+      await deleteBlobFiles(assessment.documents);
+    }
+
+    revalidatePath("/list/assessments");
+    return { success: true, error: false, message: "Assessment deleted successfully!" };
   } catch (err) {
     console.log(err);
-    return { success: false, error: true, message: "Failed to delete exam!" };
+    return { success: false, error: true, message: "Failed to delete assessment!" };
   }
 }
 
@@ -889,9 +962,8 @@ export async function createRecurringLesson(payload: {
   rrule: string; // required for weekly
 }) {
   try {
-    // Treat datetime-local string as UTC by appending 'Z'
-    const startDate = new Date(payload.startTime + 'Z');
-    const endDate = new Date(payload.endTime + 'Z');
+    const startDate = new Date(payload.startTime + '+08:00');
+    const endDate = new Date(payload.endTime + '+08:00');
 
     // Validate the RRule
     try {
@@ -943,17 +1015,16 @@ export async function updateLesson(payload: {
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
     
     if (rest.startTime !== undefined) {
-      // Treat as UTC
-      const startDate = new Date(rest.startTime + 'Z');
+      const startDate = new Date(rest.startTime + '+08:00');
       updateData.startTime = startDate;
-      
+
       const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-      updateData.day = dayNames[startDate.getUTCDay()];
+      const [datePart] = rest.startTime.split('T');
+      updateData.day = dayNames[new Date(datePart + 'T12:00:00Z').getUTCDay()];
     }
-    
+
     if (rest.endTime !== undefined) {
-      // Treat as UTC
-      updateData.endTime = new Date(rest.endTime + 'Z');
+      updateData.endTime = new Date(rest.endTime + '+08:00');
     }
 
     await prisma.lesson.update({
@@ -995,11 +1066,11 @@ export async function updateRecurringLesson(payload: {
       if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
       
       if (rest.startTime !== undefined) {
-        updateData.startTime = new Date(rest.startTime + 'Z');
+        updateData.startTime = new Date(rest.startTime + '+08:00');
       }
-      
+
       if (rest.endTime !== undefined) {
-        updateData.endTime = new Date(rest.endTime + 'Z');
+        updateData.endTime = new Date(rest.endTime + '+08:00');
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
@@ -1016,11 +1087,13 @@ export async function updateRecurringLesson(payload: {
     // updateScope === "instance"
     if (!originalDate) return { success: false, error: true, message: "originalDate required when updating a single instance." };
 
-    const startDate = new Date((rest.startTime || originalDate) + 'Z');
-    const endDate = new Date((rest.endTime || originalDate) + 'Z');
-    
+    const startDate = new Date((rest.startTime || originalDate) + '+08:00');
+    const endDate = new Date((rest.endTime || originalDate) + '+08:00');
+
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getUTCDay()];
+    const startStr = rest.startTime || originalDate;
+    const [datePart] = startStr.split('T');
+    const dayOfWeek = dayNames[new Date(datePart + 'T12:00:00Z').getUTCDay()];
 
     await prisma.lesson.create({
       data: {
@@ -1095,13 +1168,13 @@ export async function createLesson(payload: {
   endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
 }) {
   try {
-    // Treat datetime-local string as UTC by appending 'Z'
-    const startDate = new Date(payload.startTime + 'Z');
-    const endDate = new Date(payload.endTime + 'Z');
-    
+    const startDate = new Date(payload.startTime + '+08:00');
+    const endDate = new Date(payload.endTime + '+08:00');
+
     const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
-    const dayOfWeek = dayNames[startDate.getUTCDay()];
-    
+    const [datePart] = payload.startTime.split('T');
+    const dayOfWeek = dayNames[new Date(datePart + 'T12:00:00Z').getUTCDay()];
+
     await prisma.lesson.create({
       data: {
         name: payload.name,
@@ -1119,6 +1192,99 @@ export async function createLesson(payload: {
     return { success: true, error: false, message: "Lesson created" };
   } catch (e: any) {
     console.error("Error creating lesson:", e);
+    return { success: false, error: true, message: e.message || "Create failed" };
+  }
+}
+
+export async function createMakeupLesson(payload: {
+  name: string;
+  subjectId: number;
+  classId: number;
+  teacherId: string;
+  startTime: string; // "YYYY-MM-DDTHH:mm"
+  endTime: string;
+  studentIds: string[];
+}) {
+  try {
+    if (!payload.studentIds || payload.studentIds.length === 0) {
+      return { success: false, error: true, message: "At least one student is required for a makeup lesson" };
+    }
+
+    const startDate = new Date(payload.startTime + '+08:00');
+    const endDate = new Date(payload.endTime + '+08:00');
+
+    const dayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+    const [datePart] = payload.startTime.split('T');
+    const dayOfWeek = dayNames[new Date(datePart + 'T12:00:00Z').getUTCDay()];
+
+    const lesson = await prisma.lesson.create({
+      data: {
+        name: payload.name,
+        subjectId: Number(payload.subjectId),
+        classId: Number(payload.classId),
+        teacherId: payload.teacherId,
+        startTime: startDate,
+        endTime: endDate,
+        day: dayOfWeek,
+        isMakeup: true,
+        makeupStudents: {
+          create: payload.studentIds.map(studentId => ({ studentId })),
+        },
+      },
+    });
+
+    // Fetch students and their parents to notify
+    const students = await prisma.student.findMany({
+      where: { id: { in: payload.studentIds } },
+      select: { id: true, name: true, surname: true, parentId: true },
+    });
+
+    const dateStr = startDate.toLocaleDateString("en-GB", {
+      weekday: "short", day: "numeric", month: "short",
+      hour: "2-digit", minute: "2-digit", timeZone: "UTC",
+    });
+
+    const notificationData: { title: string; message: string; type: string; recipientId: string; lessonId: number }[] = [];
+
+    // Teacher notification
+    notificationData.push({
+      title: "Makeup Class Scheduled",
+      message: `A makeup lesson "${payload.name}" has been scheduled for ${dateStr}.`,
+      type: "makeup_lesson",
+      recipientId: payload.teacherId,
+      lessonId: lesson.id,
+    });
+
+    for (const student of students) {
+      const studentName = `${student.name} ${student.surname}`;
+
+      // Student notification
+      notificationData.push({
+        title: "Makeup Class Scheduled",
+        message: `A makeup lesson "${payload.name}" has been scheduled for you on ${dateStr}.`,
+        type: "makeup_lesson",
+        recipientId: student.id,
+        lessonId: lesson.id,
+      });
+
+      // Parent notification
+      if (student.parentId) {
+        notificationData.push({
+          title: "Makeup Class Scheduled",
+          message: `A makeup lesson "${payload.name}" has been scheduled for ${studentName} on ${dateStr}.`,
+          type: "makeup_lesson",
+          recipientId: student.parentId,
+          lessonId: lesson.id,
+        });
+      }
+    }
+
+    await prisma.notification.createMany({ data: notificationData, skipDuplicates: true });
+
+    revalidatePath("/list/attendance");
+    return { success: true, error: false, message: "Makeup lesson created", lessonId: lesson.id };
+  } catch (e: any) {
+    console.error("Error creating makeup lesson:", e);
     return { success: false, error: true, message: e.message || "Create failed" };
   }
 }
@@ -1143,6 +1309,7 @@ export const createParent = async (
       firstName: validatedData.name,
       lastName: validatedData.surname,
       publicMetadata: { role: "parent" },
+      skipPasswordChecks: true,
     });
 
     const parent = await prisma.parent.create({
@@ -1277,116 +1444,27 @@ export const deleteParent = async (
   }
 };
 
-export const createAssignment = async (
-  currentState: CurrentState,
-  data: AssignmentSchema
-) => {
-  try {
-    const validatedData = assignmentSchema.parse(data);
-
-    await prisma.assignment.create({
-      data: {
-        title: validatedData.title,
-        startDate: validatedData.startDate,
-        dueDate: validatedData.dueDate,
-        documents: validatedData.documents || [], // Also handle documents on create
-        
-        // --- THIS IS THE FIX ---
-        // Conditionally set the correct ID based on what was submitted.
-        // The zod .refine() check ensures only one of them will have a value.
-        lessonId: validatedData.lessonId || undefined,
-        recurringLessonId: validatedData.recurringLessonId || undefined,
-      },
-    });
-
-    revalidatePath("/list/assignments");
-    return { success: true, error: false, message: "Assignment created successfully!" };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true, message: "Failed to create assignment!" };
-  }
-};
-
-export const updateAssignment = async (
-  currentState: CurrentState,
-  data: AssignmentSchema
-) => {
-  try {
-    const validatedData = assignmentSchema.parse(data);
-
-    if (!validatedData.id) {
-      return { success: false, error: true, message: "Assignment ID is required for update!" };
-    }
-
-    await prisma.assignment.update({
-      where: {
-        id: validatedData.id,
-      },
-      data: {
-        title: validatedData.title,
-        startDate: validatedData.startDate,
-        dueDate: validatedData.dueDate,
-        documents: validatedData.documents || [],
-        
-        // --- THIS IS THE FIX ---
-        // Apply the same conditional logic for updates.
-        lessonId: validatedData.lessonId || undefined,
-        recurringLessonId: validatedData.recurringLessonId || undefined,
-      },
-    });
-
-    revalidatePath("/list/assignments");
-    return { success: true, error: false, message: "Assignment updated successfully!" };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true, message: "Failed to update assignment!" };
-  }
-};
-
-
-export const deleteAssignment = async (
-  currentState: CurrentState,
-  data: FormData
-) => {
-  const id = data.get("id") as string;
-  try {
-    await prisma.assignment.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
-
-    revalidatePath("/list/assignments");
-    return { success: true, error: false, message: "Assignment deleted successfully!" };
-  } catch (err) {
-    console.log(err);
-    return { success: false, error: true, message: "Failed to delete assignment!" };
-  }
-};
-
 export const createResult = async (
   currentState: { success: boolean; error: boolean; message: string },
   data: any
 ) => {
+  const uploadedFiles: string[] = data.documents || [];
   try {
-    console.log("Creating result with data:", data);
-    
-    const result = await prisma.result.create({
+    await prisma.result.create({
       data: {
         title: data.title,
         score: parseInt(data.score),
         studentId: data.studentId,
-        ...(data.examId && { examId: parseInt(data.examId) }),
-        ...(data.assignmentId && { assignmentId: parseInt(data.assignmentId) }),
-        documents: data.documents || [],
+        ...(data.assessmentId && { assessmentId: parseInt(data.assessmentId) }),
+        documents: uploadedFiles,
       },
     });
 
-    console.log("Created result:", result);
     revalidatePath("/list/results");
     return { success: true, error: false, message: "Result created successfully!" };
   } catch (err) {
     console.error("Error creating result:", err);
+    if (uploadedFiles.length > 0) await deleteBlobFiles(uploadedFiles);
     return { success: false, error: true, message: "Failed to create result!" };
   }
 };
@@ -1395,22 +1473,30 @@ export const updateResult = async (
   currentState: { success: boolean; error: boolean; message: string },
   data: any
 ) => {
+  const newDocuments: string[] = data.documents || [];
   try {
-    console.log("Updating result with data:", data);
-    
-    const result = await prisma.result.update({
+    const existing = await prisma.result.findUnique({
+      where: { id: parseInt(data.id) },
+      select: { documents: true },
+    });
+    const oldDocuments = existing?.documents || [];
+
+    await prisma.result.update({
       where: { id: parseInt(data.id) },
       data: {
         title: data.title,
         score: parseInt(data.score),
         studentId: data.studentId,
-        ...(data.examId && { examId: parseInt(data.examId) }),
-        ...(data.assignmentId && { assignmentId: parseInt(data.assignmentId) }),
-        documents: data.documents || [],
+        ...(data.assessmentId && { assessmentId: parseInt(data.assessmentId) }),
+        documents: newDocuments,
       },
     });
 
-    console.log("Updated result:", result);
+    // Delete files removed from the documents list
+    const newSet = new Set(newDocuments);
+    const removedFiles = oldDocuments.filter((url) => !newSet.has(url));
+    if (removedFiles.length > 0) await deleteBlobFiles(removedFiles);
+
     revalidatePath("/list/results");
     return { success: true, error: false, message: "Result updated successfully!" };
   } catch (err) {
@@ -1425,11 +1511,16 @@ export const deleteResult = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await prisma.result.delete({
-      where: {
-        id: parseInt(id),
-      },
+    const result = await prisma.result.findUnique({
+      where: { id: parseInt(id) },
+      select: { documents: true },
     });
+
+    await prisma.result.delete({ where: { id: parseInt(id) } });
+
+    if (result?.documents?.length) {
+      await deleteBlobFiles(result.documents);
+    }
 
     revalidatePath("/list/results");
     return { success: true, error: false, message: "Result deleted successfully!" };
@@ -1617,6 +1708,7 @@ export const createAnnouncement = async (
         description: validatedData.description,
         date: validatedData.date,
         classId: validatedData.classId || undefined,
+        allParents: validatedData.allParents ?? false,
       },
     });
 
@@ -1670,6 +1762,7 @@ export const updateAnnouncement = async (
         description: validatedData.description,
         date: validatedData.date,
         classId: validatedData.classId || undefined,
+        allParents: validatedData.allParents ?? false,
       },
     });
 

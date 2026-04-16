@@ -62,7 +62,7 @@ const StudentListPage = async ({
       accessor: "branch",
       className: "hidden lg:table-cell",
     },
-    ...(role === "admin"
+    ...((role === "admin" || role === "director")
       ? [
         {
           header: "Actions",
@@ -90,7 +90,7 @@ const StudentListPage = async ({
               userRole="student"
               userName={item.name}
               userEmail={item.email}
-              canEdit={role === "admin"}
+              canEdit={(role === "admin" || role === "director")}
               showInfo={false}
             />
             <div className="flex flex-col">
@@ -126,7 +126,7 @@ const StudentListPage = async ({
                 <Image src="/view.png" alt="" width={16} height={16} />
               </button>
             </Link>
-            {role === "admin" && (
+            {(role === "admin" || role === "director") && (
               <FormContainer table="student" type="delete" id={item.id} />
             )}
           </div>
@@ -140,7 +140,10 @@ const StudentListPage = async ({
   const p = page ? parseInt(page) : 1;
 
   // URL PARAMS CONDITION
-  const query: Prisma.StudentWhereInput = {};
+  const isSearchingDisenrolled = resolvedSearchParams.search?.toLowerCase() === "disenrolled";
+  const query: Prisma.StudentWhereInput = {
+    status: isSearchingDisenrolled ? "DISENROLLED" : { not: "DISENROLLED" },
+  };
 
   // ROLE CONDITIONS
   if (role === "teacher") {
@@ -179,14 +182,17 @@ const StudentListPage = async ({
             };
             break;
           case "search":
-            query.OR = [
-              { name: { contains: value, mode: "insensitive" } },
-              { surname: { contains: value, mode: "insensitive" } },
-              { username: { contains: value, mode: "insensitive" } },
-              { email: { contains: value, mode: "insensitive" } },
-              { phone: { contains: value, mode: "insensitive" } },
-              { school: { contains: value, mode: "insensitive" } },
-            ];
+            // "disenrolled" is a status filter, not a name search
+            if (!isSearchingDisenrolled) {
+              query.OR = [
+                { name: { contains: value, mode: "insensitive" } },
+                { surname: { contains: value, mode: "insensitive" } },
+                { username: { contains: value, mode: "insensitive" } },
+                { email: { contains: value, mode: "insensitive" } },
+                { phone: { contains: value, mode: "insensitive" } },
+                { school: { contains: value, mode: "insensitive" } },
+              ];
+            }
             break;
           default:
             break;
@@ -233,7 +239,7 @@ const StudentListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {role === "admin" && (
+            {(role === "admin" || role === "director") && (
               <FormContainer table="student" type="create" />
             )}
           </div>

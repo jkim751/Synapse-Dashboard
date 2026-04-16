@@ -35,3 +35,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# clerk configuration (can include secrets)
+/.clerk/
+
+# claude help
+CLAUDE.md
+
+# backups
+fix-database.sql
+data_only_import.sql 
+mydatabase.bak
+

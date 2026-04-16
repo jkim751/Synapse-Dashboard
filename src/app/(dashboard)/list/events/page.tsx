@@ -45,7 +45,7 @@ const EventListPage = async ({
       accessor: "endTime",
       className: "hidden md:table-cell",
     },
-    ...(role === "admin"
+    ...((role === "admin" || role === "director")
       ? [
           {
             header: "Actions",
@@ -81,7 +81,7 @@ const EventListPage = async ({
       </td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" && (
+          {(role === "admin" || role === "director") && (
             <>
               <FormContainer table="event" type="update" data={item} />
               <FormContainer table="event" type="delete" id={item.id} />
@@ -116,7 +116,7 @@ const EventListPage = async ({
 
   // ROLE CONDITIONS
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "director") {
     const userSpecificClauses: any[] = [
       // Events for everyone
       {
@@ -210,7 +210,7 @@ const EventListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {role === "admin" && <FormContainer table="event" type="create" />}
+            {(role === "admin" || role === "director") && <FormContainer table="event" type="create" />}
           </div>
         </div>
       </div>

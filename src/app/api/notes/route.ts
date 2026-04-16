@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth()
-    
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -13,19 +13,33 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const q = searchParams.get('q')
+    const studentId = searchParams.get('studentId')
 
-    // Build date filter
-    const dateFilter: any = {}
+    // Build where clause
+    const where: any = {}
+
     if (startDate && endDate) {
-      dateFilter.date = {
+      where.date = {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
     }
 
+    if (q) {
+      where.OR = [
+        { content: { contains: q, mode: 'insensitive' } },
+        { author: { contains: q, mode: 'insensitive' } }
+      ]
+    }
+
+    if (studentId) {
+      where.StudentTag = { some: { studentId } }
+    }
+
     // Fetch notes for the specific date range
     const notes = await prisma.note.findMany({
-      where: dateFilter,
+      where,
       select: {
         id: true,
         title: true,

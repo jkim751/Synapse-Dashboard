@@ -40,7 +40,7 @@ const TeacherListPage = async ({
       accessor: "phone",
       className: "hidden lg:table-cell pl-4 whitespace-nowrap tabular-nums min-w-[14ch]",
     },
-    ...(role === "admin"
+    ...((role === "admin" || role === "director")
       ? [
           {
             header: "Actions",
@@ -63,7 +63,7 @@ const TeacherListPage = async ({
           userRole="teacher"
           userName={item.name}
           userEmail={item.email}
-          canEdit={role === "admin"}
+          canEdit={(role === "admin" || role === "director")}
           showInfo={true}
         />
       </td>
@@ -77,7 +77,7 @@ const TeacherListPage = async ({
               <Image src="/view.png" alt="" width={16} height={16} />
             </button>
           </Link>
-          {role === "admin" && (
+          {(role === "admin" || role === "director") && (
             <FormContainer table="teacher" type="delete" id={item.id} />
           )}
         </div>
@@ -153,7 +153,7 @@ const TeacherListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
             <div className="flex items-center gap-4 self-end">
-            {role === "admin" && (
+            {(role === "admin" || role === "director") && (
               <FormContainer table="teacher" type="create" />
             )}
           </div>

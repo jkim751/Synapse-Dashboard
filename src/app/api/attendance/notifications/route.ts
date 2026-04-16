@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, message, type, lessonId, recipientIds } = body;
+    const { title, message, type, lessonId, recurringLessonId, recipientIds } = body;
 
     if (!title || !message) {
       return NextResponse.json({ error: 'Title and message are required' }, { status: 400 });
@@ -130,6 +130,15 @@ export async function POST(request: NextRequest) {
       if (lesson?.teacher?.id) {
         finalRecipients.push(lesson.teacher.id);
         console.log(`Notification for lesson ${lessonId} will be sent to teacher ${lesson.teacher.id}`);
+      }
+    } else if (recurringLessonId) {
+      const recurringLesson = await prisma.recurringLesson.findUnique({
+        where: { id: recurringLessonId },
+        include: { teacher: true },
+      });
+      if (recurringLesson?.teacher?.id) {
+        finalRecipients.push(recurringLesson.teacher.id);
+        console.log(`Notification for recurring lesson ${recurringLessonId} will be sent to teacher ${recurringLesson.teacher.id}`);
       }
     }
 

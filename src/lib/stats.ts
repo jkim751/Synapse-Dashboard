@@ -106,6 +106,12 @@ export async function getStudentStats(filters: DateFilter) {
     prisma.student.count({ where: { ...where, status: "DISENROLLED" } }),
   ]);
 
+  // Total enrollments = number of StudentClass records (one per student-class pair)
+  const enrollmentWhere: Prisma.StudentClassWhereInput = gradeId
+    ? { class: { gradeId } }
+    : {};
+  const totalEnrollments = await prisma.studentClass.count({ where: enrollmentWhere });
+
   // Calculate disenrollment rate
   const disenrollmentRate = totalStudents > 0 ? (disenrolledStudents / totalStudents) * 100 : 0;
 
@@ -128,6 +134,7 @@ export async function getStudentStats(filters: DateFilter) {
     disenrollmentRate,
     averageGrade: gradeAvg._avg.gradeId || 0,
     trialConversionRate: trialConversion.conversionRate,
+    totalEnrollments,
   };
 }
 
@@ -318,6 +325,57 @@ export async function getStudentCountTrends(filters: StudentCountFilter) {
   }
 
   return months;
+}
+
+export async function getTrialConversionTrend(filters: DateFilter) {
+  const { startDate, endDate, gradeId } = filters;
+
+  const conversions = await prisma.studentStatusHistory.findMany({
+    where: {
+      fromStatus: "TRIAL",
+      toStatus: "CURRENT",
+      changedAt: { gte: startDate, lte: endDate },
+      ...(gradeId && { student: { gradeId } }),
+    },
+    select: { changedAt: true },
+    orderBy: { changedAt: "asc" },
+  });
+
+  // Initialise every month in the range to 0
+  const monthMap = new Map<string, number>();
+  const cur = new Date(startDate);
+  cur.setDate(1);
+  while (cur <= endDate) {
+    monthMap.set(cur.toLocaleDateString("en-US", { month: "short", year: "numeric" }), 0);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+
+  for (const c of conversions) {
+    const key = new Date(c.changedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    monthMap.set(key, (monthMap.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(monthMap.entries()).map(([month, conversions]) => ({ month, conversions }));
+}
+
+export async function getRecentConversions(limit = 15) {
+  return prisma.studentStatusHistory.findMany({
+    where: {
+      fromStatus: "TRIAL",
+      toStatus: "CURRENT",
+    },
+    include: {
+      student: {
+        select: {
+          name: true,
+          surname: true,
+          grade: { select: { level: true } },
+        },
+      },
+    },
+    orderBy: { changedAt: "desc" },
+    take: limit,
+  });
 }
 
 interface StudentCountData {

@@ -29,7 +29,7 @@ export default function NotesDisplay({
   onToggleActionItem,
   onDeleteActionItem
 }: NotesDisplayProps) {
-  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null)
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; noteId: string | null }>({
     isOpen: false,
     noteId: null
@@ -48,6 +48,18 @@ export default function NotesDisplay({
 
   const handleDeleteCancel = () => {
     setDeleteConfirm({ isOpen: false, noteId: null })
+  }
+
+  const toggleExpanded = (noteId: string) => {
+    setExpandedNoteIds(prev => {
+      const next = new Set(prev)
+      if (next.has(noteId)) {
+        next.delete(noteId)
+      } else {
+        next.add(noteId)
+      }
+      return next
+    })
   }
 
   const formatBritishDateTime = (date: Date) => {
@@ -125,8 +137,11 @@ export default function NotesDisplay({
         /* Table styles for display */
         .prose table {
           border-collapse: collapse;
-          width: 100%;
+          display: block;
+          overflow-x: auto;
+          max-width: 100%;
           margin: 1em 0;
+          white-space: nowrap;
         }
         .prose table td,
         .prose table th {
@@ -134,6 +149,7 @@ export default function NotesDisplay({
           padding: 8px;
           min-width: 50px;
           text-align: left;
+          white-space: normal;
         }
         .prose table th {
           background-color: #f3f4f6;
@@ -152,17 +168,16 @@ export default function NotesDisplay({
           const hasComments = note.comments && note.comments.length > 0
           const hasActions = note.actionItems && note.actionItems.length > 0
           const hasTaggedStudents = note.taggedStudents && note.taggedStudents.length > 0
-          const isHovered = hoveredNoteId === note.id
+          const isExpanded = expandedNoteIds.has(note.id)
+          const hasDetails = !!(onAddComment || onAddActionItem || hasComments || hasActions)
 
           return (
-            <div 
-              key={note.id} 
+            <div
+              key={note.id}
               className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 hover:border-orange-300 transition-colors relative"
-              onMouseEnter={() => setHoveredNoteId(note.id)}
-              onMouseLeave={() => setHoveredNoteId(null)}
             >
               <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   {/* Tagged Students */}
                   {hasTaggedStudents && (
                     <div className="flex flex-wrap gap-2 mb-3">
@@ -185,11 +200,14 @@ export default function NotesDisplay({
                     </div>
                   )}
 
-                  <div 
-                    className="prose prose-sm max-w-none"
+                  <div
+                    className="prose prose-sm max-w-none overflow-x-auto"
                     dangerouslySetInnerHTML={{ __html: note.content }}
                   />
-                  <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                  <button
+                    onClick={() => hasDetails && toggleExpanded(note.id)}
+                    className={`flex items-center gap-2 mt-3 text-sm text-gray-500 text-left w-full transition-colors ${hasDetails ? 'hover:text-orange-600 cursor-pointer' : 'cursor-default'}`}
+                  >
                     <span className="font-medium">{note.author}</span>
                     <span>•</span>
                     <span>{formatBritishDateTime(note.createdAt)}</span>
@@ -203,9 +221,14 @@ export default function NotesDisplay({
                         </span>
                       </>
                     )}
-                  </div>
+                    {hasDetails && (
+                      <span className="ml-auto text-xs text-gray-400">
+                        {isExpanded ? '▴' : '▾'}
+                      </span>
+                    )}
+                  </button>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex flex-col gap-2 ml-4">
                   <button
                     onClick={() => {
                       // Pass the note ID, content, and tagged student IDs
@@ -229,7 +252,7 @@ export default function NotesDisplay({
               </div>
 
               {/* Comments and actions — inline inside the card so they stay within the orange border */}
-              {isHovered && (onAddComment || onAddActionItem || hasComments || hasActions) && (
+              {isExpanded && hasDetails && (
                 <div className="mt-4 pt-4 border-t border-orange-200">
                   {onAddComment && onDeleteComment && (
                     <CommentsSection

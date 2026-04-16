@@ -13,7 +13,7 @@ export async function GET(
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
     // Check if user is authorized (admin or teacher)
-    if (!role || !["admin", "teacher"].includes(role)) {
+    if (!role || !["admin", "director", "teacher"].includes(role)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -58,7 +58,7 @@ export async function GET(
 
     // Build query for students
     const query: any = {
-      classId: classId,
+      classes: { some: { classId } },
     };
 
     if (search) {
@@ -92,11 +92,23 @@ export async function GET(
       prisma.student.count({ where: query }),
     ]);
 
-    // Get today's lessons for this class
+    // Get today's lessons for this class.
+    // Standalone lessons (no recurringLessonId) repeat weekly — match by day of week.
+    // Exception lessons (created by drag-and-drop rescheduling) are tied to a specific
+    // date — match by actual startTime so they only appear on that one date.
     const todayLessons = await prisma.lesson.findMany({
       where: {
         classId: classId,
-        day: getDayOfWeek(today),
+        OR: [
+          {
+            recurringLessonId: null,
+            day: getDayOfWeek(today),
+          },
+          {
+            recurringLessonId: { not: null },
+            startTime: { gte: startOfDay, lte: endOfDay },
+          },
+        ],
       },
       include: {
         subject: true,

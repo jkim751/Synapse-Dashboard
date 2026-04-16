@@ -1,6 +1,21 @@
 import { PrismaClient, UserSex } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { withAccelerate } from "@prisma/extension-accelerate";
 import { RRule } from "rrule";
-const prisma = new PrismaClient();
+import dotenv from "dotenv";
+import path from "path";
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+const dbUrl = process.env.DATABASE_URL ?? "";
+const isAccelerate = dbUrl.startsWith("prisma://") || dbUrl.startsWith("prisma+postgres://");
+
+const baseClient = isAccelerate
+  ? new PrismaClient({ accelerateUrl: dbUrl })
+  : new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) });
+
+const prisma = isAccelerate ? baseClient.$extends(withAccelerate()) : baseClient;
 
 // --- Part 1: Essential Data for Production ---
 async function seedProductionData() {

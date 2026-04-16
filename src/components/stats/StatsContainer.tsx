@@ -1,7 +1,8 @@
-import { getStudentStats, getPaymentTypeStats, getEnrollmentStats, getStudentCountTrends } from "@/lib/stats";
+import { getStudentStats, getPaymentTypeStats, getEnrollmentStats, getStudentCountTrends, getTrialConversionTrend, getRecentConversions } from "@/lib/stats";
 import StatsFilters from "./StatsFilters";
 import CombinedChartCarousel from "./CombinedChartCarousel";
 import StatsCards from "./StatsCards";
+import RecentConversions from "./RecentConversions";
 import prisma from "@/lib/prisma";
 
 interface StatsContainerProps {
@@ -27,11 +28,13 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
   };
 
   // Fetch all stats data and filter options
-  const [studentStats, paymentStats, enrollmentStats, studentCountStats, grades, subjects] = await Promise.all([
+  const [studentStats, paymentStats, enrollmentStats, studentCountStats, conversionTrend, recentConversions, grades, subjects] = await Promise.all([
     getStudentStats(filters),
     getPaymentTypeStats(filters),
     getEnrollmentStats(filters),
     getStudentCountTrends(studentCountFilters),
+    getTrialConversionTrend(filters),
+    getRecentConversions(),
     prisma.grade.findMany({
       orderBy: { level: 'asc' },
       select: { id: true, level: true }
@@ -42,26 +45,32 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
     })
   ]);
 
-  console.log('Payment stats in container:', paymentStats);
-
   return (
     <div className="mt-4 space-y-4">
       {/* Filters */}
       <div className="bg-white p-4 rounded-md">
         <StatsFilters searchParams={searchParams} />
       </div>
-      
+
       {/* Summary Cards */}
       <StatsCards stats={studentStats} />
-      
+
       {/* Combined Chart Carousel */}
-      <CombinedChartCarousel 
+      <CombinedChartCarousel
         paymentData={paymentStats}
         enrollmentData={enrollmentStats}
         studentCountData={studentCountStats}
+        conversionTrendData={conversionTrend}
         grades={grades}
         subjects={subjects}
       />
+
+      {/* Trial Conversion Detail */}
+      <div className="bg-white p-4 rounded-md border border-gray-200">
+        <h3 className="text-base font-semibold mb-1">Trial → Current Conversions</h3>
+        <p className="text-xs text-gray-500 mb-4">Students who converted from trial to a current enrolment</p>
+        <RecentConversions conversions={recentConversions.map(c => ({ ...c, changedAt: c.changedAt.toISOString() }))} />
+      </div>
     </div>
   );
 };

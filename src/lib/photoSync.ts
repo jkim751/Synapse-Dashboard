@@ -86,6 +86,12 @@ export const updateUserPhotoInDatabase = async (
           data: { img: photoUrl },
         });
         break;
+      case "director":
+        await prisma.director.update({
+          where: { id: userId },
+          data: { img: photoUrl },
+        });
+        break;
       default:
         return { success: false, error: "Invalid user role" };
     }
@@ -121,6 +127,12 @@ export const deleteUserPhotoFromDatabase = async (
         break;
       case "admin":
         await prisma.admin.update({
+          where: { id: userId },
+          data: { img: null },
+        });
+        break;
+      case "director":
+        await prisma.director.update({
           where: { id: userId },
           data: { img: null },
         });

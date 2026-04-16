@@ -7,11 +7,16 @@ interface StatsCardsProps {
     disenrollmentRate: number;
     averageGrade: number;
     trialConversionRate: number;
+    totalEnrollments: number;
   };
 }
 
 const StatsCards = ({ stats }: StatsCardsProps) => {
   const cards = [
+    {
+      title: "Total Enrollments",
+      value: stats.totalEnrollments,
+    },
     {
       title: "Trial Students",
       value: stats.trialStudents,
@@ -31,7 +36,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       {cards.map((card, index) => (
         <div key={index} className="bg-white border-2 border-lamaYellow/75 p-4 rounded-md min-h-[130px] flex flex-col justify-between">
           <div className="flex justify-between items-center">

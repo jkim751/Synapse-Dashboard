@@ -34,7 +34,7 @@ const AnnouncementListPage = async ({
       accessor: "date",
       className: "hidden md:table-cell",
     },
-    ...(role === "admin"
+    ...((role === "admin" || role === "director")
       ? [
           {
             header: "Actions",
@@ -50,13 +50,13 @@ const AnnouncementListPage = async ({
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">{item.title}</td>
-      <td>{item.class?.name || "-"}</td>
+      <td>{item.allParents ? "All Parents" : item.class?.name || "-"}</td>
       <td className="hidden md:table-cell">
         {new Intl.DateTimeFormat("en-US").format(item.date)}
       </td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" && (
+          {(role === "admin" || role === "director") && (
             <>
               <FormContainer table="announcement" type="update" data={item} />
               <FormContainer table="announcement" type="delete" id={item.id} />
@@ -90,19 +90,25 @@ const AnnouncementListPage = async ({
 
   // ROLE CONDITIONS
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "director") {
     const roleConditions = {
       teacher: { lessons: { some: { teacherId: userId! } } },
-      student: { students: { some: { student: { id: userId! } } } }, // Note: through StudentClass
+      student: { students: { some: { student: { id: userId! } } } },
       parent: { students: { some: { student: { parentId: userId! } } } },
     };
-    
-    query.OR = [
-      { classId: null }, // This stays the same for Event/Announcement (they still have direct classId)
-      {
-        class: roleConditions[role as keyof typeof roleConditions] || {},
-      },
-    ];
+
+    if (role === "parent") {
+      query.OR = [
+        { classId: null, allParents: false }, // everyone
+        { allParents: true }, // parent-targeted announcements
+        { class: roleConditions.parent }, // class-based
+      ];
+    } else {
+      query.OR = [
+        { classId: null, allParents: false }, // everyone (exclude parent-only)
+        { class: roleConditions[role as keyof typeof roleConditions] || {} },
+      ];
+    }
   }
 
   const [data, count] = await prisma.$transaction([
@@ -127,7 +133,7 @@ const AnnouncementListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {role === "admin" && (
+            {(role === "admin" || role === "director") && (
               <FormContainer table="announcement" type="create" />
             )}
           </div>

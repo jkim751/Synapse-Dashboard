@@ -89,7 +89,7 @@ export const getEventsForUser = async (userId: string, role: string) => {
   };
 
   // Build the where clause based on user role
-  if (role === "teacher" || role === "admin") {
+  if (role === "teacher" || role === "admin" || role === "director") {
     baseWhere.OR = [
       // Events for everyone (no specific class, users, or grades)
       {
@@ -240,6 +240,13 @@ export async function getUserPhoto(userId: string, userRole: string): Promise<st
         });
         dbPhoto = admin?.img;
         break;
+      case "director":
+        const director = await prisma.director.findUnique({
+          where: { id: userId },
+          select: { img: true }
+        });
+        dbPhoto = director?.img;
+        break;
       case "teacher":
         const teacher = await prisma.teacher.findUnique({
           where: { id: userId },
@@ -276,6 +283,12 @@ export async function syncClerkPhotoToDatabase(userId: string, userRole: string,
     switch (userRole) {
       case "admin":
         await prisma.admin.update({
+          where: { id: userId },
+          data: { img: clerkPhotoUrl }
+        });
+        break;
+      case "director":
+        await prisma.director.update({
           where: { id: userId },
           data: { img: clerkPhotoUrl }
         });

@@ -15,26 +15,17 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
-    console.log('Xero callback received:', {
-      url: request.url,
-      code: code ? 'present' : 'missing',
-      state: state ? 'present' : 'missing',
-      error,
-      errorDescription,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-
     if (error) {
       console.error('Xero OAuth error:', error, errorDescription);
       return NextResponse.redirect(
-        new URL('/admin/xero?error=' + encodeURIComponent(errorDescription || error), request.url)
+        new URL('/list/xero?error=' + encodeURIComponent(errorDescription || error), request.url)
       );
     }
 
     if (!code) {
-      console.error('Authorization code missing. Full URL:', request.url);
+      console.error('Xero callback: authorization code missing');
       return NextResponse.redirect(
-        new URL('/admin/xero?error=' + encodeURIComponent('Authorization code not received from Xero'), request.url)
+        new URL('/list/xero?error=' + encodeURIComponent('Authorization code not received from Xero'), request.url)
       );
     }
 
@@ -42,12 +33,12 @@ export async function GET(request: NextRequest) {
     
     await storeTokens(userId, tokenSet);
 
-    return NextResponse.redirect(new URL('/admin/xero?success=true', request.url));
+    return NextResponse.redirect(new URL('/list/xero?success=true', request.url));
     
   } catch (error: any) {
     console.error('Xero callback error:', error);
     return NextResponse.redirect(
-      new URL('/admin/xero?error=' + encodeURIComponent(error.message), request.url)
+      new URL('/list/xero?error=' + encodeURIComponent(error.message), request.url)
     );
   }
 }

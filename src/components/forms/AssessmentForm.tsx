@@ -3,15 +3,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
-import { examSchema, ExamSchema } from "@/lib/formValidationSchemas";
-import { createExam, updateExam } from "@/lib/actions";
-import { useActionState, useState } from "react";
-import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
+import { assessmentSchema, AssessmentSchema } from "@/lib/formValidationSchemas";
+import { createAssessment, updateAssessment } from "@/lib/actions";
+import { useActionState, useState, useTransition, useEffect } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import FileUpload from "../FileUpload";
 
-const ExamForm = ({
+const AssessmentForm = ({
   type,
   data,
   setOpen,
@@ -27,21 +27,50 @@ const ExamForm = ({
   const {
     register,
     handleSubmit,
-    setValue, // We'll use this to set the correct ID
+    setValue,
     formState: { errors },
-  } = useForm<ExamSchema>({
-    resolver: zodResolver(examSchema),
-    // Pre-populate with existing data
+  } = useForm<AssessmentSchema>({
+    resolver: zodResolver(assessmentSchema),
     defaultValues: {
       ...data,
-      // The select field will need a composite value
-      lessonId: data?.lessonId || data?.recurringLessonId ? 
-                `${data.lessonId ? 'single' : 'recurring'}-${data.lessonId || data.recurringLessonId}` : 
-                '',
+      type: data?.type || "EXAM",
+      lessonId: data?.lessonId || data?.recurringLessonId
+        ? `${data.lessonId ? "single" : "recurring"}-${data.lessonId || data.recurringLessonId}`
+        : "",
     },
   });
 
   const { singleLessons, recurringLessons } = relatedData || {};
+
+  const handleLessonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    const [kind, id] = value.split("-");
+    if (kind === "single") {
+      setValue("lessonId", parseInt(id));
+      setValue("recurringLessonId", null);
+    } else if (kind === "recurring") {
+      setValue("recurringLessonId", parseInt(id));
+      setValue("lessonId", null);
+    }
+  };
+
+  const [isPending, startTransition] = useTransition();
+  const [state, formAction] = useActionState(
+    type === "create" ? createAssessment : updateAssessment,
+    { success: false, error: false, message: "" }
+  );
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success(state.message || `Assessment ${type === "create" ? "created" : "updated"} successfully!`);
+      setOpen(false);
+      router.refresh();
+    }
+    if (state.error && !state.success) {
+      toast.error(state.message || `Unable to ${type} assessment`);
+    }
+  }, [state, router, type, setOpen]);
 
   const onSubmit = handleSubmit((formData) => {
     startTransition(() => {
@@ -49,74 +78,35 @@ const ExamForm = ({
     });
   });
 
-  // Handle change for the new composite select dropdown
-  const handleLessonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    const [type, id] = value.split('-');
-
-    if (type === 'single') {
-      setValue('lessonId', parseInt(id));
-      setValue('recurringLessonId', null); // Ensure the other is null
-    } else if (type === 'recurring') {
-      setValue('recurringLessonId', parseInt(id));
-      setValue('lessonId', null); // Ensure the other is null
-    }
-  };
-
-  const [isPending, startTransition] = useTransition();
-
-  const [state, formAction] = useActionState(
-    type === "create" ? createExam : updateExam,
-    {
-      success: false,
-      error: false,
-      message: "Successfully processed the request.",
-    }
-  );
-
-  const router = useRouter();
-
-  useEffect(() => {
-    if (state.success) {
-      toast.success(state.message || `Exam has been ${type === "create" ? "created" : "updated"} successfully!`);
-      setOpen(false);
-      router.refresh();
-    }
-    if (state.error && !state.success) {
-      toast.error(type === "create" ? "Unable to create" : "Unable to update");
-    }
-  }, [state, router, type, setOpen]);
-
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <h1 className="text-xl font-semibold">
-          {type === "create" ? "Create a new exam" : "Update the exam"}
+          {type === "create" ? "Create a new assessment" : "Update the assessment"}
         </h1>
         <div className="flex justify-between flex-wrap gap-4">
+          {/* Type selector */}
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Type</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("type")}
+              defaultValue={data?.type || "EXAM"}
+            >
+              <option value="EXAM">Exam</option>
+              <option value="ASSIGNMENT">Assignment</option>
+            </select>
+            {errors.type && <p className="text-xs text-red-400">{errors.type.message}</p>}
+          </div>
+
           <InputField
-            label="Exam title"
+            label="Title"
             name="title"
             defaultValue={data?.title}
             register={register}
             error={errors?.title}
           />
-          <InputField
-            label="Start Time"
-            name="startTime"
-            defaultValue={data?.startTime ? data.startTime.toISOString().slice(0, 16) : ""}
-            register={register}
-            error={errors?.startTime}
-            type="datetime-local"
-          />
-          <InputField
-            label="End Time"
-            name="endTime"
-            defaultValue={data?.endTime ? data.endTime.toISOString().slice(0, 16) : ""}
-            register={register}
-            error={errors?.endTime}
-            type="datetime-local"
-          />
+
           {data && (
             <InputField
               label="Id"
@@ -127,16 +117,16 @@ const ExamForm = ({
               hidden
             />
           )}
+
+          {/* Lesson selector */}
           <div className="flex flex-col gap-2 w-full md:w-1/4">
-            <label className="text-xs text-gray-500">Link To</label>
+            <label className="text-xs text-gray-500">Link To Lesson</label>
             <select
               className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-              // We don't register this directly. We use an onChange handler.
               onChange={handleLessonChange}
-              // The defaultValue will be something like "single-1" or "recurring-1"
               defaultValue={
-                data?.lessonId ? `single-${data.lessonId}` : 
-                data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ''
+                data?.lessonId ? `single-${data.lessonId}` :
+                data?.recurringLessonId ? `recurring-${data.recurringLessonId}` : ""
               }
             >
               <option value="">Select a Lesson</option>
@@ -160,20 +150,20 @@ const ExamForm = ({
               )}
             </select>
             {errors.lessonId?.message && (
-              <p className="text-xs text-red-400">
-                {errors.lessonId.message.toString()}
-              </p>
+              <p className="text-xs text-red-400">{errors.lessonId.message.toString()}</p>
             )}
           </div>
+
           <FileUpload
-            label="Exam Documents"
-            name="exams"
+            label="Documents"
+            name="assessments"
             existingFiles={documents}
             onFilesChange={setDocuments}
           />
         </div>
+
         {state.error && (
-          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
+          <span className="text-red-500">{state.message || `Unable to ${type} assessment`}</span>
         )}
         <button
           type="submit"
@@ -187,4 +177,4 @@ const ExamForm = ({
   );
 };
 
-export default ExamForm;
+export default AssessmentForm;

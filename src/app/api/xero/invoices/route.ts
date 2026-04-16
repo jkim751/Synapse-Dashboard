@@ -1,43 +1,119 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getXeroClient } from '@/lib/xero';
+import prisma from '@/lib/prisma';
+import { getAnyXeroClient } from '@/lib/xero';
 
-export async function POST(request: Request) {
+// GET — fetch invoices for the signed-in parent using their own xeroContactId
+export async function GET() {
   try {
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { contactIDs } = await request.json();
-    if (!contactIDs || !Array.isArray(contactIDs) || contactIDs.length === 0) {
-      // If there are no contacts with Xero IDs, return an empty array.
+    if (role !== 'parent') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const parent = await prisma.parent.findUnique({
+      where: { id: userId },
+      select: { xeroContactId: true },
+    });
+
+    if (!parent?.xeroContactId) {
       return NextResponse.json([]);
     }
 
-    const xero = await getXeroClient(userId);
+    const xero = await getAnyXeroClient();
     const activeTenantId = xero.tenants[0].tenantId;
 
     const response = await xero.accountingApi.getInvoices(
       activeTenantId,
       undefined,
-      `Contact.ContactID IN (${contactIDs.map(id => `"${id}"`).join(",")})`
+      undefined,
+      undefined,
+      undefined,
+      [parent.xeroContactId],
     );
-    
-    // Map the complex Xero response to the simple Invoice interface our component needs
-    const invoices = response.body.invoices?.map(inv => ({
-      id: inv.invoiceID,
-      studentName: inv.contact?.name,
-      amount: inv.amountDue,
-      dueDate: inv.dueDate,
-      status: inv.status,
-      description: inv.lineItems?.[0]?.description || 'School Fees',
-    })) || [];
+
+    const invoices = (response.body.invoices ?? []).map(inv => ({
+      id: inv.invoiceID ?? '',
+      invoiceNumber: inv.invoiceNumber ?? '',
+      total: inv.total ?? 0,
+      amountDue: inv.amountDue ?? 0,
+      amountPaid: inv.amountPaid ?? 0,
+      dueDate: inv.dueDate ? (inv.dueDate as unknown as Date).toISOString() : null,
+      status: inv.status ?? 'UNKNOWN',
+      description: inv.lineItems?.[0]?.description ?? 'School Fees',
+    }));
 
     return NextResponse.json(invoices);
 
   } catch (error: any) {
     console.error('Error fetching Xero invoices:', error.response?.body || error.message);
     return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 });
+  }
+}
+
+// POST — create and optionally send an invoice (admin/director only)
+export async function POST(request: Request) {
+  try {
+    const { userId, sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+    if (!userId || (role !== 'admin' && role !== 'director')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { contactId, description, amount, dueDate, send } = body;
+
+    if (!contactId || !description || !amount) {
+      return NextResponse.json(
+        { error: 'Missing required fields: contactId, description, amount' },
+        { status: 400 }
+      );
+    }
+
+    const xero = await getAnyXeroClient();
+    const activeTenantId = xero.tenants[0].tenantId;
+
+    const invoicePayload = {
+      invoices: [
+        {
+          type: 'ACCREC' as any,
+          contact: { contactID: contactId },
+          lineItems: [
+            {
+              description,
+              quantity: 1.0,
+              unitAmount: parseFloat(amount),
+              accountCode: '200',
+            },
+          ],
+          ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
+          status: ('DRAFT' as any),
+        },
+      ],
+    };
+
+    const response = await xero.accountingApi.createInvoices(activeTenantId, invoicePayload);
+    const createdInvoice = response.body.invoices?.[0];
+
+    if (!createdInvoice?.invoiceID) {
+      return NextResponse.json({ error: 'Failed to create invoice in Xero' }, { status: 500 });
+    }
+
+    if (send) {
+      await xero.accountingApi.emailInvoice(activeTenantId, createdInvoice.invoiceID, {});
+    }
+
+    return NextResponse.json({ success: true, invoiceId: createdInvoice.invoiceID });
+
+  } catch (error: any) {
+    console.error('Error creating Xero invoice:', error.response?.body || error.message);
+    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
   }
 }

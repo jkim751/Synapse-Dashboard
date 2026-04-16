@@ -22,6 +22,16 @@ export default function ActionItemsSection({
   const [newDescription, setNewDescription] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+
+  const formatBritishDateTime = (date: Date) =>
+    date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,9 +57,9 @@ export default function ActionItemsSection({
     <div className="pt-4 border-t border-gray-300">
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          ✅ Actionables 
+          ✅ Actionables
           <span className="text-sm font-normal text-gray-600">
-            ({pendingItems.length} pending, {completedItems.length} completed)
+            ({pendingItems.length} pending{completedItems.length > 0 ? `, ${completedItems.length} completed` : ''})
           </span>
         </h3>
         <button
@@ -105,7 +115,7 @@ export default function ActionItemsSection({
                 <p className="text-xs text-gray-500 mt-1">
                   <span className="font-medium">{item.author}</span>
                   {' • '}
-                  Created: {item.createdAt.toLocaleString()}
+                  Created: {formatBritishDateTime(item.createdAt)}
                 </p>
               </div>
               <button
@@ -117,8 +127,18 @@ export default function ActionItemsSection({
             </div>
           ))}
 
-          {/* Completed Items */}
-          {completedItems.map((item) => (
+          {/* Completed Items toggle */}
+          {completedItems.length > 0 && (
+            <button
+              onClick={() => setShowCompleted(!showCompleted)}
+              className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+            >
+              <span>{showCompleted ? '▴' : '▾'}</span>
+              {showCompleted ? 'Hide' : 'Show'} {completedItems.length} completed item{completedItems.length !== 1 ? 's' : ''}
+            </button>
+          )}
+
+          {showCompleted && completedItems.map((item) => (
             <div key={item.id} className="bg-green-50 p-3 rounded-lg border border-green-300 flex items-start gap-3 opacity-75">
               <input
                 type="checkbox"
@@ -134,7 +154,7 @@ export default function ActionItemsSection({
                 <p className="text-xs text-gray-500 mt-1">
                   <span className="font-medium">{item.author}</span>
                   {' • '}
-                  Completed: {item.completedAt?.toLocaleString()}
+                  Completed: {item.completedAt ? formatBritishDateTime(item.completedAt) : '—'}
                 </p>
               </div>
               <button

@@ -1,57 +1,92 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import prisma from "@/lib/prisma";
 import XeroAuthButton from "@/components/XeroAuthButton";
 import XeroFinancialReports from "@/components/XeroFinancialReports";
 import XeroContactSync from "@/components/XeroContactSync";
 import FinanceChart from "@/components/FinanceChart";
-import { getStoredTokens } from "@/lib/xero"; // Import the check function
+import XeroInvoiceManager from "@/components/XeroInvoiceManager";
+import { getStoredTokens } from "@/lib/xero";
 
 const AdminXeroPage = async () => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
-  
-  if (role !== "admin") {
+
+  if (!userId || (role !== "admin" && role !== "director")) {
     redirect("/");
   }
 
-  // SERVER-SIDE CHECK: Check if tokens exist before rendering the page
-  const hasTokens = !!(await getStoredTokens(userId!));
+  const hasTokens = !!(await getStoredTokens(userId));
+
+  // Fetch synced contacts (parents + students with a xeroContactId) for the invoice form
+  const [parents, students] = await Promise.all([
+    prisma.parent.findMany({
+      where: { xeroContactId: { not: null } },
+      select: { xeroContactId: true, name: true, surname: true },
+    }),
+    prisma.student.findMany({
+      where: { xeroContactId: { not: null } },
+      select: { xeroContactId: true, name: true, surname: true },
+    }),
+  ]);
+
+  const contacts = [
+    ...parents.map(p => ({
+      contactId: p.xeroContactId!,
+      name: `${p.name} ${p.surname} (Parent)`,
+    })),
+    ...students.map(s => ({
+      contactId: s.xeroContactId!,
+      name: `${s.name} ${s.surname} (Student)`,
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-8 p-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Xero Integration Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Xero Integration</h1>
         <XeroAuthButton initialIsAuthenticated={hasTokens} />
       </div>
-      
-      {/* Conditionally render components based on authentication status */}
+
       {hasTokens ? (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-l font-semibold mb-4">Financial Reports</h2>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-xl bg-white p-6 shadow">
+              <h2 className="mb-4 text-base font-semibold">Financial Reports</h2>
               <XeroFinancialReports />
             </div>
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-l font-semibold mb-4">Contact Management</h2>
+            <div className="rounded-xl bg-white p-6 shadow">
+              <h2 className="mb-4 text-base font-semibold">Contact Sync</h2>
               <XeroContactSync />
             </div>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow">
+
+          <div className="rounded-xl bg-white p-6 shadow">
             <FinanceChart />
+          </div>
+
+          <div className="rounded-xl bg-white p-6 shadow">
+            <h2 className="mb-1 text-base font-semibold">Create Invoice</h2>
+            <p className="mb-4 text-sm text-gray-500">
+              Create and optionally email an invoice directly to a contact in Xero.
+              {contacts.length === 0 && (
+                <span className="ml-1 text-orange-600">
+                  No synced contacts found — run Contact Sync first.
+                </span>
+              )}
+            </p>
+            <XeroInvoiceManager contacts={contacts} />
           </div>
         </>
       ) : (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+        <div className="rounded-r-lg border-l-4 border-yellow-400 bg-yellow-50 p-4">
           <p className="font-bold text-yellow-800">Connection Required</p>
-          <p className="text-yellow-700">Please connect your Xero account to view financial data and sync contacts.</p>
+          <p className="text-yellow-700">
+            Connect your Xero account above to view financial data, sync contacts, and create
+            invoices.
+          </p>
         </div>
       )}
-      
-      {/* Invoice management can stay as it might be partially functional */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        {/* ... your invoice management buttons ... */}
-      </div>
     </div>
   );
 };

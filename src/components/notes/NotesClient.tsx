@@ -6,23 +6,16 @@ import DateNavigation from './DateNavigation'
 import SearchBar from './SearchBar'
 import NotesEditor from './NotesEditor'
 import NotesDisplay from './NotesDisplay'
-
-interface Note {
-  id: string
-  title: string
-  content: string
-  author: string
-  createdAt: Date
-}
+import type { Note } from '@/types/notes'
 
 export default function NotesClient() {
-  const { 
-    isLoaded, 
+  const {
+    isLoaded,
     isLoading,
-    loadedDates,
     loadNotesForDate,
     getNotesForDate,
     saveNotesForDate,
+    searchNotes,
     addComment,
     deleteComment,
     addActionItem,
@@ -37,6 +30,8 @@ export default function NotesClient() {
   const [editableContent, setEditableContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResultDate, setSearchResultDate] = useState<Date | null>(null)
+  const [searchResults, setSearchResults] = useState<Note[] | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
 
   // Load notes when selected date changes
   useEffect(() => {
@@ -48,16 +43,32 @@ export default function NotesClient() {
 
   // Handle search query changes
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const parsedDate = parseDateFromSearch(searchQuery.toLowerCase())
-      if (parsedDate) {
-        setSearchResultDate(parsedDate)
-      } else {
-        setSearchResultDate(null)
-      }
-    } else {
+    if (!searchQuery.trim()) {
       setSearchResultDate(null)
+      setSearchResults(null)
+      return
     }
+
+    const parsedDate = parseDateFromSearch(searchQuery.toLowerCase())
+    if (parsedDate) {
+      setSearchResultDate(parsedDate)
+      setSearchResults(null)
+      return
+    }
+
+    // Not a date query — run server-side text search with debounce
+    setSearchResultDate(null)
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const results = await searchNotes(searchQuery)
+        setSearchResults(results)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
   }, [searchQuery])
 
   // Add keyboard navigation
@@ -91,14 +102,6 @@ export default function NotesClient() {
       document.removeEventListener('keydown', handleKeyPress)
     }
   }, [handleKeyPress])
-
-  // Function to strip HTML tags for search
-  const stripHtml = (html: string) => {
-    if (typeof window === 'undefined') return html
-    const tmp = document.createElement('DIV')
-    tmp.innerHTML = html
-    return tmp.textContent || tmp.innerText || ''
-  }
 
   // Parse date from search query
   const parseDateFromSearch = (query: string): Date | null => {
@@ -141,33 +144,12 @@ export default function NotesClient() {
   }
 
   const getCurrentNotes = () => {
-    const dateToUse = searchResultDate || selectedDate
-    let dayNotes = getNotesForDate(dateToUse)
-    
-    if (searchQuery.trim() && !searchResultDate) {
-      const query = searchQuery.toLowerCase()
-      
-      // Search across all loaded notes
-      const allNotes = loadedDates.flatMap(dateKey => getNotesForDate(new Date(dateKey)))
-      
-      const monthMatch = allNotes.filter(note => {
-        const noteMonth = note.createdAt.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase()
-        const noteMonthShort = note.createdAt.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase()
-        return noteMonth.includes(query) || noteMonthShort.includes(query)
-      })
-      
-      if (monthMatch.length > 0) {
-        dayNotes = monthMatch
-      } else {
-        dayNotes = allNotes.filter(note => 
-          note.title.toLowerCase().includes(query) ||
-          stripHtml(note.content).toLowerCase().includes(query) ||
-          note.author.toLowerCase().includes(query)
-        )
-      }
+    if (searchResults !== null) {
+      return [...searchResults].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     }
-    
-    return dayNotes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+
+    const dateToUse = searchResultDate || selectedDate
+    return getNotesForDate(dateToUse).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
 
   const currentNotes = getCurrentNotes()
@@ -198,8 +180,6 @@ export default function NotesClient() {
   }
 
   const handleEdit = (noteId?: string, content?: string, studentIds?: string[]) => {
-    console.log('handleEdit called with:', { noteId, contentLength: content?.length, studentIds })
-    
     setEditingNoteId(noteId || null)
     setEditableContent(content || '')
     setIsEditing(true)
@@ -264,9 +244,9 @@ export default function NotesClient() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      {isLoading && (
+      {(isLoading || isSearching) && (
         <div className="fixed top-4 right-4 bg-orange-300 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          Loading...
+          {isSearching ? 'Searching...' : 'Loading...'}
         </div>
       )}
       

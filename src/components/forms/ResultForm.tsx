@@ -11,7 +11,6 @@ import { resultSchema, ResultSchema } from "@/lib/formValidationSchemas";
 import { createResult, updateResult } from "@/lib/actions";
 import FileUpload from "../FileUpload";
 
-
 const ResultForm = ({
   type,
   data,
@@ -25,145 +24,67 @@ const ResultForm = ({
 }) => {
   const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
   const [allTeacherStudents, setAllTeacherStudents] = useState<any[]>([]);
-  const [selectedExamId, setSelectedExamId] = useState<string>("");
-  const [selectedTitle, setSelectedTitle] = useState<string>("Result");
   const [documents, setDocuments] = useState<string[]>(data?.documents || []);
-  const form = useForm<ResultSchema>({
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ResultSchema>({
     resolver: zodResolver(resultSchema),
   });
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch, setValue } = form;
-
-
   const [isPending, startTransition] = useTransition();
-
   const [state, formAction] = useActionState(
     type === "create" ? createResult : updateResult,
-    {
-      success: false,
-      error: false,
-      message: "Successfully processed the request.",
-    }
+    { success: false, error: false, message: "" }
   );
-
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      toast.success(state.message || `Result has been ${type === "create" ? "created" : "updated"} successfully!`);
+      toast.success(state.message || `Result ${type === "create" ? "created" : "updated"} successfully!`);
       setOpen(false);
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(type === "create" ? "Unable to create" : "Unable to update");
+      toast.error(state.message || `Unable to ${type} result`);
     }
   }, [state, router, type, setOpen]);
 
-  const { exams, assignments, students } = relatedData;
-  
-  // Add debug logging
-  useEffect(() => {
-    console.log("ResultForm relatedData:", relatedData);
-    console.log("Exams:", exams);
-    console.log("Assignments:", assignments);
-  }, [relatedData, exams, assignments]);
+  const { assessments } = relatedData;
 
-  const watchedExamId = watch("examId");
-
-  // Fetch all students that the teacher teaches
+  // Load teacher's students on mount
   useEffect(() => {
-    fetch('/api/students-by-teacher')
+    fetch("/api/students-by-teacher")
       .then(res => res.json())
-      .then(teacherStudents => {
-        console.log("Fetched teacher's students:", teacherStudents);
-        setAllTeacherStudents(teacherStudents || []);
-        // If no exam is selected, show all teacher's students
-        if (!watchedExamId && !watch("assignmentId")) {
-          setFilteredStudents(teacherStudents || []);
-        }
+      .then(students => {
+        setAllTeacherStudents(students || []);
+        setFilteredStudents(students || []);
       })
-      .catch(err => {
-        console.error("Error fetching teacher's students:", err);
-        setAllTeacherStudents([]);
-      });
-  }, [watch, watchedExamId]);
+      .catch(() => setAllTeacherStudents([]));
+  }, []);
 
-  // Filter students based on selected exam
+  const watchedAssessmentId = watch("assessmentId");
+
+  // Filter students by the class linked to the selected assessment
   useEffect(() => {
-    if (watchedExamId && exams) {
-      const selectedExam = exams.find((exam: any) => exam.id == watchedExamId);
-      if (selectedExam) {
-        setSelectedExamId(watchedExamId.toString());
-        setSelectedTitle("Exam Result");
-        
-        // Get class ID from either lesson or recurringLesson
-        const lessonData = selectedExam.lesson || selectedExam.recurringLesson;
-        if (lessonData && lessonData.class) {
-          const classId = lessonData.class.id;
-          fetch(`/api/students-by-class?classId=${classId}`)
-            .then(res => res.json())
-            .then(studentsData => {
-              console.log("Fetched students:", studentsData);
-              setFilteredStudents(studentsData || []);
-            })
-            .catch(err => {
-              console.error("Error fetching students:", err);
-              setFilteredStudents(allTeacherStudents);
-            });
-        } else {
-          console.warn("No lesson data found for exam:", selectedExam);
-          setFilteredStudents(allTeacherStudents);
-        }
+    if (watchedAssessmentId && assessments) {
+      const selected = assessments.find((a: any) => a.id == watchedAssessmentId);
+      const lessonData = selected?.lesson || selected?.recurringLesson;
+      if (lessonData?.class?.id) {
+        fetch(`/api/students-by-class?classId=${lessonData.class.id}`)
+          .then(res => res.json())
+          .then(students => setFilteredStudents(students || []))
+          .catch(() => setFilteredStudents(allTeacherStudents));
+      } else {
+        setFilteredStudents(allTeacherStudents);
       }
-    } else if (!watch("assignmentId")) {
-      // If no exam is selected and no assignment is selected, show all teacher's students
+    } else {
       setFilteredStudents(allTeacherStudents);
       setValue("studentId", "");
     }
-  }, [watchedExamId, exams, setValue, allTeacherStudents]);
+  }, [watchedAssessmentId, assessments, allTeacherStudents, setValue]);
 
-  // Handle assignment selection
-  const watchedAssignmentId = watch("assignmentId");
-  useEffect(() => {
-    if (watchedAssignmentId && assignments) {
-      const selectedAssignment = assignments.find((assignment: any) => assignment.id == watchedAssignmentId);
-      if (selectedAssignment) {
-        setSelectedTitle("Assignment");
-        setValue("examId", undefined);
-        
-        // Get class ID from either lesson or recurringLesson
-        const lessonData = selectedAssignment.lesson || selectedAssignment.recurringLesson;
-        if (lessonData && lessonData.class) {
-          const classId = lessonData.class.id;
-          fetch(`/api/students-by-class?classId=${classId}`)
-            .then(res => res.json())
-            .then(studentsData => {
-              console.log("Fetched students for assignment:", studentsData);
-              setFilteredStudents(studentsData || []);
-            })
-            .catch(err => {
-              console.error("Error fetching students:", err);
-              setFilteredStudents(allTeacherStudents);
-            });
-        } else {
-          console.warn("No lesson data found for assignment:", selectedAssignment);
-          setFilteredStudents(allTeacherStudents);
-        }
-      }
-    } else if (!watchedExamId) {
-      // If no assignment is selected and no exam is selected, show all teacher's students
-      setFilteredStudents(allTeacherStudents);
-    }
-  }, [watchedAssignmentId, assignments, setValue, allTeacherStudents, watchedExamId, watch]);
-
-  const onSubmit = handleSubmit((data) => {
-    console.log("Submitting result data:", { ...data, documents });
+  const onSubmit = handleSubmit((formData) => {
     startTransition(() => {
-      formAction({ ...data, documents });
+      formAction({ ...formData, documents });
     });
   });
 
@@ -171,7 +92,7 @@ const ResultForm = ({
     <div className="max-h-[90vh] overflow-y-auto bg-white p-8 rounded-lg">
       <form className="flex flex-col gap-6" onSubmit={onSubmit}>
         <h1 className="text-xl font-semibold">
-          {type === "create" ? `Create a new ${selectedTitle.toLowerCase()} result` : `Update the ${selectedTitle.toLowerCase()} result`}
+          {type === "create" ? "Create a new result" : "Update the result"}
         </h1>
 
         <div className="flex justify-between flex-wrap gap-4">
@@ -191,40 +112,28 @@ const ResultForm = ({
             type="number"
           />
           <InputField
+            label="Assessment"
+            name="assessmentId"
+            defaultValue={data?.assessmentId}
+            register={register}
+            error={errors?.assessmentId}
+            type="select"
+            options={assessments?.map((a: { id: number; title: string; type: string }) => ({
+              value: a.id,
+              label: `${a.title} (${a.type === "EXAM" ? "Exam" : "Assignment"})`,
+            })) || []}
+          />
+          <InputField
             label="Student"
             name="studentId"
             defaultValue={data?.studentId}
             register={register}
             error={errors?.studentId}
             type="select"
-            options={filteredStudents && filteredStudents.length > 0 ? filteredStudents.map((student: { id: string; name: string; surname: string }) => ({
-              value: student.id,
-              label: `${student.name} ${student.surname}`,
-            })) : []}
-          />
-          <InputField
-            label="Exam"
-            name="examId"
-            defaultValue={data?.examId}
-            register={register}
-            error={errors?.examId}
-            type="select"
-            options={exams && exams.length > 0 ? exams.map((exam: { id: number; title: string }) => ({
-              value: exam.id,
-              label: exam.title,
-            })) : []}
-          />
-          <InputField
-            label="Assignment"
-            name="assignmentId"
-            defaultValue={data?.assignmentId}
-            register={register}
-            error={errors?.assignmentId}
-            type="select"
-            options={assignments && assignments.length > 0 ? assignments.map((assignment: { id: number; title: string }) => ({
-              value: assignment.id,
-              label: assignment.title,
-            })) : []}
+            options={filteredStudents.map((s: { id: string; name: string; surname: string }) => ({
+              value: s.id,
+              label: `${s.name} ${s.surname}`,
+            }))}
           />
           <FileUpload
             label="Result Documents"
@@ -245,12 +154,9 @@ const ResultForm = ({
         </div>
 
         {state.error && (
-          <span className="text-red-500">{type === "create" ? "Unable to create" : "Unable to update"}</span>
+          <span className="text-red-500">{state.message || `Unable to ${type} result`}</span>
         )}
-        <button
-          className="bg-orange-400 text-white p-3 rounded-xl"
-          disabled={isPending}
-        >
+        <button className="bg-orange-400 text-white p-3 rounded-xl" disabled={isPending}>
           {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
         </button>
       </form>

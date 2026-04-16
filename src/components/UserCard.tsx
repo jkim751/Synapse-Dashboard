@@ -1,19 +1,28 @@
 import prisma from "@/lib/prisma";
-import Image from "next/image";
 
 const UserCard = async ({
   type,
 }: {
-  type: "admin" | "teacher" | "student" | "parent";
+  type: "admin" | "teacher" | "student" | "parent" | "enrollment";
 }) => {
-  const modelMap: Record<typeof type, any> = {
-    admin: prisma.admin,
-    teacher: prisma.teacher,
-    student: prisma.student,
-    parent: prisma.parent,
-  };
+  let data: number;
+  let label: string;
 
-  const data = await modelMap[type].count();
+  if (type === "enrollment") {
+    data = await prisma.studentClass.count();
+    label = "Enrollments";
+  } else {
+    const modelMap: Record<Exclude<typeof type, "enrollment">, any> = {
+      admin: prisma.admin,
+      teacher: prisma.teacher,
+      student: prisma.student,
+      parent: prisma.parent,
+    };
+    data = await modelMap[type].count(
+      type === "student" ? { where: { status: { not: "DISENROLLED" } } } : undefined
+    );
+    label = `${type.charAt(0).toUpperCase() + type.slice(1)}s`;
+  }
 
   return (
     <div className="bg-white border-2 border-lamaYellow/75 rounded-2xl p-4 flex-1 min-w-[130px]">
@@ -23,7 +32,7 @@ const UserCard = async ({
         </span>
       </div>
       <h1 className="text-2xl font-semibold my-4">{data}</h1>
-      <h2 className="capitalize text-sm font-medium text-black">{type}s</h2>
+      <h2 className="text-sm font-medium text-black">{label}</h2>
     </div>
   );
 };

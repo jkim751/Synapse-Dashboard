@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['quill'],
+  serverExternalPackages: ['quill', 'pg', '@prisma/adapter-pg'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -8,6 +8,11 @@ const nextConfig = {
         fs: false,
         path: false,
         os: false,
+        dns: false,
+        net: false,
+        tls: false,
+        pg: false,
+        '@prisma/adapter-pg': false,
       }
     }
     return config

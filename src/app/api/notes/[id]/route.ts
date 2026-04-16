@@ -7,16 +7,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Allow anyone to delete any note
-    // Remove the userId filter to make notes deletable by everyone
     await prisma.note.delete({
       where: {
         id

@@ -24,8 +24,9 @@ const AnnouncementForm = ({
   relatedData?: any;
 }) => {
   // --- UPDATED: Extended state to include grades and teachers-admins options ---
-  const [sendTo, setSendTo] = useState<'everyone' | 'class' | 'teachers-admins' | 'grades'>(
+  const [sendTo, setSendTo] = useState<'everyone' | 'class' | 'teachers-admins' | 'grades' | 'all-parents'>(
     // Determine initial value based on existing data
+    data?.allParents ? 'all-parents' :
     data?.gradeIds?.length > 0 ? 'grades' :
     data?.userIds?.length > 0 ? 'teachers-admins' :
     data?.classId ? 'class' : 'everyone'
@@ -95,19 +96,28 @@ const AnnouncementForm = ({
     
     if (sendTo === 'everyone') {
       dataToSubmit.classId = null;
+      dataToSubmit.allParents = false;
       dataToSubmit.userIds = null;
       dataToSubmit.gradeIds = null;
     } else if (sendTo === 'class') {
+      dataToSubmit.allParents = false;
       dataToSubmit.userIds = null;
       dataToSubmit.gradeIds = null;
     } else if (sendTo === 'teachers-admins') {
       dataToSubmit.classId = null;
+      dataToSubmit.allParents = false;
       dataToSubmit.gradeIds = null;
       dataToSubmit.userIds = selectedUserIds;
     } else if (sendTo === 'grades') {
       dataToSubmit.classId = null;
+      dataToSubmit.allParents = false;
       dataToSubmit.userIds = null;
       dataToSubmit.gradeIds = selectedGradeIds;
+    } else if (sendTo === 'all-parents') {
+      dataToSubmit.classId = null;
+      dataToSubmit.allParents = true;
+      dataToSubmit.userIds = null;
+      dataToSubmit.gradeIds = null;
     }
     
     startTransition(() => {
@@ -174,6 +184,17 @@ const AnnouncementForm = ({
                   className="form-radio"
                 />
                 Teachers & Admins
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sendTo"
+                  value="all-parents"
+                  checked={sendTo === 'all-parents'}
+                  onChange={() => setSendTo('all-parents')}
+                  className="form-radio"
+                />
+                All Parents
               </label>
             </div>
           </div>

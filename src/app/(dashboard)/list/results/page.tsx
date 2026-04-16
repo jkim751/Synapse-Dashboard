@@ -19,7 +19,6 @@ type ResultList = {
   teacherSurname: string;
   score: number;
   className: string;
-  startTime: Date;
   documents: string[];
 };
 
@@ -60,16 +59,11 @@ const columns = [
     className: "hidden md:table-cell",
   },
   {
-    header: "Date",
-    accessor: "date",
-    className: "hidden md:table-cell",
-  },
-  {
     header: "Docs",
     accessor: "docs",
     className: "hidden lg:table-cell",
   },
-  ...(role === "admin" || role === "teacher"
+  ...(role === "admin" || role === "director" || role === "teacher"
     ? [
         {
           header: "Actions",
@@ -91,15 +85,12 @@ const renderRow = (item: ResultList) => (
       {item.teacherName + " " + item.teacherSurname}
     </td>
     <td className="hidden md:table-cell">{item.className}</td>
-    <td className="hidden md:table-cell">
-      {new Intl.DateTimeFormat("en-US").format(item.startTime)}
-    </td>
     <td className="hidden lg:table-cell">
       <DocumentList documents={item.documents ?? []} type="result" />
     </td>
     <td>
       <div className="flex items-center gap-2">
-        {(role === "admin" || role === "teacher") && (
+        {(role === "admin" || role === "director" || role === "teacher") && (
           <>
             <FormContainer table="result" type="update" data={item} />
             <FormContainer table="result" type="delete" id={item.id} />
@@ -127,7 +118,7 @@ const renderRow = (item: ResultList) => (
             break;
           case "search":
             query.OR = [
-              { exam: { title: { contains: value, mode: "insensitive" } } },
+              { assessment: { title: { contains: value, mode: "insensitive" } } },
               { student: { name: { contains: value, mode: "insensitive" } } },
             ];
             break;
@@ -145,10 +136,8 @@ const renderRow = (item: ResultList) => (
       break;
     case "teacher":
       query.OR = [
-        { exam: { lesson: { teacherId: currentUserId! } } },
-        { exam: { recurringLesson: { teacherId: currentUserId! } } },
-        { assignment: { lesson: { teacherId: currentUserId! } } },
-        { assignment: { recurringLesson: { teacherId: currentUserId! } } },
+        { assessment: { lesson: { teacherId: currentUserId! } } },
+        { assessment: { recurringLesson: { teacherId: currentUserId! } } },
       ];
       break;
 
@@ -170,23 +159,7 @@ const renderRow = (item: ResultList) => (
       where: query,
       include: {
         student: { select: { name: true, surname: true } },
-        exam: {
-          include: {
-            lesson: {
-              select: {
-                class: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
-              },
-            },
-            recurringLesson: {
-              select: {
-                class: { select: { name: true } },
-                teacher: { select: { name: true, surname: true } },
-              },
-            },
-          },
-        },
-        assignment: {
+        assessment: {
           include: {
             lesson: {
               select: {
@@ -209,11 +182,10 @@ const renderRow = (item: ResultList) => (
     prisma.result.count({ where: query }),
   ]);
 
-  const data = dataRes.map((item: { exam: any; assignment: any; id: any; title: any; student: { name: any; surname: any; }; score: any; documents: any; }) => {
-    const assessment = item.exam || item.assignment;
+  const data = dataRes.map((item: { assessment: any; id: any; title: any; student: { name: any; surname: any; }; score: any; documents: any; }) => {
+    const assessment = item.assessment;
 
     if (!assessment) {
-      // Handle results without assessments (manual results)
       return {
         id: item.id,
         title: item.title || "Manual Result",
@@ -223,14 +195,11 @@ const renderRow = (item: ResultList) => (
         teacherSurname: "",
         score: item.score,
         className: "",
-        startTime: new Date(),
         documents: item.documents || [],
       };
     }
 
-    // Get lesson data from either lesson or recurringLesson
     const lessonData = assessment.lesson || assessment.recurringLesson;
-    const isExam = "startTime" in assessment;
 
     return {
       id: item.id,
@@ -241,13 +210,9 @@ const renderRow = (item: ResultList) => (
       teacherSurname: lessonData?.teacher?.surname || "",
       score: item.score,
       className: lessonData?.class?.name || "",
-      startTime: isExam ? assessment.startTime : assessment.startDate,
       documents: item.documents || [],
     };
   });
-
-  console.log("Results data:", data);
-  console.log("Results count:", count);
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
@@ -258,7 +223,7 @@ const renderRow = (item: ResultList) => (
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
      
-            {(role === "admin" || role === "teacher") && (
+            {(role === "admin" || role === "director" || role === "teacher") && (
               <FormContainer table="result" type="create" />
             )}
           </div>

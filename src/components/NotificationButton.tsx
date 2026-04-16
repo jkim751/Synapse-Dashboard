@@ -38,7 +38,7 @@ const NotificationButton = () => {
       >
         <Image src="/announcement.png" alt="" width={20} height={20} />
         {unreadCount > 0 && (
-          <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 text-white rounded-full text-xs">
+          <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs">
             {unreadCount}
           </div>
         )}

@@ -21,7 +21,7 @@ const { userId, sessionClaims } = await auth();
 const role = (sessionClaims?.metadata as { role?: string })?.role;
 const resolvedSearchParams = await searchParams;
 
-if (!role || !["admin", "teacher"].includes(role)) {
+if (!role || !["admin", "director", "teacher"].includes(role)) {
   redirect("/");
 }
 

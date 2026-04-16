@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { getXeroClient } from '@/lib/xero';
+import { getAnyXeroClient } from '@/lib/xero';
 import { Contact, Phone } from 'xero-node';
 
 export async function POST() {
@@ -12,17 +12,17 @@ export async function POST() {
     }
 
     const role = (sessionClaims?.metadata as { role?: string })?.role;
-    if (role !== "admin") {
+    if (role !== "admin" && role !== "director") {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Get an authenticated Xero client
+    // Get an authenticated Xero client using whichever admin has connected Xero
     let xero;
     try {
-      xero = await getXeroClient(userId);
+      xero = await getAnyXeroClient();
     } catch (error) {
       console.error('Failed to initialize Xero client:', error);
-      return NextResponse.json({ error: 'Failed to initialize Xero client. Please re-authenticate.' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to initialize Xero client. Please connect Xero first.' }, { status: 500 });
     }
 
     const activeTenantId = xero.tenants[0]?.tenantId;
