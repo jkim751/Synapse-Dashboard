@@ -167,13 +167,13 @@ export async function POST() {
     }
 
     if (contactsToUpdate.length > 0) {
-        // Update contacts individually (includes previously-synced contacts reconciled above)
-        for (const contact of contactsToUpdate) {
-          if (contact.contactID) {
-            await xero.accountingApi.updateContact(activeTenantId, contact.contactID, { contacts: [contact] });
-            updatedCount++;
-          }
-        }
+      // Batch updates in chunks of 100 (same endpoint as create — contactID triggers update)
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < contactsToUpdate.length; i += BATCH_SIZE) {
+        const batch = contactsToUpdate.slice(i, i + BATCH_SIZE);
+        const response = await xero.accountingApi.updateOrCreateContacts(activeTenantId, { contacts: batch });
+        updatedCount += response.body.contacts?.length || 0;
+      }
     }
     
     return NextResponse.json({ 
