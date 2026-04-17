@@ -95,11 +95,15 @@ export const getStoredTokens = async (userId: string): Promise<TokenSetData | nu
 };
 
 // Get a client using a specific user's stored tokens.
-// Reuses the module-level singleton so the underlying OpenID client is already
-// initialized (it was set up during the OAuth consent/callback flow).
+// Reuses the module-level singleton. initialize() must be called explicitly on
+// each cold-start invocation so the underlying OpenID client is ready before
+// any token operation (refreshToken depends on the OIDC issuer discovery).
 export async function getXeroClient(userId: string) {
   const tokenData = await getStoredTokens(userId);
   if (!tokenData) throw new Error('No Xero token found for user.');
+
+  // Ensure the OIDC client is initialized (idempotent — safe to call every time)
+  await xero.initialize();
 
   await xero.setTokenSet(tokenData);
 
