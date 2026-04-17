@@ -94,27 +94,22 @@ export const getStoredTokens = async (userId: string): Promise<TokenSetData | nu
   };
 };
 
-// Get a client using a specific user's stored tokens
+// Get a client using a specific user's stored tokens.
+// Reuses the module-level singleton so the underlying OpenID client is already
+// initialized (it was set up during the OAuth consent/callback flow).
 export async function getXeroClient(userId: string) {
   const tokenData = await getStoredTokens(userId);
   if (!tokenData) throw new Error('No Xero token found for user.');
 
-  const client = new XeroClient({
-    clientId: process.env.XERO_CLIENT_ID!,
-    clientSecret: process.env.XERO_CLIENT_SECRET!,
-    redirectUris: [process.env.XERO_REDIRECT_URI!],
-  });
+  await xero.setTokenSet(tokenData);
 
-  client.setTokenSet(tokenData);
-
-  if (client.readTokenSet().expired()) {
-    const newTokenSet = await client.refreshToken();
+  if (xero.readTokenSet().expired()) {
+    const newTokenSet = await xero.refreshToken();
     await storeTokens(userId, newTokenSet);
-    client.setTokenSet(newTokenSet);
   }
 
-  await client.updateTenants();
-  return client;
+  await xero.updateTenants();
+  return xero;
 }
 
 // Get a client using whichever admin has connected Xero — used by parent/teacher routes
