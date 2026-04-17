@@ -113,7 +113,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, invoiceId: createdInvoice.invoiceID });
 
   } catch (error: any) {
-    console.error('Error creating Xero invoice:', error.response?.body || error.message);
-    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
+    const xeroBody = error.response?.body;
+    let details: string;
+    if (typeof xeroBody === 'string' && xeroBody) {
+      details = xeroBody;
+    } else if (xeroBody && typeof xeroBody === 'object') {
+      details = JSON.stringify(xeroBody);
+    } else {
+      details = error.message ?? String(error);
+    }
+    console.error('Error creating Xero invoice:', details);
+    return NextResponse.json({ error: 'Failed to create invoice', details }, { status: 500 });
   }
 }

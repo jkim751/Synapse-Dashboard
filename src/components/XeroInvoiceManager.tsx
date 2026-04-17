@@ -16,7 +16,7 @@ const XeroInvoiceManager = ({ contacts }: { contacts: Contact[] }) => {
   const [dueDate, setDueDate] = useState("");
   const [send, setSend] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success?: string; error?: string } | null>(null);
+  const [result, setResult] = useState<{ success?: string; error?: string; details?: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filtered = contacts.filter(c =>
@@ -55,7 +55,10 @@ const XeroInvoiceManager = ({ contacts }: { contacts: Contact[] }) => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to create invoice");
+      if (!response.ok) {
+        setResult({ error: data.error || "Failed to create invoice", details: data.details });
+        return;
+      }
 
       setResult({ success: `Invoice created${send ? " and sent" : ""} (ID: ${data.invoiceId})` });
       setContactId("");
@@ -65,7 +68,7 @@ const XeroInvoiceManager = ({ contacts }: { contacts: Contact[] }) => {
       setDueDate("");
       setSend(false);
     } catch (err: any) {
-      setResult({ error: err.message });
+      setResult({ error: err.message ?? String(err) });
     } finally {
       setLoading(false);
     }
@@ -182,7 +185,12 @@ const XeroInvoiceManager = ({ contacts }: { contacts: Contact[] }) => {
         <p className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">{result.success}</p>
       )}
       {result?.error && (
-        <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">{result.error}</p>
+        <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">
+          <p className="font-medium">{result.error}</p>
+          {result.details && (
+            <pre className="mt-1 whitespace-pre-wrap break-all text-xs text-red-500">{result.details}</pre>
+          )}
+        </div>
       )}
 
       <button
