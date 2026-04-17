@@ -31,11 +31,13 @@ export async function GET() {
 
     const response = await xero.accountingApi.getInvoices(
       activeTenantId,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      [parent.xeroContactId],
+      undefined,   // ifModifiedSince
+      undefined,   // where
+      undefined,   // order
+      undefined,   // IDs
+      undefined,   // InvoiceNumbers
+      [parent.xeroContactId], // ContactIDs
+      ['AUTHORISED', 'PAID'], // Statuses — only show relevant invoices
     );
 
     const invoices = (response.body.invoices ?? []).map(inv => ({
