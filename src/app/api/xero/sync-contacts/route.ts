@@ -123,7 +123,7 @@ export async function POST() {
     });
 
   } catch (error: any) {
-    if (error.message.includes('refresh')) {
+    if (error.message?.includes('refresh')) {
       console.error('Xero token refresh failed. Prompting re-authentication:', error);
       return NextResponse.json({ error: 'Xero token refresh failed. Please re-authenticate.' }, { status: 401 });
     }
