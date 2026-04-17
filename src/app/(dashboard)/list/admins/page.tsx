@@ -50,21 +50,28 @@ const AdminListPage = async ({
     },
   ];
 
-  const renderRow = (item: Admin) => (
+  const renderRow = (item: Admin & { role: string }) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
       <td className="flex items-center gap-4 p-4">
-        <UserPhotoDisplay
-          currentPhotoUrl={item.img}
-          userId={item.id}
-          userRole="admin"
-          userName={`${item.name} ${item.surname}`}
-          userEmail={item.email}
-          canEdit={true}
-          showInfo={true}
-        />
+        <div className="flex items-center gap-4">
+          <UserPhotoDisplay
+            currentPhotoUrl={item.img}
+            userId={item.id}
+            userRole="admin"
+            userName={`${item.name} ${item.surname}`}
+            userEmail={item.email}
+            canEdit={true}
+            showInfo={true}
+          />
+          {item.role === "teacher-admin" && (
+            <span className="hidden md:inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 whitespace-nowrap">
+              Teacher-Admin
+            </span>
+          )}
+        </div>
       </td>
       <td className="hidden md:table-cell">{item.username}</td>
       <td className="hidden md:table-cell">{item.phone}</td>

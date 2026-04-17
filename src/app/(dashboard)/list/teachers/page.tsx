@@ -123,27 +123,21 @@ const TeacherListPage = async ({
     query.id = userId;
   }
 
-  const [data, count] = await prisma.$transaction([
-    prisma.teacher.findMany({
-      where: query,
-      include: {
-        subjects: true,
-        classes: true,
-      },
-      take: ITEM_PER_PAGE,
-      skip: ITEM_PER_PAGE * (p - 1),
+  const [[data, count], teacherAdmins] = await Promise.all([
+    prisma.$transaction([
+      prisma.teacher.findMany({
+        where: query,
+        include: { subjects: true, classes: true },
+        take: ITEM_PER_PAGE,
+        skip: ITEM_PER_PAGE * (p - 1),
+      }),
+      prisma.teacher.count({ where: query }),
+    ]),
+    prisma.admin.findMany({
+      where: { role: "teacher-admin" },
+      orderBy: [{ name: "asc" }, { surname: "asc" }],
     }),
-    prisma.teacher.count({ where: query }),
   ]);
-
-  // Debug: Log the first teacher's image URL
-  if (data.length > 0) {
-    console.log("First teacher data:", {
-      id: data[0].id,
-      name: data[0].name,
-      img: data[0].img,
-    });
-  }
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
@@ -159,6 +153,53 @@ const TeacherListPage = async ({
           </div>
         </div>
       </div>
+
+      {/* TEACHER-ADMINS SECTION */}
+      {teacherAdmins.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 mt-4">
+            Teacher-Admins
+          </h2>
+          <table className="w-full">
+            <tbody>
+              {teacherAdmins.map((ta) => (
+                <tr
+                  key={ta.id}
+                  className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+                >
+                  <td className="flex items-center gap-4 p-4">
+                    <UserPhotoDisplay
+                      currentPhotoUrl={ta.img}
+                      userId={ta.id}
+                      userRole="teacher-admin"
+                      userName={`${ta.name} ${ta.surname}`}
+                      userEmail={ta.email}
+                      canEdit={role === "admin" || role === "director" || role === "teacher-admin"}
+                      showInfo={true}
+                    />
+                    <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                      Teacher-Admin
+                    </span>
+                  </td>
+                  <td className="hidden md:table-cell p-4 text-gray-400">—</td>
+                  <td className="hidden md:table-cell p-4 text-gray-400">—</td>
+                  <td className="hidden lg:table-cell p-4 whitespace-nowrap">{ta.phone ?? "—"}</td>
+                  {(role === "admin" || role === "director" || role === "teacher-admin") && (
+                    <td className="p-4">
+                      <FormContainer table="admin" type="update" data={ta} id={ta.id} />
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="border-b border-gray-300 my-4" />
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Teachers
+          </h2>
+        </div>
+      )}
+
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}

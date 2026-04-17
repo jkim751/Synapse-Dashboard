@@ -186,7 +186,7 @@ const AdminForm = ({
             <select
               className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
               {...register("role")}
-              defaultValue={relatedData?.currentRole || data?.role || "admin"}
+              defaultValue={data?.role || "admin"}
             >
               <option value="admin">Admin</option>
               <option value="teacher-admin">Teacher-Admin</option>
