@@ -81,6 +81,7 @@ export async function POST() {
     //    Match by accountNumber and move them from create → update, writing the ID back locally.
     if (contactsToCreate.length > 0) {
       const existingXeroMap = new Map<string, string>(); // accountNumber -> contactID
+      const existingXeroByName = new Map<string, string>(); // normalised name -> contactID
       let page = 1;
       let hasMore = true;
       while (hasMore) {
@@ -91,8 +92,13 @@ export async function POST() {
         );
         const contacts = response.body.contacts || [];
         for (const contact of contacts) {
-          if (contact.accountNumber && contact.contactID) {
-            existingXeroMap.set(contact.accountNumber, contact.contactID);
+          if (contact.contactID) {
+            if (contact.accountNumber) {
+              existingXeroMap.set(contact.accountNumber, contact.contactID);
+            }
+            if (contact.name) {
+              existingXeroByName.set(contact.name.trim().toLowerCase(), contact.contactID);
+            }
           }
         }
         hasMore = contacts.length === 100;
@@ -101,7 +107,14 @@ export async function POST() {
 
       const trulyNew: Contact[] = [];
       for (const contact of contactsToCreate) {
-        const existingId = contact.accountNumber ? existingXeroMap.get(contact.accountNumber) : undefined;
+        // First try to match by accountNumber (reliable)
+        let existingId = contact.accountNumber ? existingXeroMap.get(contact.accountNumber) : undefined;
+
+        // Fallback: match by name for contacts previously synced without an accountNumber
+        if (!existingId && contact.name) {
+          existingId = existingXeroByName.get(contact.name.trim().toLowerCase());
+        }
+
         if (existingId) {
           // Already in Xero — write contactID back to local DB and move to update list
           const personInfo = contact.accountNumber ? creationMap.get(contact.accountNumber) : undefined;
