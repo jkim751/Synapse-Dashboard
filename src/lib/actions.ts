@@ -196,6 +196,7 @@ const updateUserPhotoInDatabase = async (
         console.log("Student update result:", updateResult);
         break;
       case "admin":
+      case "teacher-admin":
         console.log("Updating admin...");
         updateResult = await prisma.admin.update({
           where: { id: userId },
@@ -232,6 +233,7 @@ const updateUserPhotoInDatabase = async (
         });
         break;
       case "admin":
+      case "teacher-admin":
         verificationRecord = await prisma.admin.findUnique({
           where: { id: userId },
           select: { img: true, name: true }
@@ -577,7 +579,7 @@ export const createAdmin = async (
       password: validatedData.password!,
       firstName: validatedData.name,
       lastName: validatedData.surname,
-      publicMetadata: { role: "admin" },
+      publicMetadata: { role: validatedData.role ?? "admin" },
       skipPasswordChecks: true,
     });
 

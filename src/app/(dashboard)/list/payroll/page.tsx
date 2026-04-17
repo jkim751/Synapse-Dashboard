@@ -7,12 +7,12 @@ const PayrollPage = async () => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || (role !== "teacher" && role !== "admin" && role !== "director")) {
+  if (!userId || (role !== "teacher" && role !== "admin" && role !== "director" && role !== "teacher-admin")) {
     redirect("/");
   }
 
   // Admin/director don't have a teacher record — show a general payroll overview
-  if (role === "admin" || role === "director") {
+  if (role === "admin" || role === "director" || role === "teacher-admin") {
     const teachers = await prisma.teacher.findMany({
       select: {
         id: true,

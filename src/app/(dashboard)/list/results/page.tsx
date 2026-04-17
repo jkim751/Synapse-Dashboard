@@ -63,7 +63,7 @@ const columns = [
     accessor: "docs",
     className: "hidden lg:table-cell",
   },
-  ...(role === "admin" || role === "director" || role === "teacher"
+  ...(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin"
     ? [
         {
           header: "Actions",
@@ -90,7 +90,7 @@ const renderRow = (item: ResultList) => (
     </td>
     <td>
       <div className="flex items-center gap-2">
-        {(role === "admin" || role === "director" || role === "teacher") && (
+        {(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin") && (
           <>
             <FormContainer table="result" type="update" data={item} />
             <FormContainer table="result" type="delete" id={item.id} />
@@ -223,7 +223,7 @@ const renderRow = (item: ResultList) => (
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
      
-            {(role === "admin" || role === "director" || role === "teacher") && (
+            {(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin") && (
               <FormContainer table="result" type="create" />
             )}
           </div>

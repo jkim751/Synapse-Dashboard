@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const { userId, userData, role } = await req.json();
 
     // Only allow users to sync their own profile or admins to sync any profile
-    if (currentUserId !== userId && currentUserRole !== 'admin' && currentUserRole !== 'director') {
+    if (currentUserId !== userId && currentUserRole !== 'admin' && currentUserRole !== 'director' && currentUserRole !== 'teacher-admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
 
     switch (role) {
       case 'admin':
+      case 'teacher-admin':
         updatedUser = await prisma.admin.update({
           where: { id: userId },
           data: updateData,

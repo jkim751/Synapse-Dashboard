@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!userId || !["admin", "director", "teacher"].includes(role || "")) {
+    if (!userId || !["admin", "director", "teacher", "teacher-admin"].includes(role || "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (role === "teacher") {
       const teacher = await prisma.teacher.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
       if (teacher) recordedByName = `${teacher.name} ${teacher.surname}`;
-    } else if (role === "admin") {
+    } else if (role === "admin" || role === "teacher-admin") {
       const admin = await prisma.admin.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
       if (admin) recordedByName = `${admin.name} ${admin.surname}`;
     } else if (role === "director") {
@@ -152,7 +152,7 @@ export async function DELETE(request: NextRequest) {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!userId || !["admin", "director", "teacher"].includes(role || "")) {
+    if (!userId || !["admin", "director", "teacher", "teacher-admin"].includes(role || "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!["admin", "director", "teacher"].includes(role || "")) {
+    if (!["admin", "director", "teacher", "teacher-admin"].includes(role || "")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

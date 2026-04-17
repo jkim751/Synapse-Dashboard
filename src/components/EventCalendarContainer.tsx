@@ -20,7 +20,7 @@ const EventCalendarContainer = async ({
 
   const data = await prisma.event.findMany({
     where: {
-      ...(role !== "admin" && role !== "director" && {
+      ...(role !== "admin" && role !== "director" && role !== "teacher-admin" && {
         OR: [
           { classId: null },
           { class: roleConditions[role as keyof typeof roleConditions] || {} },

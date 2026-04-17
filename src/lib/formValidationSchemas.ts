@@ -73,6 +73,7 @@ export const adminSchema = z.object({
   img: z.string().optional(),
   birthday: z.coerce.date({ message: "Birthday is required!" }),
   sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
+  role: z.enum(["admin", "teacher-admin"]).default("admin"),
 });
 export type AdminSchema = z.infer<typeof adminSchema>;
 

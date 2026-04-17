@@ -16,7 +16,9 @@ const LoginPage = () => {
     if (isLoaded && isSignedIn && user) {
       const role = user?.publicMetadata.role;
       if (role) {
-        router.push(`/${role}`);
+        // teacher-admin uses the admin dashboard
+        const destination = role === "teacher-admin" ? "admin" : role;
+        router.push(`/${destination}`);
       }
     }
   }, [isLoaded, isSignedIn, user, router]);

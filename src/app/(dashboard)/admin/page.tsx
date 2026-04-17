@@ -1,6 +1,7 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import UserCard from "@/components/UserCard";
+import TeacherAdminViewToggle from "@/components/TeacherAdminViewToggle";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 
@@ -10,12 +11,21 @@ const AdminPage = async ({
   searchParams: Promise<{ [keys: string]: string | undefined }>;
 }) => {
   // Ensure authentication and get user data
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   const user = await currentUser();
-  
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
   // More robust username fallback logic
   const userName = user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || "Admin";
-  
+
+  const resolvedSearchParams = await searchParams;
+  const calendarView = (resolvedSearchParams.calendarView === "teacher" ? "teacher" : "admin") as "admin" | "teacher";
+  const isTeacherAdmin = role === "teacher-admin";
+
+  const calendarTitle = isTeacherAdmin && calendarView === "teacher"
+    ? "My Schedule"
+    : "Master Schedule - All Lessons";
+
   return (
     <div className="flex flex-col">
       {/* WELCOME MESSAGE */}
@@ -42,9 +52,14 @@ const AdminPage = async ({
           {/* MASTER CALENDAR */}
           <div className="w-full h-[1000px]">
             <div className="bg-white p-4 rounded-md h-full">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Master Schedule - All Lessons</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">{calendarTitle}</h2>
+                {isTeacherAdmin && (
+                  <TeacherAdminViewToggle currentView={calendarView} />
+                )}
+              </div>
               <div className="h-[calc(100%-3rem)]">
-                <BigCalendarContainer />
+                <BigCalendarContainer viewMode={calendarView} />
               </div>
             </div>
           </div>

@@ -179,6 +179,22 @@ const AdminForm = ({
               </p>
             )}
           </div>
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Role</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+              {...register("role")}
+              defaultValue={data?.role || "admin"}
+            >
+              <option value="admin">Admin</option>
+              <option value="teacher-admin">Teacher-Admin</option>
+            </select>
+            {errors.role?.message && (
+              <p className="text-xs text-red-400">
+                {errors.role.message.toString()}
+              </p>
+            )}
+          </div>
           {/* Empty div to maintain alignment */}
           <div className="w-full md:w-1/4"></div>
           <PhotoUploadWidget

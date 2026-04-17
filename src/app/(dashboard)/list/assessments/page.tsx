@@ -30,7 +30,7 @@ const AssessmentListPage = async ({
     { header: "Class", accessor: "class" },
     { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
     { header: "Docs", accessor: "docs", className: "hidden md:table-cell" },
-    ...(role === "admin" || role === "director" || role === "teacher"
+    ...(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin"
       ? [{ header: "Actions", accessor: "action" }]
       : []),
   ];
@@ -64,7 +64,7 @@ const AssessmentListPage = async ({
         </td>
         <td>
           <div className="flex items-center gap-2">
-            {(role === "admin" || role === "director" || role === "teacher") && (
+            {(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin") && (
               <>
                 <FormContainer table="assessment" type="update" data={item} />
                 <FormContainer table="assessment" type="delete" id={item.id} />
@@ -166,7 +166,7 @@ const AssessmentListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {(role === "admin" || role === "director" || role === "teacher") && (
+            {(role === "admin" || role === "director" || role === "teacher" || role === "teacher-admin") && (
               <FormContainer table="assessment" type="create" />
             )}
           </div>

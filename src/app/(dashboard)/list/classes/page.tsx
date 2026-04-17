@@ -43,7 +43,7 @@ const columns = [
     accessor: "supervisor",
     className: "hidden md:table-cell",
   },
-  ...((role === "admin" || role === "director")
+  ...((role === "admin" || role === "director" || role === "teacher-admin")
     ? [
         {
           header: "Actions",
@@ -71,7 +71,7 @@ const renderRow = (item: ClassList) => (
             <Image src="/view.png" alt="" width={16} height={16} />
           </button>
         </Link>
-        {(role === "admin" || role === "director") && (
+        {(role === "admin" || role === "director" || role === "teacher-admin") && (
           <>
             <FormContainer table="class" type="delete" id={item.id} />
           </>
@@ -140,7 +140,7 @@ const renderRow = (item: ClassList) => (
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {(role === "admin" || role === "director") && <FormContainer table="class" type="create" />}
+            {(role === "admin" || role === "director" || role === "teacher-admin") && <FormContainer table="class" type="create" />}
           </div>
         </div>
       </div>

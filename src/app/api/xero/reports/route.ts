@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const role = (sessionClaims?.metadata as { role?: string })?.role;
-    if (role !== "admin" && role !== "director") {
+    if (role !== "admin" && role !== "director" && role !== "teacher-admin") {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

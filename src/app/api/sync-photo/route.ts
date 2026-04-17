@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     // Update the photo in the database based on role
     switch (userRole) {
       case "admin":
+      case "teacher-admin":
         await prisma.admin.update({
           where: { id: targetUserId },
           data: { img: photoUrl }

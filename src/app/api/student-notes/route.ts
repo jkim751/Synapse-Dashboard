@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || (role !== "admin" && role !== "director")) {
+  if (!userId || (role !== "admin" && role !== "director" && role !== "teacher-admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || (role !== "admin" && role !== "director")) {
+  if (!userId || (role !== "admin" && role !== "director" && role !== "teacher-admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -69,7 +69,7 @@ export async function PUT(req: NextRequest) {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || (role !== "admin" && role !== "director")) {
+  if (!userId || (role !== "admin" && role !== "director" && role !== "teacher-admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -96,7 +96,7 @@ export async function DELETE(req: NextRequest) {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  if (!userId || (role !== "admin" && role !== "director")) {
+  if (!userId || (role !== "admin" && role !== "director" && role !== "teacher-admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

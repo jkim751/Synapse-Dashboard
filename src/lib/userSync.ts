@@ -31,6 +31,7 @@ export async function syncUserProfile(userId: string, role: string) {
 
     switch (role) {
       case 'admin':
+      case 'teacher-admin':
         return await prisma.admin.update({
           where: { id: userId },
           data: updateData,
@@ -63,6 +64,7 @@ export async function getUserProfile(userId: string, role: string) {
   try {
     switch (role) {
       case 'admin':
+      case 'teacher-admin':
         return await prisma.admin.findUnique({ where: { id: userId } })
       case 'teacher':
         return await prisma.teacher.findUnique({ where: { id: userId } })

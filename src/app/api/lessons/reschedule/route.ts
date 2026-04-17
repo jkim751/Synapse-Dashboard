@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    if (!userId || !['admin', 'director', 'teacher'].includes(role || '')) {
+    if (!userId || !['admin', 'director', 'teacher', 'teacher-admin'].includes(role || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

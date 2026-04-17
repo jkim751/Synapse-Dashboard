@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     }
 
     // Build user-based filters
-    const userFilter = role === "teacher" ? { teacherId: userId } : {};
+    const userFilter = role === "teacher" ? { teacherId: userId } : {}; // teacher-admin sees all lessons
 
     // --- 1. Fetch one-off lessons (not part of any recurring series) ---
     const singleLessons = await prisma.lesson.findMany({

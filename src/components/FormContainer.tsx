@@ -192,7 +192,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
 
       case "result": {
-        if (role === "admin" || role === "director" || role === "student") {
+        if (role === "admin" || role === "director" || role === "teacher-admin" || role === "student") {
           relatedData = { assessments: [] };
           break;
         }

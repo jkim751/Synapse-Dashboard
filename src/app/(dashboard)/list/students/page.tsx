@@ -62,7 +62,7 @@ const StudentListPage = async ({
       accessor: "branch",
       className: "hidden lg:table-cell",
     },
-    ...((role === "admin" || role === "director")
+    ...((role === "admin" || role === "director" || role === "teacher-admin")
       ? [
         {
           header: "Actions",
@@ -90,7 +90,7 @@ const StudentListPage = async ({
               userRole="student"
               userName={item.name}
               userEmail={item.email}
-              canEdit={(role === "admin" || role === "director")}
+              canEdit={(role === "admin" || role === "director" || role === "teacher-admin")}
               showInfo={false}
             />
             <div className="flex flex-col">
@@ -126,7 +126,7 @@ const StudentListPage = async ({
                 <Image src="/view.png" alt="" width={16} height={16} />
               </button>
             </Link>
-            {(role === "admin" || role === "director") && (
+            {(role === "admin" || role === "director" || role === "teacher-admin") && (
               <FormContainer table="student" type="delete" id={item.id} />
             )}
           </div>
@@ -239,7 +239,7 @@ const StudentListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {(role === "admin" || role === "director") && (
+            {(role === "admin" || role === "director" || role === "teacher-admin") && (
               <FormContainer table="student" type="create" />
             )}
           </div>

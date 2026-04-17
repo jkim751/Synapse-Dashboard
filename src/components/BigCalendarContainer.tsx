@@ -8,11 +8,13 @@ const BigCalendarContainer = async ({
   id,
   classIds,
   showNotifications = false,
+  viewMode = "admin",
 }: {
   type?: "teacherId" | "classId";
   id?: string | number;
   classIds?: number[];
   showNotifications?: boolean;
+  viewMode?: "admin" | "teacher";
 } = {}) => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
@@ -33,7 +35,12 @@ const BigCalendarContainer = async ({
     const clause = { classId: { in: classIds } };
     lessonsWhereClause = clause;
     recurringLessonsWhereClause = clause;
-  } else if (role !== "admin" && role !== "director") {
+  } else if (role === "teacher-admin" && viewMode === "teacher" && userId) {
+    // Teacher-admin in teacher view: filter to their own lessons only
+    const clause = { teacherId: userId };
+    lessonsWhereClause = clause;
+    recurringLessonsWhereClause = clause;
+  } else if (role !== "admin" && role !== "director" && role !== "teacher-admin") {
     // Non-admin users should see their relevant lessons only
     if (role === "teacher" && userId) {
       const clause = { teacherId: userId };
@@ -315,7 +322,7 @@ const BigCalendarContainer = async ({
     ...recurringLessonInstances,
   ];
 
-  const canDragDrop = role === 'admin' || role === 'director' || role === 'teacher';
+  const canDragDrop = role === 'admin' || role === 'director' || role === 'teacher' || role === 'teacher-admin';
 
   return (
     <div className="h-full overflow-hidden">

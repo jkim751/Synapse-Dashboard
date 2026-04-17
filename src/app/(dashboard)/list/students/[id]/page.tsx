@@ -76,7 +76,7 @@ const SingleStudentPage = async ({
                 <h1 className="text-xl font-semibold">
                   {student.name + " " + student.surname}
                 </h1>
-                {(role === "admin" || role === "director") && (
+                {(role === "admin" || role === "director" || role === "teacher-admin") && (
                   <FormContainer table="student" type="update" data={student} />
                 )}
               </div>
@@ -234,12 +234,12 @@ const SingleStudentPage = async ({
         {/* Classes Card */}
 
           {/* Student Notes Section */}
-          {/* {(role === "admin" || role === "director") && (
+          {/* {(role === "admin" || role === "director" || role === "teacher-admin") && (
             <StudentNotes studentId={student.id} />
           )} */}
 
           {/* Notes from the main journal that mention this student */}
-          {(role === "admin" || role === "director") && (
+          {(role === "admin" || role === "director" || role === "teacher-admin") && (
             <StudentTaggedNotes studentId={student.id} />
           )}
 

@@ -81,6 +81,7 @@ export const updateUserPhotoInDatabase = async (
         });
         break;
       case "admin":
+      case "teacher-admin":
         await prisma.admin.update({
           where: { id: userId },
           data: { img: photoUrl },
@@ -126,6 +127,7 @@ export const deleteUserPhotoFromDatabase = async (
         });
         break;
       case "admin":
+      case "teacher-admin":
         await prisma.admin.update({
           where: { id: userId },
           data: { img: null },

@@ -234,6 +234,7 @@ export async function getUserPhoto(userId: string, userRole: string): Promise<st
     // Get photo from database based on role
     switch (userRole) {
       case "admin":
+      case "teacher-admin":
         const admin = await prisma.admin.findUnique({
           where: { id: userId },
           select: { img: true }
@@ -282,6 +283,7 @@ export async function syncClerkPhotoToDatabase(userId: string, userRole: string,
   try {
     switch (userRole) {
       case "admin":
+      case "teacher-admin":
         await prisma.admin.update({
           where: { id: userId },
           data: { img: clerkPhotoUrl }

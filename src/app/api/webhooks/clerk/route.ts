@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       // Update based on role
       switch (role) {
         case 'admin':
+        case 'teacher-admin':
           await prisma.admin.update({
             where: { id: id },
             data: updateData,

@@ -13,7 +13,7 @@ export async function GET(
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
     // Check if user is authorized (admin or teacher)
-    if (!role || !["admin", "director", "teacher"].includes(role)) {
+    if (!role || !["admin", "director", "teacher", "teacher-admin"].includes(role)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

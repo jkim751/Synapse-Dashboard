@@ -33,7 +33,7 @@ const LessonListPage = async ({
     { header: "Subject Name", accessor: "name" },
     { header: "Class", accessor: "classes" },
     { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
-    ...((role === "admin" || role === "director") ? [{ header: "Actions", accessor: "action" }] : []),
+    ...((role === "admin" || role === "director" || role === "teacher-admin") ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
   const renderRow = (item: LessonRow) => (
@@ -51,13 +51,13 @@ const LessonListPage = async ({
       </td>
       <td>
         <div className="flex items-center gap-2">
-          {(role === "admin" || role === "director") && item.kind === "single" && (
+          {(role === "admin" || role === "director" || role === "teacher-admin") && item.kind === "single" && (
             <>
               <FormContainer table="lesson" type="update" id={item.lessonId!} />
               <FormContainer table="lesson" type="delete" id={item.lessonId!} />
             </>
           )}
-          {(role === "admin" || role === "director") && item.kind === "recurring" && (
+          {(role === "admin" || role === "director" || role === "teacher-admin") && item.kind === "recurring" && (
             <>
               <FormContainer table="recurringLesson" type="update" id={item.recurringId!} />
               <FormContainer table="recurringLesson" type="delete" id={item.recurringId!} />
@@ -171,7 +171,7 @@ const LessonListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            {(role === "admin" || role === "director") && <FormContainer table="lesson" type="create" />}
+            {(role === "admin" || role === "director" || role === "teacher-admin") && <FormContainer table="lesson" type="create" />}
           </div>
         </div>
       </div>

@@ -65,7 +65,7 @@ const SingleClassPage = async ({
       accessor: "address",
       className: "hidden lg:table-cell",
     },
-    ...((role === "admin" || role === "director")
+    ...((role === "admin" || role === "director" || role === "teacher-admin")
       ? [
           {
             header: "Actions",
@@ -99,7 +99,7 @@ const SingleClassPage = async ({
       <td>
         <div className="flex items-center gap-2">
 
-          {(role === "admin" || role === "director") && (
+          {(role === "admin" || role === "director" || role === "teacher-admin") && (
             <>
               <FormContainer table="student" type="update" data={item} />
             </>
@@ -154,7 +154,7 @@ const SingleClassPage = async ({
   ]);
 
   // Get students not in this class for the add form
-  const availableStudents = (role === "admin" || role === "director") ? await prisma.student.findMany({
+  const availableStudents = (role === "admin" || role === "director" || role === "teacher-admin") ? await prisma.student.findMany({
     where: {
       NOT: {
         classes: {
@@ -176,7 +176,7 @@ const SingleClassPage = async ({
           <h1 className="hidden md:block text-lg font-semibold">
             {classInfo.name} - Students
           </h1>
-            {(role === "admin" || role === "director") && (
+            {(role === "admin" || role === "director" || role === "teacher-admin") && (
               <FormContainer table="class" type="update" data={classInfo} />
             )}
           </div>
@@ -199,7 +199,7 @@ const SingleClassPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
         </div>
-        {(role === "admin" || role === "director") && availableStudents.length > 0 && (
+        {(role === "admin" || role === "director" || role === "teacher-admin") && availableStudents.length > 0 && (
           <AddStudentToClassForm 
             classId={classId} 
             availableStudents={availableStudents} 

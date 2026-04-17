@@ -385,7 +385,7 @@ const SingleClassAttendancePage = async ({
          <DateSelector currentDate={selectedDate} classId={classId} />
               <input type="hidden" name="date" value={selectedDate.toISOString().split('T')[0]} />
             </form>
-            {(role === "admin" || role === "director") && (
+            {(role === "admin" || role === "director" || role === "teacher-admin") && (
               <MakeupClassButton
                 classId={classId}
                 students={students.map((s: any) => ({ id: s.id, name: s.name, surname: s.surname }))}

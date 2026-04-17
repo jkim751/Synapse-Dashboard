@@ -10,7 +10,7 @@ export async function GET(
     const { userId, sessionClaims } = await auth()
     const role = (sessionClaims?.metadata as { role?: string })?.role
 
-    if (!userId || (role !== 'admin' && role !== 'director')) {
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -38,7 +38,7 @@ export async function POST(
     const { userId, sessionClaims } = await auth()
     const role = (sessionClaims?.metadata as { role?: string })?.role
 
-    if (!userId || (role !== 'admin' && role !== 'director')) {
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
