@@ -174,47 +174,69 @@ export default function NotesDisplay({
           return (
             <div
               key={note.id}
-              className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 hover:border-orange-300 transition-colors relative"
+              className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 hover:border-orange-300 transition-colors"
             >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 min-w-0">
-                  {/* Tagged Students */}
-                  {hasTaggedStudents && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {note.taggedStudents!.map((tag) => (
-                        <Link
-                          key={tag.id}
-                          href={`/list/students/${tag.student.id}`}
-                          className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors"
-                        >
-                          <Image
-                            src={tag.student.img || '/noAvatar.png'}
-                            alt=""
-                            width={20}
-                            height={20}
-                            className="w-5 h-5 rounded-full object-cover"
-                          />
-                          <span>{tag.student.name} {tag.student.surname}</span>
-                        </Link>
-                      ))}
-                    </div>
+              {/* Top action bar */}
+              <div className="flex items-center justify-end gap-2 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <button
+                  onClick={() => onEdit(
+                    note.id,
+                    note.content,
+                    note.taggedStudents?.map(tag => tag.studentId)
                   )}
+                  className="px-3 py-0.5 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-xs"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteClick(note.id)}
+                  className="px-3 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs"
+                >
+                  Delete
+                </button>
+              </div>
 
-                  <div
-                    className="prose prose-sm max-w-none overflow-x-auto"
-                    dangerouslySetInnerHTML={{ __html: note.content }}
-                  />
+              <div className="p-4">
+                {/* Tagged Students */}
+                {hasTaggedStudents && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {note.taggedStudents!.map((tag) => (
+                      <Link
+                        key={tag.id}
+                        href={`/list/students/${tag.student.id}`}
+                        className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors"
+                      >
+                        <Image
+                          src={tag.student.img || '/noAvatar.png'}
+                          alt=""
+                          width={20}
+                          height={20}
+                          className="w-5 h-5 rounded-full object-cover"
+                        />
+                        <span>{tag.student.name} {tag.student.surname}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  className="prose prose-sm max-w-none overflow-x-auto"
+                  dangerouslySetInnerHTML={{ __html: note.content }}
+                />
+
+                {/* Footer: metadata + actions on same row */}
+                <div className="flex items-center justify-between mt-3 gap-2">
                   <button
                     onClick={() => hasDetails && toggleExpanded(note.id)}
-                    className={`flex items-center gap-2 mt-3 text-sm text-gray-500 text-left w-full transition-colors ${hasDetails ? 'hover:text-orange-600 cursor-pointer' : 'cursor-default'}`}
+                    className={`flex items-center gap-2 text-sm text-gray-500 text-left min-w-0 transition-colors ${hasDetails ? 'hover:text-orange-600 cursor-pointer' : 'cursor-default'}`}
                   >
-                    <span className="font-medium">{note.author}</span>
-                    <span>•</span>
-                    <span>{formatBritishDateTime(note.createdAt)}</span>
+                    <span className="font-medium truncate">{note.author}</span>
+                    <span className="shrink-0">•</span>
+                    <span className="shrink-0">{formatBritishDateTime(note.createdAt)}</span>
                     {(hasComments || hasActions) && (
                       <>
-                        <span>•</span>
-                        <span className="text-orange-600 font-medium">
+                        <span className="shrink-0">•</span>
+                        <span className="text-orange-600 font-medium shrink-0">
                           {hasComments && `${note.comments!.length} comment${note.comments!.length !== 1 ? 's' : ''}`}
                           {hasComments && hasActions && ', '}
                           {hasActions && `${note.actionItems!.length} action${note.actionItems!.length !== 1 ? 's' : ''}`}
@@ -222,38 +244,17 @@ export default function NotesDisplay({
                       </>
                     )}
                     {hasDetails && (
-                      <span className="ml-auto text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 shrink-0">
                         {isExpanded ? '▴' : '▾'}
                       </span>
                     )}
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2 ml-4">
-                  <button
-                    onClick={() => {
-                      // Pass the note ID, content, and tagged student IDs
-                      onEdit(
-                        note.id, 
-                        note.content,
-                        note.taggedStudents?.map(tag => tag.studentId)
-                      )
-                    }}
-                    className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(note.id)}
-                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
-                  >
-                    Delete
                   </button>
                 </div>
               </div>
 
               {/* Comments and actions — inline inside the card so they stay within the orange border */}
               {isExpanded && hasDetails && (
-                <div className="mt-4 pt-4 border-t border-orange-200">
+                <div className="px-4 pb-4 pt-4 border-t border-orange-200">
                   {onAddComment && onDeleteComment && (
                     <CommentsSection
                       noteId={note.id}
