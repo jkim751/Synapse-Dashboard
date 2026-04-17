@@ -117,12 +117,6 @@ const menuItems = [
         href: "/list/xero",
         visible: ["admin", "director", "teacher-admin"],
       },
-      {
-        icon: "/finance.png",
-        label: "Payroll",
-        href: "/list/payroll",
-        visible: ["director", "teacher", "teacher-admin"],
-      },
     ],
   },
 ];
