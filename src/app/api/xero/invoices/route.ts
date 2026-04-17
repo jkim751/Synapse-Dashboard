@@ -94,7 +94,7 @@ export async function POST(request: Request) {
             },
           ],
           ...(dueDate ? { dueDate: new Date(dueDate).toISOString().split('T')[0] } : {}),
-          status: ('DRAFT' as any),
+          status: (send ? 'AUTHORISED' : 'DRAFT') as any,
         },
       ],
     };
