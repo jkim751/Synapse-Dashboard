@@ -76,10 +76,56 @@ export async function POST() {
       }
     }
 
-    // 3. Execute bulk operations against Xero API
+    // 3. Reconcile: fetch all existing Xero contacts to find any that were previously
+    //    synced but whose contactID isn't stored in our DB (e.g. after a DB migration).
+    //    Match by accountNumber and move them from create → update, writing the ID back locally.
+    if (contactsToCreate.length > 0) {
+      const existingXeroMap = new Map<string, string>(); // accountNumber -> contactID
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const response = await xero.accountingApi.getContacts(
+          activeTenantId,
+          undefined, undefined, undefined, undefined, undefined,
+          false, false, undefined, page
+        );
+        const contacts = response.body.contacts || [];
+        for (const contact of contacts) {
+          if (contact.accountNumber && contact.contactID) {
+            existingXeroMap.set(contact.accountNumber, contact.contactID);
+          }
+        }
+        hasMore = contacts.length === 100;
+        page++;
+      }
+
+      const trulyNew: Contact[] = [];
+      for (const contact of contactsToCreate) {
+        const existingId = contact.accountNumber ? existingXeroMap.get(contact.accountNumber) : undefined;
+        if (existingId) {
+          // Already in Xero — write contactID back to local DB and move to update list
+          const personInfo = contact.accountNumber ? creationMap.get(contact.accountNumber) : undefined;
+          if (personInfo) {
+            if (personInfo.type === 'student') {
+              await prisma.student.update({ where: { id: personInfo.id }, data: { xeroContactId: existingId } });
+            } else {
+              await prisma.parent.update({ where: { id: personInfo.id }, data: { xeroContactId: existingId } });
+            }
+          }
+          contact.contactID = existingId;
+          contactsToUpdate.push(contact);
+        } else {
+          trulyNew.push(contact);
+        }
+      }
+      contactsToCreate.length = 0;
+      contactsToCreate.push(...trulyNew);
+    }
+
+    // 4. Execute bulk operations against Xero API
     let createdCount = 0;
     let updatedCount = 0;
-    
+
     if (contactsToCreate.length > 0) {
       const createResponse = await xero.accountingApi.createContacts(activeTenantId, { contacts: contactsToCreate });
       createdCount = createResponse.body.contacts?.length || 0;
@@ -108,7 +154,7 @@ export async function POST() {
     }
 
     if (contactsToUpdate.length > 0) {
-        // Update contacts individually since updateContacts doesn't exist
+        // Update contacts individually (includes previously-synced contacts reconciled above)
         for (const contact of contactsToUpdate) {
           if (contact.contactID) {
             await xero.accountingApi.updateContact(activeTenantId, contact.contactID, { contacts: [contact] });
