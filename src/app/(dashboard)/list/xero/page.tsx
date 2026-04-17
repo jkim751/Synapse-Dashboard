@@ -2,9 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import XeroAuthButton from "@/components/XeroAuthButton";
-import XeroFinancialReports from "@/components/XeroFinancialReports";
 import XeroContactSync from "@/components/XeroContactSync";
-import FinanceChart from "@/components/FinanceChart";
 import XeroInvoiceManager from "@/components/XeroInvoiceManager";
 import { getStoredTokens } from "@/lib/xero";
 
@@ -50,19 +48,9 @@ const AdminXeroPage = async () => {
 
       {hasTokens ? (
         <>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="mb-4 text-base font-semibold">Financial Reports</h2>
-              <XeroFinancialReports />
-            </div>
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="mb-4 text-base font-semibold">Contact Sync</h2>
-              <XeroContactSync />
-            </div>
-          </div>
-
           <div className="rounded-xl bg-white p-6 shadow">
-            <FinanceChart />
+            <h2 className="mb-4 text-base font-semibold">Contact Sync</h2>
+            <XeroContactSync />
           </div>
 
           <div className="rounded-xl bg-white p-6 shadow">
