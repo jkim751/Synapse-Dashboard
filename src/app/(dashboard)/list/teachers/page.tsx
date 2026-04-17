@@ -3,7 +3,7 @@ import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
-import { Class, Prisma, Subject, Teacher } from "@prisma/client";
+import { Admin, Class, Prisma, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { ITEM_PER_PAGE } from "@/lib/settings";
@@ -162,7 +162,7 @@ const TeacherListPage = async ({
           </h2>
           <table className="w-full">
             <tbody>
-              {teacherAdmins.map((ta) => (
+              {teacherAdmins.map((ta: Admin) => (
                 <tr
                   key={ta.id}
                   className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
