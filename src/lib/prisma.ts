@@ -9,7 +9,10 @@ const prismaClientSingleton = () => {
 
   // Prisma 7 client engine requires either accelerateUrl (Prisma Accelerate)
   // or an adapter (direct connection). We detect which to use from the URL protocol.
-  const dbUrl = process.env.DATABASE_URL ?? '';
+  // Prefer DATABASE_PRISMA_DATABASE_URL (Accelerate format) over DATABASE_URL, because
+  // Vercel's Prisma Postgres integration auto-injects DATABASE_URL as a direct postgres://
+  // URL which bypasses Accelerate. The explicit Accelerate URL takes priority.
+  const dbUrl = process.env.DATABASE_PRISMA_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
   const isAccelerate = dbUrl.startsWith('prisma://') || dbUrl.startsWith('prisma+postgres://');
 
   const base = isAccelerate
