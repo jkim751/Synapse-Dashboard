@@ -281,6 +281,7 @@ const forms: {
       type={type}
       data={data}
       setOpen={setOpen}
+      relatedData={relatedData}
     />
   ),
   admins: (setOpen, type, data, relatedData) => (
@@ -288,6 +289,7 @@ const forms: {
       type={type}
       data={data}
       setOpen={setOpen}
+      relatedData={relatedData}
     />
   ),
 };

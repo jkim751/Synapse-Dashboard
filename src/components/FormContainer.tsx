@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import FormModal from "./FormModal";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export type FormContainerProps = {
   table:
@@ -56,7 +56,12 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         break;
 
       case "admin":
-        // No related data needed for admin form
+        if (type === "update" && id) {
+          const clerk = await clerkClient();
+          const clerkUser = await clerk.users.getUser(id as string);
+          const currentRole = (clerkUser.publicMetadata?.role as string) || "admin";
+          relatedData = { currentRole };
+        }
         break;
 
       case "student":

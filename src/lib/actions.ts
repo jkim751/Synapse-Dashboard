@@ -624,6 +624,7 @@ export const updateAdmin = async (
       ...(validatedData.password && { password: validatedData.password }),
       firstName: validatedData.name,
       lastName: validatedData.surname,
+      publicMetadata: { role: validatedData.role ?? "admin" },
     });
 
     await prisma.admin.update({

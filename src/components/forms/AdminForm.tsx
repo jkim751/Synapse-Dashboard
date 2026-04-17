@@ -16,10 +16,12 @@ const AdminForm = ({
   type,
   data,
   setOpen,
+  relatedData,
 }: {
   type: "create" | "update";
   data?: any;
   setOpen: Dispatch<SetStateAction<boolean>>;
+  relatedData?: any;
 }) => {
   const {
     register,
@@ -184,7 +186,7 @@ const AdminForm = ({
             <select
               className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
               {...register("role")}
-              defaultValue={data?.role || "admin"}
+              defaultValue={relatedData?.currentRole || data?.role || "admin"}
             >
               <option value="admin">Admin</option>
               <option value="teacher-admin">Teacher-Admin</option>
