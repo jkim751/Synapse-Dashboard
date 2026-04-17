@@ -36,6 +36,11 @@ export async function syncUserProfile(userId: string, role: string) {
           where: { id: userId },
           data: updateData,
         })
+      case 'director':
+        return await prisma.director.update({
+          where: { id: userId },
+          data: updateData,
+        })
       case 'teacher':
         return await prisma.teacher.update({
           where: { id: userId },
@@ -66,6 +71,8 @@ export async function getUserProfile(userId: string, role: string) {
       case 'admin':
       case 'teacher-admin':
         return await prisma.admin.findUnique({ where: { id: userId } })
+      case 'director':
+        return await prisma.director.findUnique({ where: { id: userId } })
       case 'teacher':
         return await prisma.teacher.findUnique({ where: { id: userId } })
       case 'student':
