@@ -25,6 +25,7 @@ model Admin {
   img      String?
   name     String
   phone    String?  @unique
+  role     String   @default("admin")
   sex      UserSex
   surname  String
 }
