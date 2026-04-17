@@ -583,24 +583,38 @@ export const createAdmin = async (
       skipPasswordChecks: true,
     });
 
-    await prisma.admin.create({
-      data: {
-        id: user.id,
-        username: validatedData.username,
-        name: validatedData.name,
-        surname: validatedData.surname,
-        email: validatedData.email || undefined,
-        phone: validatedData.phone || undefined,
-        address: validatedData.address,
-        img: validatedData.img || undefined,
-        role: validatedData.role ?? "admin",
-        sex: validatedData.sex,
-        birthday: validatedData.birthday,
-      },
-    });
+    if (validatedData.role === "director") {
+      await prisma.director.create({
+        data: {
+          id: user.id,
+          username: validatedData.username,
+          name: validatedData.name,
+          surname: validatedData.surname,
+          email: validatedData.email || undefined,
+          phone: validatedData.phone || undefined,
+          img: validatedData.img || undefined,
+        },
+      });
+    } else {
+      await prisma.admin.create({
+        data: {
+          id: user.id,
+          username: validatedData.username,
+          name: validatedData.name,
+          surname: validatedData.surname,
+          email: validatedData.email || undefined,
+          phone: validatedData.phone || undefined,
+          address: validatedData.address!,
+          img: validatedData.img || undefined,
+          role: validatedData.role ?? "admin",
+          sex: validatedData.sex!,
+          birthday: validatedData.birthday!,
+        },
+      });
+    }
 
     revalidatePath("/list/admins");
-    return { success: true, error: false, message: "Admin created successfully!" };
+    return { success: true, error: false, message: `${validatedData.role === "director" ? "Director" : "Admin"} created successfully!` };
   } catch (err) {
     console.error("Create Admin Error:", err);
     return { success: false, error: true, message: "Failed to create admin!" };
@@ -619,7 +633,7 @@ export const updateAdmin = async (
     }
 
     const clerk = await clerkClient();
-    
+
     await clerk.users.updateUser(validatedData.id, {
       username: validatedData.username,
       ...(validatedData.password && { password: validatedData.password }),
@@ -628,23 +642,82 @@ export const updateAdmin = async (
       publicMetadata: { role: validatedData.role ?? "admin" },
     });
 
-    await prisma.admin.update({
-      where: { id: validatedData.id },
-      data: {
-        username: validatedData.username,
-        name: validatedData.name,
-        surname: validatedData.surname,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        address: validatedData.address,
-        role: validatedData.role ?? "admin",
-        sex: validatedData.sex,
-        birthday: validatedData.birthday,
-      },
-    });
+    // Determine which table the record currently lives in
+    const existingDirector = await prisma.director.findUnique({ where: { id: validatedData.id } });
+    const currentlyDirector = !!existingDirector;
+    const becomingDirector = validatedData.role === "director";
+
+    if (currentlyDirector && becomingDirector) {
+      // director → director: update director table
+      await prisma.director.update({
+        where: { id: validatedData.id },
+        data: {
+          username: validatedData.username,
+          name: validatedData.name,
+          surname: validatedData.surname,
+          email: validatedData.email,
+          phone: validatedData.phone,
+          img: validatedData.img,
+        },
+      });
+    } else if (!currentlyDirector && !becomingDirector) {
+      // admin/teacher-admin → admin/teacher-admin: update admin table
+      await prisma.admin.update({
+        where: { id: validatedData.id },
+        data: {
+          username: validatedData.username,
+          name: validatedData.name,
+          surname: validatedData.surname,
+          email: validatedData.email,
+          phone: validatedData.phone,
+          address: validatedData.address!,
+          role: validatedData.role ?? "admin",
+          sex: validatedData.sex!,
+          birthday: validatedData.birthday!,
+        },
+      });
+    } else if (!currentlyDirector && becomingDirector) {
+      // admin → director: migrate from admin table to director table
+      const existingAdmin = await prisma.admin.findUnique({ where: { id: validatedData.id } });
+      if (!existingAdmin) throw new Error("Admin record not found");
+      await prisma.$transaction([
+        prisma.admin.delete({ where: { id: validatedData.id } }),
+        prisma.director.create({
+          data: {
+            id: validatedData.id,
+            username: validatedData.username,
+            name: validatedData.name,
+            surname: validatedData.surname,
+            email: validatedData.email || undefined,
+            phone: validatedData.phone || undefined,
+            img: validatedData.img || existingAdmin.img || undefined,
+          },
+        }),
+      ]);
+    } else {
+      // director → admin: migrate from director table to admin table
+      await prisma.$transaction([
+        prisma.director.delete({ where: { id: validatedData.id } }),
+        prisma.admin.create({
+          data: {
+            id: validatedData.id,
+            username: validatedData.username,
+            name: validatedData.name,
+            surname: validatedData.surname,
+            email: validatedData.email || undefined,
+            phone: validatedData.phone || undefined,
+            address: validatedData.address!,
+            role: validatedData.role ?? "admin",
+            sex: validatedData.sex!,
+            birthday: validatedData.birthday!,
+            img: validatedData.img || existingDirector?.img || undefined,
+          },
+        }),
+      ]);
+    }
 
     revalidatePath("/list/admins");
-    return { success: true, error: false, message: "Admin updated successfully!" };
+    return { success: true, error: false, message: "Updated successfully!" };
   } catch (err) {
     console.log("Update Admin Error:", err);
     return { success: false, error: true, message: "Failed to update admin!" };
@@ -660,17 +733,19 @@ export const deleteAdmin = async (
     // Best-effort delete in Clerk (ignore 404)
     await safeDeleteClerkUser(id);
 
-    await prisma.admin.delete({
-      where: {
-        id: id,
-      },
-    });
+    // Try director table first, fall back to admin table
+    const existingDirector = await prisma.director.findUnique({ where: { id } });
+    if (existingDirector) {
+      await prisma.director.delete({ where: { id } });
+    } else {
+      await prisma.admin.delete({ where: { id } });
+    }
 
     revalidatePath("/list/admins");
-    return { success: true, error: false, message: "Admin deleted successfully!" };
+    return { success: true, error: false, message: "Deleted successfully!" };
   } catch (err) {
     console.error("Delete Admin Error:", err);
-    return { success: false, error: true, message: "Failed to delete admin!" };
+    return { success: false, error: true, message: "Failed to delete!" };
   }
 };
 

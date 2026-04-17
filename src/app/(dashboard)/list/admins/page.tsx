@@ -3,9 +3,7 @@ import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
-import { Prisma, Admin } from "@prisma/client";
-import Image from "next/image";
-import Link from "next/link";
+import { Prisma, Admin, Director } from "@prisma/client";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -84,11 +82,51 @@ const AdminListPage = async ({
       </td>
     </tr>
   );
+
+  const renderDirectorRow = (item: Director) => (
+    <tr
+      key={item.id}
+      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+    >
+      <td className="flex items-center gap-4 p-4">
+        <div className="flex items-center gap-4">
+          <UserPhotoDisplay
+            currentPhotoUrl={item.img}
+            userId={item.id}
+            userRole="director"
+            userName={`${item.name} ${item.surname}`}
+            userEmail={item.email}
+            canEdit={true}
+            showInfo={true}
+          />
+          <span className="hidden md:inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 whitespace-nowrap">
+            Director
+          </span>
+        </div>
+      </td>
+      <td className="hidden md:table-cell">{item.username}</td>
+      <td className="hidden md:table-cell">{item.phone}</td>
+      <td className="hidden md:table-cell">—</td>
+      <td>
+        <div className="flex items-center gap-2">
+          <FormContainer
+            table="admin"
+            type="update"
+            data={{ ...item, role: "director" }}
+            id={item.id}
+          />
+          <FormContainer table="admin" type="delete" id={item.id} />
+        </div>
+      </td>
+    </tr>
+  );
+
   const { page, ...queryParams } = resolvedSearchParams;
 
   const p = page ? parseInt(page) : 1;
 
   const query: Prisma.AdminWhereInput = {};
+  const directorQuery: Prisma.DirectorWhereInput = {};
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
@@ -96,6 +134,13 @@ const AdminListPage = async ({
         switch (key) {
           case "search":
             query.OR = [
+              { name: { contains: value, mode: "insensitive" } },
+              { surname: { contains: value, mode: "insensitive" } },
+              { username: { contains: value, mode: "insensitive" } },
+              { email: { contains: value, mode: "insensitive" } },
+              { phone: { contains: value, mode: "insensitive" } },
+            ];
+            directorQuery.OR = [
               { name: { contains: value, mode: "insensitive" } },
               { surname: { contains: value, mode: "insensitive" } },
               { username: { contains: value, mode: "insensitive" } },
@@ -110,13 +155,19 @@ const AdminListPage = async ({
     }
   }
 
-  const [data, count] = await prisma.$transaction([
-    prisma.admin.findMany({
-      where: query,
-      take: ITEM_PER_PAGE,
-      skip: ITEM_PER_PAGE * (p - 1),
+  const [[data, count], directors] = await Promise.all([
+    prisma.$transaction([
+      prisma.admin.findMany({
+        where: query,
+        take: ITEM_PER_PAGE,
+        skip: ITEM_PER_PAGE * (p - 1),
+      }),
+      prisma.admin.count({ where: query }),
+    ]),
+    prisma.director.findMany({
+      where: directorQuery,
+      orderBy: [{ name: "asc" }, { surname: "asc" }],
     }),
-    prisma.admin.count({ where: query }),
   ]);
 
   return (
@@ -131,6 +182,25 @@ const AdminListPage = async ({
           </div>
         </div>
       </div>
+
+      {/* DIRECTORS SECTION */}
+      {directors.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 mt-4">
+            Directors
+          </h2>
+          <table className="w-full">
+            <tbody>
+              {directors.map((d: Director) => renderDirectorRow(d))}
+            </tbody>
+          </table>
+          <div className="border-b border-gray-300 my-4" />
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Admins
+          </h2>
+        </div>
+      )}
+
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}

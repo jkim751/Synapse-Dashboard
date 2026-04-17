@@ -69,11 +69,23 @@ export const adminSchema = z.object({
       message: "Invalid email address!"
     }),
   phone: z.string().optional(),
-  address: z.string().min(1, { message: "Address is required!" }),
+  address: z.string().optional(),
   img: z.string().optional(),
-  birthday: z.coerce.date({ message: "Birthday is required!" }),
-  sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
-  role: z.enum(["admin", "teacher-admin"]).default("admin"),
+  birthday: z.coerce.date().optional(),
+  sex: z.enum(["MALE", "FEMALE"]).optional(),
+  role: z.enum(["admin", "teacher-admin", "director"]).default("admin"),
+}).superRefine((data, ctx) => {
+  if (data.role !== "director") {
+    if (!data.address || data.address.trim() === "") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Address is required!", path: ["address"] });
+    }
+    if (!data.birthday) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Birthday is required!", path: ["birthday"] });
+    }
+    if (!data.sex) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Sex is required!", path: ["sex"] });
+    }
+  }
 });
 export type AdminSchema = z.infer<typeof adminSchema>;
 

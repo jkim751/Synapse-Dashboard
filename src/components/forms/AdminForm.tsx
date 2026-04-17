@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import InputField from "../InputField";
 import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
 import { useActionState } from "react";
@@ -26,10 +26,14 @@ const AdminForm = ({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<AdminSchema>({
     resolver: zodResolver(adminSchema),
   });
+
+  const selectedRole = useWatch({ control, name: "role", defaultValue: data?.role || "admin" });
+  const isDirector = selectedRole === "director";
 
   const [img, setImg] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
@@ -139,21 +143,25 @@ const AdminForm = ({
             register={register}
             error={errors.phone}
           />
-          <InputField
-            label="Branch"
-            name="address"
-            defaultValue={data?.address}
-            register={register}
-            error={errors.address}
-          />
-          <InputField
-            label="Birthday"
-            name="birthday"
-            defaultValue={data?.birthday ? data.birthday.toISOString().split("T")[0] : ""}
-            register={register}
-            error={errors.birthday}
-            type="date"
-          />
+          {!isDirector && (
+            <InputField
+              label="Branch"
+              name="address"
+              defaultValue={data?.address}
+              register={register}
+              error={errors.address}
+            />
+          )}
+          {!isDirector && (
+            <InputField
+              label="Birthday"
+              name="birthday"
+              defaultValue={data?.birthday ? data.birthday.toISOString().split("T")[0] : ""}
+              register={register}
+              error={errors.birthday}
+              type="date"
+            />
+          )}
           {data && (
             <InputField
               label="Id"
@@ -164,23 +172,25 @@ const AdminForm = ({
               hidden
             />
           )}
-          <div className="flex flex-col gap-2 w-full md:w-1/4">
-            <label className="text-xs text-gray-500">Sex</label>
-            <select
-              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-              {...register("sex")}
-              defaultValue={data?.sex}
-            >
-              <option value="">Select Sex</option>
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-            </select>
-            {errors.sex?.message && (
-              <p className="text-xs text-red-400">
-                {errors.sex.message.toString()}
-              </p>
-            )}
-          </div>
+          {!isDirector && (
+            <div className="flex flex-col gap-2 w-full md:w-1/4">
+              <label className="text-xs text-gray-500">Sex</label>
+              <select
+                className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+                {...register("sex")}
+                defaultValue={data?.sex}
+              >
+                <option value="">Select Sex</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+              </select>
+              {errors.sex?.message && (
+                <p className="text-xs text-red-400">
+                  {errors.sex.message.toString()}
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-2 w-full md:w-1/4">
             <label className="text-xs text-gray-500">Role</label>
             <select
@@ -190,6 +200,7 @@ const AdminForm = ({
             >
               <option value="admin">Admin</option>
               <option value="teacher-admin">Teacher-Admin</option>
+              <option value="director">Director</option>
             </select>
             {errors.role?.message && (
               <p className="text-xs text-red-400">
