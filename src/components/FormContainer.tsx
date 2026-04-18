@@ -151,18 +151,16 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           getAllTeachers(),
         ]);
 
-        // Always fetch lesson data when updating, regardless of what's in data prop
-        if (type === "update" && id) {
+        // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
+        if (type === "update" && id && !data?.id) {
           const lessonData = await prisma.lesson.findUnique({
             where: { id: Number(id) },
-            include: { 
+            include: {
               subject: true,
               class: true,
               teacher: true,
             },
           });
-          console.log("Fetched lesson data for form:", lessonData);
-          // Reassign data variable
           data = lessonData;
         }
 
@@ -177,18 +175,16 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           getAllTeachers(),
         ]);
 
-        // Always fetch recurring lesson data when updating
-        if (type === "update" && id) {
+        // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
+        if (type === "update" && id && !data?.id) {
           const recurringData = await prisma.recurringLesson.findUnique({
             where: { id: Number(id) },
-            include: { 
+            include: {
               subject: true,
               class: true,
               teacher: true,
             },
           });
-          console.log("Fetched recurring lesson data for form:", recurringData);
-          // Reassign data variable
           data = recurringData;
         }
 

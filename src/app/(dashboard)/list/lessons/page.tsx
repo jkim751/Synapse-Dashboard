@@ -14,9 +14,9 @@ type LessonRow = {
   subject: { name: string };
   class: { name: string };
   teacher: { name: string; surname: string };
-  // For actions if you need them later:
   lessonId?: number;
   recurringId?: number;
+  rawData?: any;
 };
 
 const LessonListPage = async ({
@@ -53,13 +53,13 @@ const LessonListPage = async ({
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "director" || role === "teacher-admin") && item.kind === "single" && (
             <>
-              <FormContainer table="lesson" type="update" id={item.lessonId!} />
+              <FormContainer table="lesson" type="update" id={item.lessonId!} data={item.rawData} />
               <FormContainer table="lesson" type="delete" id={item.lessonId!} />
             </>
           )}
           {(role === "admin" || role === "director" || role === "teacher-admin") && item.kind === "recurring" && (
             <>
-              <FormContainer table="recurringLesson" type="update" id={item.recurringId!} />
+              <FormContainer table="recurringLesson" type="update" id={item.recurringId!} data={item.rawData} />
               <FormContainer table="recurringLesson" type="delete" id={item.recurringId!} />
             </>
           )}
@@ -139,22 +139,24 @@ const LessonListPage = async ({
   ]);
 
   // ---- Normalize to one array and paginate in memory ----
-  const singleRows: LessonRow[] = lessons.map((l: { id: any; subject: any; class: any; teacher: any; }) => ({
+  const singleRows: LessonRow[] = lessons.map((l: any) => ({
     id: `L-${l.id}`,
     kind: "single",
     subject: l.subject!,
     class: l.class!,
     teacher: l.teacher!,
     lessonId: l.id,
+    rawData: l,
   }));
 
-  const recurringRows: LessonRow[] = recurring.map((r: { id: any; subject: any; class: any; teacher: any; }) => ({
+  const recurringRows: LessonRow[] = recurring.map((r: any) => ({
     id: `R-${r.id}`,
     kind: "recurring",
     subject: r.subject!,
     class: r.class!,
     teacher: r.teacher!,
     recurringId: r.id,
+    rawData: r,
   }));
 
   // Example sort: by class then subject
