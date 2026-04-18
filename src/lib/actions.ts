@@ -1073,6 +1073,50 @@ export async function createRecurringLesson(payload: {
   }
 }
 
+// CONVERT — single lesson → recurring series
+export async function convertLessonToRecurring(payload: {
+  lessonId: number;
+  name: string;
+  subjectId: number;
+  classId: number;
+  teacherId: string;
+  startTime: string;
+  endTime: string;
+  rrule: string;
+}) {
+  try {
+    try {
+      RRule.fromString(payload.rrule);
+    } catch {
+      return { success: false, error: true, message: "Invalid recurrence rule" };
+    }
+
+    const startDate = new Date(payload.startTime + '+08:00');
+    const endDate = new Date(payload.endTime + '+08:00');
+
+    await prisma.$transaction(async (tx: typeof prisma) => {
+      await tx.lesson.delete({ where: { id: payload.lessonId } });
+      await tx.recurringLesson.create({
+        data: {
+          name: payload.name,
+          subjectId: payload.subjectId,
+          classId: payload.classId,
+          teacherId: payload.teacherId,
+          startTime: startDate,
+          endTime: endDate,
+          rrule: payload.rrule,
+        },
+      });
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false, message: "Lesson converted to recurring series" };
+  } catch (e: any) {
+    console.error("Error converting lesson to recurring:", e);
+    return { success: false, error: true, message: e.message || "Conversion failed" };
+  }
+}
+
 // UPDATE — single
 export async function updateLesson(payload: {
   id: number;

@@ -136,8 +136,10 @@ const LessonForm = ({
       endTime: formData.endTime,
       repeats: formData.repeats,
       rrule: rruleString,
-      variant: relatedData?.variant || (formData.repeats === "weekly" ? "recurring" : "single"),
-      ...(type === "update" && data?.id ? { 
+      // variant reflects the desired outcome (what the user picked), not the original
+      variant: (formData.repeats === "weekly" ? "recurring" : "single") as "recurring" | "single",
+      originalVariant: (relatedData?.variant || "single") as "recurring" | "single",
+      ...(type === "update" && data?.id ? {
         id: data.id,
         updateScope: formData.updateScope,
         originalDate: formData.originalDate,

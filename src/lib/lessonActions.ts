@@ -1,6 +1,6 @@
 "use server";
 
-import { createLesson, createRecurringLesson, updateLesson, updateRecurringLesson } from "./actions";
+import { createLesson, createRecurringLesson, updateLesson, updateRecurringLesson, convertLessonToRecurring } from "./actions";
 import { revalidatePath } from "next/cache";
 
 type LessonFormPayload = {
@@ -13,6 +13,7 @@ type LessonFormPayload = {
   repeats: "never" | "weekly";
   rrule?: string | null;
   variant?: "single" | "recurring";
+  originalVariant?: "single" | "recurring";
   id?: number;
   updateScope?: "series" | "instance";
   originalDate?: string;
@@ -52,6 +53,20 @@ export async function handleLessonFormSubmission(
 
     // For updates
     if (type === "update" && payload.id) {
+      // Single lesson being converted to recurring
+      if (payload.originalVariant === "single" && payload.variant === "recurring" && payload.rrule) {
+        return await convertLessonToRecurring({
+          lessonId: payload.id,
+          name: payload.name,
+          subjectId: Number(payload.subjectId),
+          classId: Number(payload.classId),
+          teacherId: payload.teacherId,
+          startTime: payload.startTime,
+          endTime: payload.endTime,
+          rrule: payload.rrule,
+        });
+      }
+
       if (payload.variant === "recurring") {
         return await updateRecurringLesson({
           id: payload.id,
