@@ -112,6 +112,9 @@ const LessonListPage = async ({
   }
 
   // ---- Fetch both sets (can’t “UNION” across models in Prisma) ----
+  // Cap at 500 each to prevent Prisma Accelerate Worker memory limits (P6000).
+  // In-memory sort + paginate below is only correct within this window.
+  const MAX_FETCH = 500;
   const [lessons, lessonsCount, recurring, recurringCount] = await prisma.$transaction([
     prisma.lesson.findMany({
       where: lessonWhere,
@@ -120,6 +123,8 @@ const LessonListPage = async ({
         class: { select: { name: true } },
         teacher: { select: { name: true, surname: true } },
       },
+      orderBy: [{ class: { name: “asc” } }, { subject: { name: “asc” } }],
+      take: MAX_FETCH,
     }),
     prisma.lesson.count({ where: lessonWhere }),
     prisma.recurringLesson.findMany({
@@ -129,6 +134,8 @@ const LessonListPage = async ({
         class: { select: { name: true } },
         teacher: { select: { name: true, surname: true } },
       },
+      orderBy: [{ class: { name: “asc” } }, { subject: { name: “asc” } }],
+      take: MAX_FETCH,
     }),
     prisma.recurringLesson.count({ where: recurringWhere }),
   ]);

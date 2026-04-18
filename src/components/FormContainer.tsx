@@ -1,6 +1,18 @@
+import { cache } from "react";
 import prisma from "@/lib/prisma";
 import FormModal from "./FormModal";
 import { auth } from "@clerk/nextjs/server";
+
+// Cached per-request to avoid N identical queries when multiple FormContainers render on the same page
+const getAllClasses = cache(() =>
+  prisma.class.findMany({ select: { id: true, name: true } })
+);
+const getAllSubjects = cache(() =>
+  prisma.subject.findMany({ select: { id: true, name: true } })
+);
+const getAllTeachers = cache(() =>
+  prisma.teacher.findMany({ select: { id: true, name: true, surname: true } })
+);
 
 export type FormContainerProps = {
   table:
@@ -134,9 +146,9 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
       case "lesson": {
         const [subjects, classes, teachers] = await Promise.all([
-          prisma.subject.findMany({ select: { id: true, name: true } }),
-          prisma.class.findMany({ select: { id: true, name: true } }),
-          prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
+          getAllSubjects(),
+          getAllClasses(),
+          getAllTeachers(),
         ]);
 
         // Always fetch lesson data when updating, regardless of what's in data prop
@@ -160,9 +172,9 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
 
       case "recurringLesson": {
         const [subjects, classes, teachers] = await Promise.all([
-          prisma.subject.findMany({ select: { id: true, name: true } }),
-          prisma.class.findMany({ select: { id: true, name: true } }),
-          prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
+          getAllSubjects(),
+          getAllClasses(),
+          getAllTeachers(),
         ]);
 
         // Always fetch recurring lesson data when updating
