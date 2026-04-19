@@ -54,10 +54,11 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
         const classGrades = await prisma.grade.findMany({
           select: { id: true, level: true },
         });
-        const classTeachers = await prisma.teacher.findMany({
-          select: { id: true, name: true, surname: true },
-        });
-        relatedData = { teachers: classTeachers, grades: classGrades };
+        const [classTeachers, classTeacherAdmins] = await Promise.all([
+          prisma.teacher.findMany({ select: { id: true, name: true, surname: true } }),
+          prisma.admin.findMany({ where: { role: "teacher-admin" }, select: { id: true, name: true, surname: true } }),
+        ]);
+        relatedData = { teachers: [...classTeachers, ...classTeacherAdmins], grades: classGrades };
         break;
 
       case "teacher":
