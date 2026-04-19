@@ -3,14 +3,14 @@ import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
-import { Admin, Class, Prisma, Subject, Teacher } from "@prisma/client";
+import { Admin, Prisma, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { auth } from "@clerk/nextjs/server";
 import UserPhotoDisplay from "@/components/UserPhotoDisplay";
 
-type TeacherList = Teacher & { subjects: Subject[] } & { classes: Class[] };
+type TeacherList = Teacher & { subjects: Subject[] };
 
 const TeacherListPage = async ({
   searchParams,
@@ -68,7 +68,7 @@ const TeacherListPage = async ({
         />
       </td>
       <td className="hidden md:table-cell p-4">{item.subjects.map((subject) => subject.name).join(",  ")}</td>
-      <td className="hidden md:table-cell p-4">{item.classes.map((classItem) => classItem.name).join(",  ")}</td>
+      <td className="hidden md:table-cell p-4">—</td>
       <td className="hidden lg:table-cell p-4 whitespace-nowrap min-w-[12ch]">{item.phone}</td>
       <td className="p-4">
         <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ const TeacherListPage = async ({
     prisma.$transaction([
       prisma.teacher.findMany({
         where: query,
-        include: { subjects: true, classes: true },
+        include: { subjects: true },
         take: ITEM_PER_PAGE,
         skip: ITEM_PER_PAGE * (p - 1),
       }),

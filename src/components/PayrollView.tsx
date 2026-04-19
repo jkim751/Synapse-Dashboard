@@ -22,16 +22,31 @@ export default function PayrollView({ role, people, defaultPersonId }: Props) {
 
   const selected = people.find((p) => p.id === selectedId) ?? people[0];
 
-  // Log hours form state
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [hours, setHours] = useState("");
+  type HoursEntry = { id: number; date: string; hours: string };
+  const today = new Date().toISOString().split("T")[0];
+  const [entries, setEntries] = useState<HoursEntry[]>([{ id: 1, date: today, hours: "" }]);
+  const [nextId, setNextId] = useState(2);
   const [submitting, setSubmitting] = useState(false);
   const [logResult, setLogResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const updateEntry = (id: number, field: "date" | "hours", value: string) => {
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
+  };
+
+  const addEntry = () => {
+    setEntries((prev) => [...prev, { id: nextId, date: today, hours: "" }]);
+    setNextId((n) => n + 1);
+  };
+
+  const removeEntry = (id: number) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
   const handleLogHours = async () => {
-    const h = parseFloat(hours);
-    if (!date || isNaN(h) || h <= 0 || h > 24) {
-      setLogResult({ ok: false, message: "Enter a valid date and hours (0–24)" });
+    const parsed = entries.map((e) => ({ date: e.date, hours: parseFloat(e.hours) }));
+    const invalid = parsed.find((e) => !e.date || isNaN(e.hours) || e.hours <= 0 || e.hours > 24);
+    if (invalid) {
+      setLogResult({ ok: false, message: "Each entry needs a valid date and hours (0–24)" });
       return;
     }
     setSubmitting(true);
@@ -43,16 +58,17 @@ export default function PayrollView({ role, people, defaultPersonId }: Props) {
         body: JSON.stringify({
           targetId: isDirector ? selectedId : undefined,
           personType: isDirector ? selected?.personType : undefined,
-          date,
-          hours: h,
+          entries: parsed,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
         setLogResult({ ok: false, message: json.error ?? "Failed to log hours" });
       } else {
-        setLogResult({ ok: true, message: `${h} hr${h !== 1 ? "s" : ""} logged to Xero for ${date}` });
-        setHours("");
+        const total = parsed.reduce((sum, e) => sum + e.hours, 0);
+        setLogResult({ ok: true, message: `${total} hrs across ${parsed.length} day${parsed.length !== 1 ? "s" : ""} submitted to Xero` });
+        setEntries([{ id: nextId, date: today, hours: "" }]);
+        setNextId((n) => n + 1);
       }
     } catch {
       setLogResult({ ok: false, message: "An unexpected error occurred" });
@@ -117,32 +133,46 @@ export default function PayrollView({ role, people, defaultPersonId }: Props) {
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-[1fr_100px_28px] gap-2 text-xs font-medium text-gray-500 px-1">
+              <span>Date</span><span>Hours</span><span />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hours worked</label>
-              <div className="flex items-center gap-2">
+            {entries.map((entry) => (
+              <div key={entry.id} className="grid grid-cols-[1fr_100px_28px] gap-2 items-center">
+                <input
+                  type="date"
+                  value={entry.date}
+                  onChange={(e) => updateEntry(entry.id, "date", e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
                 <input
                   type="number"
                   min="0.5"
                   max="24"
                   step="0.5"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
+                  value={entry.hours}
+                  onChange={(e) => updateEntry(entry.id, "hours", e.target.value)}
                   placeholder="e.g. 7.5"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
-                <span className="text-sm text-gray-400 whitespace-nowrap">hrs</span>
+                <button
+                  type="button"
+                  onClick={() => removeEntry(entry.id)}
+                  disabled={entries.length === 1}
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Remove"
+                >
+                  ×
+                </button>
               </div>
-            </div>
+            ))}
+            <button
+              type="button"
+              onClick={addEntry}
+              className="mt-1 text-sm text-orange-500 hover:text-orange-600 font-medium text-left"
+            >
+              + Add another day
+            </button>
           </div>
 
           {logResult && (

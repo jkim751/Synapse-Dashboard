@@ -49,10 +49,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const { targetId, personType, date, hours } = await req.json();
+    const { targetId, personType, entries } = await req.json();
 
-    if (!date || typeof hours !== 'number' || hours <= 0 || hours > 24) {
-      return NextResponse.json({ error: 'Invalid input — provide date and hours (0–24)' }, { status: 400 });
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return NextResponse.json({ error: 'Invalid input — provide entries array' }, { status: 400 });
+    }
+    for (const e of entries) {
+      if (!e.date || typeof e.hours !== 'number' || e.hours <= 0 || e.hours > 24) {
+        return NextResponse.json({ error: `Invalid entry — date "${e.date}" hours ${e.hours}` }, { status: 400 });
+      }
     }
 
     // Only directors may log hours for another person
@@ -206,63 +211,114 @@ export async function POST(req: NextRequest) {
       else calType = 'WEEKLY';
     }
 
-    // Period length in days for fixed-length calendars
+    // Helper: compute pay period boundaries for a given date string
     const fixedLengths: Record<string, number> = {
       WEEKLY: 7, FORTNIGHTLY: 14, FOURWEEKLY: 28,
     };
 
-    const selectedTs = new Date(date).getTime();
-    let periodStart: string;
-    let periodEnd: string;
-
-    if (calType === 'MONTHLY') {
-      const d = new Date(date);
-      periodStart = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
-      const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-      periodEnd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${lastDay}`;
-    } else if (calType === 'TWICEMONTHLY') {
-      const d = new Date(date);
-      const day = d.getUTCDate();
-      const y = d.getUTCFullYear();
-      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-      if (day <= 15) {
-        periodStart = `${y}-${m}-01`;
-        periodEnd = `${y}-${m}-15`;
+    const getPeriodBounds = (dateStr: string): { periodStart: string; periodEnd: string } | { error: string } => {
+      const selectedTs = new Date(dateStr).getTime();
+      if (calType === 'MONTHLY') {
+        const d = new Date(dateStr);
+        const periodStart = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
+        const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+        const periodEnd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${lastDay}`;
+        return { periodStart, periodEnd };
+      } else if (calType === 'TWICEMONTHLY') {
+        const d = new Date(dateStr);
+        const day = d.getUTCDate();
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        if (day <= 15) {
+          return { periodStart: `${y}-${m}-01`, periodEnd: `${y}-${m}-15` };
+        } else {
+          const lastDay = new Date(Date.UTC(y, d.getUTCMonth() + 1, 0)).getUTCDate();
+          return { periodStart: `${y}-${m}-16`, periodEnd: `${y}-${m}-${lastDay}` };
+        }
       } else {
-        periodStart = `${y}-${m}-16`;
-        const lastDay = new Date(Date.UTC(y, d.getUTCMonth() + 1, 0)).getUTCDate();
-        periodEnd = `${y}-${m}-${lastDay}`;
+        const len = fixedLengths[calType];
+        if (!len || !anchorStart) return { error: `Unsupported calendar type or missing anchor date: ${calType}` };
+        const anchorTs = new Date(anchorStart).getTime();
+        const diffDays = Math.floor((selectedTs - anchorTs) / 86400000);
+        const periodIndex = Math.floor(diffDays / len);
+        const periodStart = addDays(anchorStart, periodIndex * len);
+        const periodEnd = addDays(periodStart, len - 1);
+        return { periodStart, periodEnd };
       }
-    } else {
-      const len = fixedLengths[calType];
-      if (!len || !anchorStart) {
-        return NextResponse.json({ error: `Unsupported calendar type or missing anchor date: ${calType}` }, { status: 422 });
+    };
+
+    // Group entries by pay period
+    const periodGroups = new Map<string, { periodStart: string; periodEnd: string; items: { date: string; hours: number }[] }>();
+    for (const entry of entries) {
+      const bounds = getPeriodBounds(entry.date);
+      if ('error' in bounds) return NextResponse.json({ error: bounds.error }, { status: 422 });
+      const key = `${bounds.periodStart}|${bounds.periodEnd}`;
+      if (!periodGroups.has(key)) {
+        periodGroups.set(key, { periodStart: bounds.periodStart, periodEnd: bounds.periodEnd, items: [] });
       }
-      // Step from anchor to find the period containing the selected date
-      const anchorTs = new Date(anchorStart).getTime();
-      const diffDays = Math.floor((selectedTs - anchorTs) / 86400000);
-      const periodIndex = Math.floor(diffDays / len);
-      periodStart = addDays(anchorStart, periodIndex * len);
-      periodEnd = addDays(periodStart, len - 1);
+      periodGroups.get(key)!.items.push(entry);
     }
 
-    // Build numberOfUnits array: one slot per day in the period, hours on the selected day
-    const periodDays = Math.round((new Date(periodEnd).getTime() - new Date(periodStart).getTime()) / 86400000) + 1;
-    const dayIndex = Math.round((selectedTs - new Date(periodStart).getTime()) / 86400000);
-    const numberOfUnits = Array(periodDays).fill(0);
-    numberOfUnits[dayIndex] = hours;
+    // Create one timesheet per pay period, merging all entries within it.
+    // If Xero says the timesheet already exists, fetch it and update in-place,
+    // overwriting only the days supplied (leaving other days unchanged).
+    for (const { periodStart, periodEnd, items } of periodGroups.values()) {
+      const periodDays = Math.round((new Date(periodEnd).getTime() - new Date(periodStart).getTime()) / 86400000) + 1;
 
-    // createTimesheet takes Array<Timesheet> directly; startDate/endDate must be YYYY-MM-DD strings
-    await xero.payrollAUApi.createTimesheet(tenantId, [
-      {
+      // Build the new day-indexed hours from submitted entries
+      const newUnits: Record<number, number> = {};
+      for (const item of items) {
+        const dayIndex = Math.round((new Date(item.date).getTime() - new Date(periodStart).getTime()) / 86400000);
+        newUnits[dayIndex] = (newUnits[dayIndex] ?? 0) + item.hours;
+      }
+
+      const buildNumberOfUnits = (base: number[]): number[] => {
+        const result = [...base];
+        for (const [idx, hrs] of Object.entries(newUnits)) {
+          result[Number(idx)] = hrs;
+        }
+        return result;
+      };
+
+      const timesheetPayload = {
         employeeID: employeeId!,
         startDate: periodStart,
         endDate: periodEnd,
-        timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits }],
-      } as any,
-    ]);
+        timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: buildNumberOfUnits(Array(periodDays).fill(0)) }],
+      } as any;
 
-    return NextResponse.json({ success: true, date, hours });
+      try {
+        await xero.payrollAUApi.createTimesheet(tenantId, [timesheetPayload]);
+      } catch (createErr: any) {
+        const errMsg: string = createErr?.response?.body?.Message ?? createErr?.message ?? '';
+        if (!errMsg.toLowerCase().includes('already exists')) throw createErr;
+
+        // Timesheet exists — find it and update
+        const listRes = await xero.payrollAUApi.getTimesheets(tenantId, undefined, `EmployeeID=Guid("${employeeId}")&&StartDate>=DateTime(${periodStart})&&StartDate<=DateTime(${periodStart})`);
+        const existing = listRes.body.timesheets?.find((t: any) => {
+          const s = parseXeroDate(t.startDate);
+          return s === periodStart;
+        }) as any;
+
+        if (!existing?.timesheetID) throw createErr;
+
+        // Merge: start from existing day values, overwrite submitted days
+        const existingLine = (existing.timesheetLines ?? []).find((l: any) => l.earningsRateID === earningsRateId) as any;
+        const existingUnits: number[] = Array.isArray(existingLine?.numberOfUnits)
+          ? existingLine.numberOfUnits
+          : Array(periodDays).fill(0);
+        // Pad if Xero returned fewer slots than period length
+        while (existingUnits.length < periodDays) existingUnits.push(0);
+
+        await xero.payrollAUApi.updateTimesheet(tenantId, existing.timesheetID, [{
+          ...timesheetPayload,
+          timesheetID: existing.timesheetID,
+          timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: buildNumberOfUnits(existingUnits) }],
+        }] as any);
+      }
+    }
+
+    return NextResponse.json({ success: true, count: entries.length });
 
   } catch (error: any) {
     const detail = error?.response?.body ?? error?.response?.data ?? error?.message ?? String(error);
