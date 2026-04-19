@@ -144,21 +144,43 @@ export async function POST(req: NextRequest) {
     const empRes = await xero.payrollAUApi.getEmployee(tenantId, employeeId!);
     const emp = empRes.body.employees?.[0] as any;
     const calendarId = emp?.payrollCalendarID;
-    if (!calendarId) {
-      return NextResponse.json({ error: 'Employee has no payroll calendar assigned in Xero.' }, { status: 422 });
+
+    let calType: string = '';
+    let anchorStart: string | null = null;
+
+    if (calendarId) {
+      try {
+        const calRes = await xero.payrollAUApi.getPayrollCalendar(tenantId, calendarId);
+        const cal = calRes.body.payrollCalendars?.[0] as any;
+        calType = cal?.calendarType ?? '';
+        anchorStart = parseXeroDate(cal?.startDate) ?? null;
+      } catch {
+        // payroll.settings scope not yet granted — fall through to pay run inference
+      }
     }
 
-    const calRes = await xero.payrollAUApi.getPayrollCalendar(tenantId, calendarId);
-    const cal = calRes.body.payrollCalendars?.[0] as any;
-    if (!cal) {
-      return NextResponse.json({ error: 'Could not fetch payroll calendar from Xero.' }, { status: 422 });
-    }
+    // Fallback: infer calendar type and anchor from existing pay runs
+    if (!calType || !anchorStart) {
+      const payRunsRes = await xero.payrollAUApi.getPayRuns(tenantId);
+      const allRuns: any[] = (payRunsRes.body.payRuns ?? [])
+        .map((r: any) => ({
+          start: parseXeroDate(r.payRunPeriodStartDate),
+          end: parseXeroDate(r.payRunPeriodEndDate),
+        }))
+        .filter((r: any) => r.start && r.end)
+        .sort((a: any, b: any) => a.start.localeCompare(b.start));
 
-    const calType: string = cal.calendarType ?? '';
-    // anchorStart is a known period start we can step from
-    const anchorStart = parseXeroDate(cal.startDate);
-    if (!anchorStart) {
-      return NextResponse.json({ error: 'Payroll calendar has no start date.' }, { status: 422 });
+      if (allRuns.length === 0) {
+        return NextResponse.json({ error: 'No pay runs found in Xero to determine pay period. Please reconnect Xero to grant payroll.settings access.' }, { status: 422 });
+      }
+
+      // Infer period length from consecutive runs
+      const len = Math.round((new Date(allRuns[0].end).getTime() - new Date(allRuns[0].start).getTime()) / 86400000) + 1;
+      anchorStart = allRuns[0].start;
+      if (len === 7) calType = 'WEEKLY';
+      else if (len === 14) calType = 'FORTNIGHTLY';
+      else if (len === 28) calType = 'FOURWEEKLY';
+      else calType = 'WEEKLY'; // best guess
     }
 
     // Period length in days for fixed-length calendars
