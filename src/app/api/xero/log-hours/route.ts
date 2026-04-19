@@ -299,7 +299,7 @@ export async function POST(req: NextRequest) {
           existingTimesheetId = match.timesheetID;
           // Fetch full timesheet to get existing numberOfUnits per day
           const detailRes = await xero.payrollAUApi.getTimesheet(tenantId, match.timesheetID);
-          const detail = detailRes.body.timesheets?.[0] as any;
+          const detail = (detailRes.body as any).timesheet ?? (detailRes.body as any).timesheets?.[0];
           const line = (detail?.timesheetLines ?? []).find((l: any) => l.earningsRateID === earningsRateId) as any;
           if (Array.isArray(line?.numberOfUnits)) {
             existingBaseUnits = [...line.numberOfUnits];
