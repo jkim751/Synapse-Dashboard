@@ -212,8 +212,8 @@ export async function POST(req: NextRequest) {
       }
     } else {
       const len = fixedLengths[calType];
-      if (!len) {
-        return NextResponse.json({ error: `Unsupported calendar type: ${calType}` }, { status: 422 });
+      if (!len || !anchorStart) {
+        return NextResponse.json({ error: `Unsupported calendar type or missing anchor date: ${calType}` }, { status: 422 });
       }
       // Step from anchor to find the period containing the selected date
       const anchorTs = new Date(anchorStart).getTime();
