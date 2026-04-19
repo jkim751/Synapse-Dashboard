@@ -10,7 +10,7 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { auth } from "@clerk/nextjs/server";
 import UserPhotoDisplay from "@/components/UserPhotoDisplay";
 
-type TeacherList = Teacher & { subjects: Subject[] };
+type TeacherList = Teacher & { subjects: Subject[]; classNames: string[] };
 
 const TeacherListPage = async ({
   searchParams,
@@ -68,7 +68,7 @@ const TeacherListPage = async ({
         />
       </td>
       <td className="hidden md:table-cell p-4">{item.subjects.map((subject) => subject.name).join(",  ")}</td>
-      <td className="hidden md:table-cell p-4">—</td>
+      <td className="hidden md:table-cell p-4">{item.classNames.length > 0 ? item.classNames.join(", ") : "—"}</td>
       <td className="hidden lg:table-cell p-4 whitespace-nowrap min-w-[12ch]">{item.phone}</td>
       <td className="p-4">
         <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ const TeacherListPage = async ({
     query.id = userId;
   }
 
-  const [[data, count], teacherAdmins] = await Promise.all([
+  const [[rawData, count], teacherAdmins] = await Promise.all([
     prisma.$transaction([
       prisma.teacher.findMany({
         where: query,
@@ -138,6 +138,27 @@ const TeacherListPage = async ({
       orderBy: [{ name: "asc" }, { surname: "asc" }],
     }),
   ]);
+
+  // Batch-fetch supervised classes for all teachers and teacher-admins on this page
+  const teacherIds = rawData.map((t: any) => t.id);
+  const teacherAdminIds = teacherAdmins.map((ta: Admin) => ta.id);
+  const allSupervisorIds = [...teacherIds, ...teacherAdminIds];
+  const supervisedClasses = allSupervisorIds.length > 0
+    ? await prisma.class.findMany({
+        where: { supervisorId: { in: allSupervisorIds } },
+        select: { supervisorId: true, name: true },
+      })
+    : [];
+  const classNamesByTeacher = new Map<string, string[]>();
+  for (const c of supervisedClasses) {
+    if (!c.supervisorId) continue;
+    if (!classNamesByTeacher.has(c.supervisorId)) classNamesByTeacher.set(c.supervisorId, []);
+    classNamesByTeacher.get(c.supervisorId)!.push(c.name);
+  }
+  const data: TeacherList[] = rawData.map((t: any) => ({
+    ...t,
+    classNames: classNamesByTeacher.get(t.id) ?? [],
+  }));
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
@@ -182,7 +203,7 @@ const TeacherListPage = async ({
                     </span>
                   </td>
                   <td className="hidden md:table-cell p-4 text-gray-400">—</td>
-                  <td className="hidden md:table-cell p-4 text-gray-400">—</td>
+                  <td className="hidden md:table-cell p-4">{(classNamesByTeacher.get(ta.id) ?? []).join(", ") || "—"}</td>
                   <td className="hidden lg:table-cell p-4 whitespace-nowrap">{ta.phone ?? "—"}</td>
                   {(role === "admin" || role === "director" || role === "teacher-admin") && (
                     <td className="p-4">

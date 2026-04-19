@@ -13,6 +13,9 @@ const getAllSubjects = cache(() =>
 const getAllTeachers = cache(() =>
   prisma.teacher.findMany({ select: { id: true, name: true, surname: true } })
 );
+const getAllTeacherAdmins = cache(() =>
+  prisma.admin.findMany({ where: { role: "teacher-admin" }, select: { id: true, name: true, surname: true } })
+);
 
 export type FormContainerProps = {
   table:
@@ -149,11 +152,13 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
       }
 
       case "lesson": {
-        const [subjects, classes, teachers] = await Promise.all([
+        const [subjects, classes, teachers, teacherAdmins] = await Promise.all([
           getAllSubjects(),
           getAllClasses(),
           getAllTeachers(),
+          getAllTeacherAdmins(),
         ]);
+        const allTeachers = [...teachers, ...teacherAdmins];
 
         // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
         if (type === "update" && id && !data?.id) {
@@ -168,16 +173,18 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           data = lessonData;
         }
 
-        relatedData = { subjects, classes, teachers, variant: "single" };
+        relatedData = { subjects, classes, teachers: allTeachers, variant: "single" };
         break;
       }
 
       case "recurringLesson": {
-        const [subjects, classes, teachers] = await Promise.all([
+        const [subjects, classes, teachers, teacherAdmins] = await Promise.all([
           getAllSubjects(),
           getAllClasses(),
           getAllTeachers(),
+          getAllTeacherAdmins(),
         ]);
+        const allTeachers = [...teachers, ...teacherAdmins];
 
         // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
         if (type === "update" && id && !data?.id) {
@@ -192,7 +199,7 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           data = recurringData;
         }
 
-        relatedData = { subjects, classes, teachers, variant: "recurring" };
+        relatedData = { subjects, classes, teachers: allTeachers, variant: "recurring" };
         break;
       }
 

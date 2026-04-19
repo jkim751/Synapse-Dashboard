@@ -183,7 +183,7 @@ const LessonForm = ({
             options={classes?.map((c: any) => ({ value: c.id, label: c.name })) || []}
             register={register} error={errors?.classId} />
           <InputField label="Teacher" name="teacherId" type="select"
-            options={teachers?.map((t: any) => ({ value: t.id, label: t.name })) || []}
+            options={teachers?.map((t: any) => ({ value: t.id, label: `${t.name} ${t.surname}` })) || []}
             register={register} error={errors?.teacherId} />
           <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} />
           <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime} />
