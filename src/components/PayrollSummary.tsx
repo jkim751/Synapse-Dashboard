@@ -10,12 +10,9 @@ interface Teacher {
 }
 
 interface PayrollData {
-  baseSalary: number;
-  hoursWorked: number;
-  overtimePay: number;
-  totalPay: number;
-  deductions: number;
+  payslipId: string | null;
   netPay: number;
+  totalPay: number;
   payPeriodStart: string | null;
   payPeriodEnd: string | null;
 }
@@ -27,6 +24,7 @@ const PayrollSummary = ({ teacher, targetId, personType }: { teacher: Teacher; t
   const [payroll, setPayroll] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const fetchPayroll = async () => {
@@ -57,9 +55,29 @@ const PayrollSummary = ({ teacher, targetId, personType }: { teacher: Teacher; t
     fetchPayroll();
   }, [teacher, targetId, personType]);
 
-  if (loading) return <div className="text-sm text-gray-500">Loading payroll data…</div>;
+  const handleDownload = async () => {
+    if (!payroll?.payslipId) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/xero/payroll/download?payslipId=${payroll.payslipId}`);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "payslip.html";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (loading) return <div className="text-sm text-gray-500">Loading payslip…</div>;
   if (error) return <div className="text-sm text-red-500">Error: {error}</div>;
-  if (!payroll) return <div className="text-sm text-gray-500">No payroll data available.</div>;
+  if (!payroll) return <div className="text-sm text-gray-500">No payslip available.</div>;
 
   const periodLabel =
     payroll.payPeriodStart && payroll.payPeriodEnd
@@ -74,40 +92,36 @@ const PayrollSummary = ({ teacher, targetId, personType }: { teacher: Teacher; t
       : "Most recent pay run";
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-gray-400">Pay period: {periodLabel}</p>
+    <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+        Pay period: <span className="font-medium text-gray-700">{periodLabel}</span>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-blue-50 p-3">
-          <p className="text-xs font-medium text-blue-700">Base Salary</p>
-          <p className="text-lg font-bold text-blue-900">{fmt(payroll.baseSalary)}</p>
-        </div>
-        <div className="rounded-lg bg-indigo-50 p-3">
-          <p className="text-xs font-medium text-indigo-700">Hours Worked</p>
-          <p className="text-lg font-bold text-indigo-900">{payroll.hoursWorked} hrs</p>
-        </div>
-        <div className="rounded-lg bg-orange-50 p-3">
-          <p className="text-xs font-medium text-orange-700">Overtime</p>
-          <p className="text-lg font-bold text-orange-900">{fmt(payroll.overtimePay)}</p>
-        </div>
-        <div className="rounded-lg bg-red-50 p-3">
-          <p className="text-xs font-medium text-red-700">Deductions</p>
-          <p className="text-lg font-bold text-red-900">−{fmt(payroll.deductions)}</p>
+      <div className="rounded-lg border-2 border-green-200 bg-green-50 p-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-green-700">Gross Pay</p>
+          <p className="text-sm text-green-600 mb-3">{fmt(payroll.totalPay)}</p>
+          <p className="text-xs font-medium text-green-700">Net Pay</p>
+          <p className="text-2xl font-bold text-green-900">{fmt(payroll.netPay)}</p>
         </div>
       </div>
 
-      <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-green-700">Gross Pay</p>
-            <p className="text-sm text-green-600">{fmt(payroll.totalPay)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-medium text-green-700">Net Pay</p>
-            <p className="text-2xl font-bold text-green-900">{fmt(payroll.netPay)}</p>
-          </div>
-        </div>
-      </div>
+      {payroll.payslipId && (
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="w-full py-2.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {downloading ? (
+            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          )}
+          {downloading ? "Preparing…" : "Download Payslip"}
+        </button>
+      )}
     </div>
   );
 };

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import BigCalendar from "./BigCalender";
 import AddEventModal from "./AddEventModal";
+import DateTimeInput from "./ui/DateTimeInput";
 
 type ScheduleRecord = {
   id: string;
@@ -209,21 +210,11 @@ export default function AdminScheduleCalendar() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-                  <input
-                    type="datetime-local"
-                    value={editStart}
-                    onChange={(e) => setEditStart(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  />
+                  <DateTimeInput value={editStart} onChange={setEditStart} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-                  <input
-                    type="datetime-local"
-                    value={editEnd}
-                    onChange={(e) => setEditEnd(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  />
+                  <DateTimeInput value={editEnd} onChange={setEditEnd} />
                 </div>
               </div>
 

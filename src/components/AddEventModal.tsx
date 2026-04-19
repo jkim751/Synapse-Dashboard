@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import DateTimeInput from "./ui/DateTimeInput";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
@@ -81,6 +82,8 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
 
   const selectedType = watch("type");
   const isShift = selectedType === "shift";
+  const watchedStart = watch("startTime") ?? "";
+  const watchedEnd = watch("endTime") ?? "";
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
@@ -227,10 +230,9 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {isShift && recurring ? "First occurrence" : "Start"}
                   </label>
-                  <input
-                    type="datetime-local"
-                    {...register("startTime")}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  <DateTimeInput
+                    value={watchedStart}
+                    onChange={(v) => setValue("startTime", v, { shouldValidate: true })}
                   />
                   {errors.startTime && (
                     <p className="text-red-500 text-xs mt-1">{errors.startTime.message}</p>
@@ -239,10 +241,9 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-                  <input
-                    type="datetime-local"
-                    {...register("endTime")}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  <DateTimeInput
+                    value={watchedEnd}
+                    onChange={(v) => setValue("endTime", v, { shouldValidate: true })}
                   />
                   {errors.endTime && (
                     <p className="text-red-500 text-xs mt-1">{errors.endTime.message}</p>
@@ -321,12 +322,7 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Repeat until
                         </label>
-                        <input
-                          type="datetime-local"
-                          value={until}
-                          onChange={(e) => setUntil(e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        />
+                        <DateTimeInput value={until} onChange={setUntil} />
                       </div>
                     </div>
                   )}

@@ -139,6 +139,7 @@ export async function GET(req: NextRequest) {
     const totalDeductions = deductionLines.reduce((sum: number, d: any) => sum + (d.amount ?? 0), 0);
 
     return NextResponse.json({
+      payslipId: payslip.payslipID ?? null,
       baseSalary,
       hoursWorked,
       overtimePay,

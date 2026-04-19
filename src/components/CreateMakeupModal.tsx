@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createMakeupLesson } from "@/lib/actions";
+import DateTimeInput from "./ui/DateTimeInput";
 
 interface Student {
   id: string;
@@ -43,6 +44,8 @@ export default function CreateMakeupModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [sendEmailNotif, setSendEmailNotif] = useState(false);
+  const [startTime, setStartTime] = useState(`${defaultDate}T09:00`);
+  const [endTime, setEndTime] = useState(`${defaultDate}T10:00`);
 
   const toggleStudent = (id: string) => {
     setSelectedStudents(prev => {
@@ -69,8 +72,6 @@ export default function CreateMakeupModal({
 
     const subjectId = Number(data.get("subjectId"));
     const teacherId = data.get("teacherId") as string;
-    const startTime = data.get("startTime") as string;
-    const endTime = data.get("endTime") as string;
 
     if (!subjectId || !teacherId || !startTime || !endTime) {
       setError("Please fill in all fields.");
@@ -140,23 +141,11 @@ export default function CreateMakeupModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-              <input
-                type="datetime-local"
-                name="startTime"
-                defaultValue={`${defaultDate}T09:00`}
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-              />
+              <DateTimeInput value={startTime} onChange={setStartTime} required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-              <input
-                type="datetime-local"
-                name="endTime"
-                defaultValue={`${defaultDate}T10:00`}
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-              />
+              <DateTimeInput value={endTime} onChange={setEndTime} required />
             </div>
           </div>
 
