@@ -150,7 +150,7 @@ export const lessonSchema = z.object({
   endTime: z.string().min(1, "End time is required"),
 
   // creation controls
-  repeats: z.enum(["never", "weekly"]).default("never"),
+  repeats: z.enum(["never", "weekly", "fortnightly"]).default("never"),
   day: z.enum(["MO","TU","WE","TH","FR","SA","SU"]).optional(),
   endDate: z.string().optional(), // until
 

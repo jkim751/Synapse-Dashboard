@@ -10,7 +10,7 @@ type LessonFormPayload = {
   teacherId: string;
   startTime: string;
   endTime: string;
-  repeats: "never" | "weekly";
+  repeats: "never" | "weekly" | "fortnightly";
   rrule?: string | null;
   variant?: "single" | "recurring";
   originalVariant?: "single" | "recurring";
