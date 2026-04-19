@@ -287,34 +287,37 @@ export async function POST(req: NextRequest) {
         timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: buildNumberOfUnits(Array(periodDays).fill(0)) }],
       } as any;
 
+      // Proactively check for an existing timesheet so we update rather than create
+      let existingTimesheetId: string | null = null;
+      let existingBaseUnits: number[] = Array(periodDays).fill(0);
       try {
-        await xero.payrollAUApi.createTimesheet(tenantId, [timesheetPayload]);
-      } catch (createErr: any) {
-        const errMsg: string = createErr?.response?.body?.Message ?? createErr?.message ?? '';
-        if (!errMsg.toLowerCase().includes('already exists')) throw createErr;
-
-        // Timesheet exists — find it and update
-        const listRes = await xero.payrollAUApi.getTimesheets(tenantId, undefined, `EmployeeID=Guid("${employeeId}")&&StartDate>=DateTime(${periodStart})&&StartDate<=DateTime(${periodStart})`);
-        const existing = listRes.body.timesheets?.find((t: any) => {
-          const s = parseXeroDate(t.startDate);
-          return s === periodStart;
+        const listRes = await xero.payrollAUApi.getTimesheets(tenantId);
+        const match = (listRes.body.timesheets ?? []).find((t: any) => {
+          return t.employeeID === employeeId && parseXeroDate(t.startDate) === periodStart;
         }) as any;
+        if (match?.timesheetID) {
+          existingTimesheetId = match.timesheetID;
+          // Fetch full timesheet to get existing numberOfUnits per day
+          const detailRes = await xero.payrollAUApi.getTimesheet(tenantId, match.timesheetID);
+          const detail = detailRes.body.timesheets?.[0] as any;
+          const line = (detail?.timesheetLines ?? []).find((l: any) => l.earningsRateID === earningsRateId) as any;
+          if (Array.isArray(line?.numberOfUnits)) {
+            existingBaseUnits = [...line.numberOfUnits];
+            while (existingBaseUnits.length < periodDays) existingBaseUnits.push(0);
+          }
+        }
+      } catch {
+        // If listing fails, proceed to create and let Xero tell us
+      }
 
-        if (!existing?.timesheetID) throw createErr;
-
-        // Merge: start from existing day values, overwrite submitted days
-        const existingLine = (existing.timesheetLines ?? []).find((l: any) => l.earningsRateID === earningsRateId) as any;
-        const existingUnits: number[] = Array.isArray(existingLine?.numberOfUnits)
-          ? existingLine.numberOfUnits
-          : Array(periodDays).fill(0);
-        // Pad if Xero returned fewer slots than period length
-        while (existingUnits.length < periodDays) existingUnits.push(0);
-
-        await xero.payrollAUApi.updateTimesheet(tenantId, existing.timesheetID, [{
+      if (existingTimesheetId) {
+        await xero.payrollAUApi.updateTimesheet(tenantId, existingTimesheetId, [{
           ...timesheetPayload,
-          timesheetID: existing.timesheetID,
-          timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: buildNumberOfUnits(existingUnits) }],
+          timesheetID: existingTimesheetId,
+          timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: buildNumberOfUnits(existingBaseUnits) }],
         }] as any);
+      } else {
+        await xero.payrollAUApi.createTimesheet(tenantId, [timesheetPayload]);
       }
     }
 

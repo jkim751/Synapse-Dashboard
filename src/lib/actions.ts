@@ -552,10 +552,14 @@ export const deleteTeacher = async (
     // Best-effort delete in Clerk (ignore 404)
     await safeDeleteClerkUser(id);
 
-    await prisma.teacher.delete({
-      where: {
-        id: id,
-      },
+    await prisma.$transaction(async (tx) => {
+      // Delete recurring lessons (cascades to Attendance, Assessment, and exception Lessons)
+      await tx.recurringLesson.deleteMany({ where: { teacherId: id } });
+      // Delete standalone lessons (those not already cascade-deleted above)
+      await tx.lesson.deleteMany({ where: { teacherId: id } });
+      // Clear supervisorId on any classes this teacher supervised
+      await tx.class.updateMany({ where: { supervisorId: id }, data: { supervisorId: null } });
+      await tx.teacher.delete({ where: { id } });
     });
 
     revalidatePath("/list/teachers");
