@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
 
     // Parse Xero /Date(ms+offset)/ or YYYY-MM-DD to a comparable date string "YYYY-MM-DD"
     const parseXeroDate = (d: any): string | null => {
+      if (!d) return null;
       const s = String(d);
       const match = s.match(/\/Date\((-?\d+)[\+\-]\d+\)\//);
       if (match) return new Date(parseInt(match[1], 10)).toISOString().slice(0, 10);
