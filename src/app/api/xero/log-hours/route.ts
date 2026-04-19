@@ -124,14 +124,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create single-day draft timesheet
-    // startDate/endDate must be "YYYY-MM-DD" strings; createTimesheet takes Array<Timesheet> directly
+    // Find the pay run period that contains the selected date
+    const payRunsRes = await xero.payrollAUApi.getPayRuns(tenantId);
+    const allRuns: any[] = payRunsRes.body.payRuns ?? [];
+
+    // Parse Xero /Date(ms+offset)/ or YYYY-MM-DD to a comparable date string "YYYY-MM-DD"
+    const parseXeroDate = (d: any): string | null => {
+      const s = String(d);
+      const match = s.match(/\/Date\((-?\d+)[\+\-]\d+\)\//);
+      if (match) return new Date(parseInt(match[1], 10)).toISOString().slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      return null;
+    };
+
+    const selectedDate = new Date(date);
+    const matchingRun = allRuns.find((r: any) => {
+      const start = parseXeroDate(r.payRunPeriodStartDate);
+      const end = parseXeroDate(r.payRunPeriodEndDate);
+      if (!start || !end) return false;
+      return selectedDate >= new Date(start) && selectedDate <= new Date(end);
+    });
+
+    if (!matchingRun) {
+      return NextResponse.json(
+        { error: 'The selected date does not fall within any pay period in Xero. Please check your payroll calendar.' },
+        { status: 422 }
+      );
+    }
+
+    const periodStart = parseXeroDate(matchingRun.payRunPeriodStartDate)!;
+    const periodEnd = parseXeroDate(matchingRun.payRunPeriodEndDate)!;
+
+    // Build numberOfUnits array: one slot per day in the period, hours on the selected day
+    const periodDays = Math.round((new Date(periodEnd).getTime() - new Date(periodStart).getTime()) / 86400000) + 1;
+    const dayIndex = Math.round((selectedDate.getTime() - new Date(periodStart).getTime()) / 86400000);
+    const numberOfUnits = Array(periodDays).fill(0);
+    numberOfUnits[dayIndex] = hours;
+
+    // createTimesheet takes Array<Timesheet> directly; startDate/endDate must be YYYY-MM-DD strings
     await xero.payrollAUApi.createTimesheet(tenantId, [
       {
         employeeID: employeeId!,
-        startDate: date,
-        endDate: date,
-        timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: [hours] }],
+        startDate: periodStart,
+        endDate: periodEnd,
+        timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits }],
       } as any,
     ]);
 
