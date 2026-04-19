@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
     if (!payslipId) return NextResponse.json({ error: 'Missing payslipId' }, { status: 400 });
 
     const xero = await getAnyXeroClient();
+    // Refresh token to ensure it's valid before raw fetch
+    await xero.refreshToken();
     const tenantId = xero.tenants[0].tenantId;
     const accessToken = xero.readTokenSet().access_token;
 
@@ -33,15 +35,16 @@ export async function GET(req: NextRequest) {
     if (!res.ok) {
       const text = await res.text();
       console.error('Xero payslip PDF error:', res.status, text);
-      return NextResponse.json({ error: 'Failed to fetch payslip from Xero' }, { status: res.status });
+      return NextResponse.json({ error: 'Failed to fetch payslip PDF from Xero' }, { status: res.status });
     }
 
-    const pdf = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') ?? '';
+    const buffer = await res.arrayBuffer();
 
-    return new NextResponse(pdf, {
+    return new NextResponse(buffer, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="payslip.pdf"`,
+        'Content-Type': contentType.includes('pdf') ? 'application/pdf' : contentType,
+        'Content-Disposition': `attachment; filename="payslip-${payslipId}.pdf"`,
       },
     });
 

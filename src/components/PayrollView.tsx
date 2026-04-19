@@ -96,7 +96,7 @@ export default function PayrollView({ role, people, defaultPersonId }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Payslip panel */}
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-800 mb-1">Latest Payslip</h2>
+          <h2 className="text-base font-semibold text-gray-800 mb-1">Payslips</h2>
           {selected && (
             <p className="text-sm text-gray-400 mb-4">{selected.name} {selected.surname}</p>
           )}
