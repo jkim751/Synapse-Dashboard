@@ -4,12 +4,24 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Class, Grade, Prisma, Teacher } from "@prisma/client";
+import { Class, Grade, Prisma } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
-type ClassList = Class & { supervisor: Teacher } & { grade: Grade};
+type ClassList = Class & { grade: Grade; supervisorName?: string };
+
+async function resolveSupervisorNames(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const [teachers, admins] = await Promise.all([
+    prisma.teacher.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, surname: true } }),
+    prisma.admin.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, surname: true } }),
+  ]);
+  const map = new Map<string, string>();
+  for (const t of teachers) map.set(t.id, `${t.name} ${t.surname}`);
+  for (const a of admins) map.set(a.id, `${a.name} ${a.surname}`);
+  return map;
+}
 
 const ClassListPage = async ({
   searchParams,
@@ -62,7 +74,7 @@ const renderRow = (item: ClassList) => (
     <td className="hidden md:table-cell">{item.capacity}</td>
     <td className="hidden md:table-cell">{item.grade.level}</td>
     <td className="hidden md:table-cell">
-      {item.supervisor ? item.supervisor.name + " " + item.supervisor.surname : "—"}
+      {item.supervisorName ?? "—"}
     </td>
     <td>
       <div className="flex items-center gap-2">
@@ -85,12 +97,9 @@ const renderRow = (item: ClassList) => (
 
   const p = page ? parseInt(page) : 1;
 
-  // URL PARAMS CONDITION
-
   const query: Prisma.ClassWhereInput = {};
 
-   // ROLE CONDITIONS
-   if (role === "teacher") {
+  if (role === "teacher") {
     query.supervisorId = userId!;
   }
 
@@ -102,11 +111,24 @@ const renderRow = (item: ClassList) => (
             query.supervisorId = value;
             break;
           case "search":
-            query.OR = [
-              { name: { contains: value, mode: "insensitive" } },
-              { supervisor: { name: { contains: value, mode: "insensitive" } } },
-              { supervisor: { surname: { contains: value, mode: "insensitive" } } },
-            ];
+            if (value) {
+              // Search by class name, or pre-match supervisor IDs from Teacher + Admin tables
+              const [matchingTeachers, matchingAdmins] = await Promise.all([
+                prisma.teacher.findMany({
+                  where: { OR: [{ name: { contains: value, mode: "insensitive" } }, { surname: { contains: value, mode: "insensitive" } }] },
+                  select: { id: true },
+                }),
+                prisma.admin.findMany({
+                  where: { OR: [{ name: { contains: value, mode: "insensitive" } }, { surname: { contains: value, mode: "insensitive" } }] },
+                  select: { id: true },
+                }),
+              ]);
+              const supervisorIds = [...matchingTeachers, ...matchingAdmins].map(r => r.id);
+              query.OR = [
+                { name: { contains: value, mode: "insensitive" } },
+                ...(supervisorIds.length > 0 ? [{ supervisorId: { in: supervisorIds } }] : []),
+              ];
+            }
             break;
           default:
             break;
@@ -115,11 +137,10 @@ const renderRow = (item: ClassList) => (
     }
   }
 
-  const [data, count] = await prisma.$transaction([
+  const [rawData, count] = await prisma.$transaction([
     prisma.class.findMany({
       where: query,
       include: {
-        supervisor: true,
         grade: true,
       },
       orderBy: [
@@ -131,6 +152,13 @@ const renderRow = (item: ClassList) => (
     }),
     prisma.class.count({ where: query }),
   ]);
+
+  const supervisorIds = [...new Set(rawData.map((c: { supervisorId: string | null }) => c.supervisorId).filter(Boolean))] as string[];
+  const supervisorNameMap = await resolveSupervisorNames(supervisorIds);
+  const data: ClassList[] = rawData.map((c: any) => ({
+    ...c,
+    supervisorName: c.supervisorId ? supervisorNameMap.get(c.supervisorId) : undefined,
+  }));
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">

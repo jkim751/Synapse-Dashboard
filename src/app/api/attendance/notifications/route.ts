@@ -150,7 +150,6 @@ export async function POST(request: NextRequest) {
           include: {
             class: {
               include: {
-                supervisor: true,
                 lessons: { include: { teacher: true } },
               },
             },
@@ -164,9 +163,9 @@ export async function POST(request: NextRequest) {
     if (finalRecipients.length === 0 && student) {
       console.log("Sender is a student, finding all associated teachers as recipients.");
       const teacherIds = new Set<string>();
-      student.classes.forEach((studentClass: { class: { supervisor: { id: string; }; lessons: any[]; }; }) => {
-        if (studentClass.class.supervisor?.id) {
-          teacherIds.add(studentClass.class.supervisor.id);
+      student.classes.forEach((studentClass: { class: { supervisorId: string | null; lessons: any[]; }; }) => {
+        if (studentClass.class.supervisorId) {
+          teacherIds.add(studentClass.class.supervisorId);
         }
         studentClass.class.lessons.forEach((lesson: { teacher: { id: string; }; }) => {
           if (lesson.teacher?.id) {

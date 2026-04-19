@@ -370,7 +370,7 @@ export const createClass = async (
         name: validatedData.name,
         capacity: validatedData.capacity,
         gradeId: validatedData.gradeId,
-        supervisorId: validatedData.supervisorId || undefined,
+        supervisorId: validatedData.supervisorId || null,
       },
     });
 
@@ -401,7 +401,7 @@ export const updateClass = async (
         name: validatedData.name,
         capacity: validatedData.capacity,
         gradeId: validatedData.gradeId,
-        supervisorId: validatedData.supervisorId || undefined,
+        supervisorId: validatedData.supervisorId || null,
       },
     });
 

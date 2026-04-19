@@ -39,7 +39,6 @@ export default function PayrollSummary({
   const [payslips, setPayslips] = useState<PayslipEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -64,23 +63,8 @@ export default function PayrollSummary({
     load();
   }, [teacher, targetId, personType]);
 
-  const download = async (payslipId: string, label: string) => {
-    setDownloading(payslipId);
-    try {
-      const res = await fetch(`/api/xero/payroll/download?payslipId=${payslipId}`);
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `payslip-${label}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // silently ignore — retry available
-    } finally {
-      setDownloading(null);
-    }
+  const download = (payslipId: string) => {
+    window.open(`/api/xero/payroll/download?payslipId=${payslipId}`, "_blank");
   };
 
   if (loading) return <p className="text-sm text-gray-500">Loading payslips…</p>;
@@ -90,8 +74,6 @@ export default function PayrollSummary({
   return (
     <div className="divide-y divide-gray-100">
       {payslips.map((p) => {
-        const label = p.payPeriodEnd ? new Date(p.payPeriodEnd).toLocaleDateString("en-AU", { month: "short", year: "numeric" }) : p.payslipId;
-        const isDownloading = downloading === p.payslipId;
         return (
           <div key={p.payslipId} className="flex items-center justify-between py-3 gap-4">
             <div className="min-w-0">
@@ -99,18 +81,13 @@ export default function PayrollSummary({
               <p className="text-xs text-gray-400 mt-0.5">Gross {fmt(p.wages)} · Net {fmt(p.netPay)}</p>
             </div>
             <button
-              onClick={() => download(p.payslipId, label)}
-              disabled={isDownloading}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              onClick={() => download(p.payslipId)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             >
-              {isDownloading ? (
-                <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              )}
-              {isDownloading ? "…" : "PDF"}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View
             </button>
           </div>
         );

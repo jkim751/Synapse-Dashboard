@@ -124,14 +124,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse Xero /Date(ms+offset)/ or YYYY-MM-DD → "YYYY-MM-DD"
+    // Parse Xero date (Date object, /Date(ms+offset)/ string, or YYYY-MM-DD) → "YYYY-MM-DD"
     const parseXeroDate = (d: any): string | null => {
       if (!d) return null;
+      if (d instanceof Date) return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
       const s = String(d);
-      const match = s.match(/\/Date\((-?\d+)[\+\-]\d+\)\//);
+      const match = s.match(/\/Date\((-?\d+)[\+\-]?\d*\)\//);
       if (match) return new Date(parseInt(match[1], 10)).toISOString().slice(0, 10);
       if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
       return null;
+    };
+
+    // Normalise calendarType — xero-node may return a numeric enum (0=WEEKLY etc.) or a string
+    const CALENDAR_TYPE_MAP: Record<number, string> = {
+      0: 'WEEKLY', 1: 'FORTNIGHTLY', 2: 'FOURWEEKLY',
+      3: 'MONTHLY', 4: 'TWICEMONTHLY', 5: 'QUARTERLY',
+    };
+    const normaliseCalType = (v: any): string => {
+      if (typeof v === 'number') return CALENDAR_TYPE_MAP[v] ?? '';
+      return String(v ?? '');
     };
 
     const addDays = (dateStr: string, n: number) => {
@@ -152,11 +163,11 @@ export async function POST(req: NextRequest) {
       try {
         const calRes = await xero.payrollAUApi.getPayrollCalendar(tenantId, calendarId);
         const cal = calRes.body.payrollCalendars?.[0] as any;
-        calType = cal?.calendarType ?? '';
+        calType = normaliseCalType(cal?.calendarType);
         anchorStart = parseXeroDate(cal?.startDate) ?? null;
+        console.log('Payroll calendar:', { calType, anchorStart, raw: cal?.calendarType });
       } catch (calErr: any) {
         console.error('Payroll calendar fetch failed:', calErr?.response?.body ?? calErr?.message);
-        // Fall through to pay run inference
       }
     }
 
@@ -175,6 +186,11 @@ export async function POST(req: NextRequest) {
       // Fetch the most recent run detail to get period dates
       const runDetail = await xero.payrollAUApi.getPayRun(tenantId, (posted[0] as any).payRunID);
       const detailRun = runDetail.body.payRuns?.[0] as any;
+      console.log('Pay run detail keys:', detailRun ? Object.keys(detailRun) : 'null');
+      console.log('Pay run period dates:', {
+        start: detailRun?.payRunPeriodStartDate,
+        end: detailRun?.payRunPeriodEndDate,
+      });
       const start = parseXeroDate(detailRun?.payRunPeriodStartDate);
       const end = parseXeroDate(detailRun?.payRunPeriodEndDate);
 

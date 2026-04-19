@@ -16,7 +16,6 @@ type StudentWithAttendance = Student & {
   };
 
 type ClassWithRelations = Class & {
-    supervisor: Teacher | null;
     grade: Grade;
   };
 
@@ -54,7 +53,6 @@ const SingleClassAttendancePage = async ({
     const classInfo = await prisma.class.findUnique({
       where: { id: classId },
       include: {
-        supervisor: true,
         grade: true,
       },
     });
@@ -63,8 +61,20 @@ const SingleClassAttendancePage = async ({
       return <div>Class not found</div>;
     }
 
+    // Resolve supervisor name from Teacher or Admin table
+    let supervisorName: string | null = null;
+    if (classInfo.supervisorId) {
+      const teacher = await prisma.teacher.findUnique({ where: { id: classInfo.supervisorId }, select: { name: true, surname: true } });
+      if (teacher) {
+        supervisorName = `${teacher.name} ${teacher.surname}`;
+      } else {
+        const admin = await prisma.admin.findUnique({ where: { id: classInfo.supervisorId }, select: { name: true, surname: true } });
+        if (admin) supervisorName = `${admin.name} ${admin.surname}`;
+      }
+    }
+
     if (userRoles.includes("teacher")) {
-      const isSupervisor = classInfo.supervisor?.id === userId;
+      const isSupervisor = classInfo.supervisorId === userId;
       
       // Check if the teacher teaches any single OR recurring lesson in this class
       const lessonCount = await prisma.lesson.count({ where: { classId: classId, teacherId: userId! } });
@@ -367,7 +377,7 @@ const SingleClassAttendancePage = async ({
               Attendance - {classInfo.name}
             </h1>
             <p className="text-sm text-gray-500">
-              {classInfo.supervisor?.name} {classInfo.supervisor?.surname} • Grade {classInfo.grade.level}
+              {supervisorName ?? "—"} • Grade {classInfo.grade.level}
             </p>
             <p className="text-sm text-gray-500">
             {selectedDate.toLocaleDateString('en-GB', {

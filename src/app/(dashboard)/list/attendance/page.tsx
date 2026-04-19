@@ -3,13 +3,25 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Class, Prisma, Teacher } from "@prisma/client";
+import { Class, Prisma } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-type AttendanceList = Class & { supervisor: Teacher };
+type AttendanceList = Class & { supervisorName?: string };
+
+async function resolveSupervisorNames(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const [teachers, admins] = await Promise.all([
+    prisma.teacher.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, surname: true } }),
+    prisma.admin.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, surname: true } }),
+  ]);
+  const map = new Map<string, string>();
+  for (const t of teachers) map.set(t.id, `${t.name} ${t.surname}`);
+  for (const a of admins) map.set(a.id, `${a.name} ${a.surname}`);
+  return map;
+}
 
 const AttendanceListPage = async ({
   searchParams,
@@ -21,7 +33,7 @@ const { userId, sessionClaims } = await auth();
 const role = (sessionClaims?.metadata as { role?: string })?.role;
 const resolvedSearchParams = await searchParams;
 
-if (!role || !["admin", "director", "teacher"].includes(role)) {
+if (!role || !["admin", "director", "teacher", "teacher-admin"].includes(role)) {
   redirect("/");
 }
 
@@ -43,7 +55,7 @@ const renderRow = (item: AttendanceList) => (
   >
     <td className="flex items-center gap-4 p-4">{item.name}</td>
     <td className="hidden md:table-cell">
-      {item.supervisor.name + " " + item.supervisor.surname}
+      {item.supervisorName ?? "—"}
     </td>
     <td>
       <div className="flex items-center gap-2">
@@ -62,27 +74,34 @@ const { page, ...queryParams } = resolvedSearchParams;
 
 const p = page ? parseInt(page) : 1;
 
-// Build query with role-based filtering
 const query: Prisma.ClassWhereInput = {};
 
-// If user is a teacher, only show their classes
-if (role === "teacher" && userId) {
+if ((role === "teacher" || role === "teacher-admin") && userId) {
   query.OR = [
     { supervisorId: userId },
     { lessons: { some: { teacherId: userId } } },
-    { RecurringLesson: { some: { teacherId: userId } } }, // optional
+    { RecurringLesson: { some: { teacherId: userId } } },
   ];
 }
 
 if (queryParams.search) {
+  const searchValue = queryParams.search;
+  const [matchingTeachers, matchingAdmins] = await Promise.all([
+    prisma.teacher.findMany({
+      where: { OR: [{ name: { contains: searchValue, mode: "insensitive" } }, { surname: { contains: searchValue, mode: "insensitive" } }] },
+      select: { id: true },
+    }),
+    prisma.admin.findMany({
+      where: { OR: [{ name: { contains: searchValue, mode: "insensitive" } }, { surname: { contains: searchValue, mode: "insensitive" } }] },
+      select: { id: true },
+    }),
+  ]);
+  const supervisorIds = [...matchingTeachers, ...matchingAdmins].map(r => r.id);
   query.OR = [
-    { name: { contains: queryParams.search, mode: "insensitive" } },
-    { supervisor: { name: { contains: queryParams.search, mode: "insensitive" } } },
-    { supervisor: { surname: { contains: queryParams.search, mode: "insensitive" } } },
+    { name: { contains: searchValue, mode: "insensitive" } },
+    ...(supervisorIds.length > 0 ? [{ supervisorId: { in: supervisorIds } }] : []),
   ];
 }
-  // URL PARAMS CONDITION
-  const queryParamsFromSearch: Prisma.ClassWhereInput = {};
 
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
@@ -95,11 +114,6 @@ if (queryParams.search) {
               },
             };
             break;
-          case "search":
-            if (value) {
-              query.name = { contains: value, mode: "insensitive" } as Prisma.StringFilter;
-            }
-            break;
           default:
             break;
         }
@@ -107,12 +121,9 @@ if (queryParams.search) {
     }
   }
 
-  const [data, count] = await prisma.$transaction([
+  const [rawData, count] = await prisma.$transaction([
     prisma.class.findMany({
       where: query,
-      include: {
-        supervisor: true,
-      },
       orderBy: {
         name: "asc",
       },
@@ -121,6 +132,13 @@ if (queryParams.search) {
     }),
     prisma.class.count({ where: query }),
   ]);
+
+  const supervisorIds = [...new Set(rawData.map((c: { supervisorId: string | null }) => c.supervisorId).filter(Boolean))] as string[];
+  const supervisorNameMap = await resolveSupervisorNames(supervisorIds);
+  const data: AttendanceList[] = rawData.map((c: any) => ({
+    ...c,
+    supervisorName: c.supervisorId ? supervisorNameMap.get(c.supervisorId) : undefined,
+  }));
 
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">

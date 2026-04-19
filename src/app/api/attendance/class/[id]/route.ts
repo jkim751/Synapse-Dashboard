@@ -37,7 +37,6 @@ export async function GET(
     const classInfo = await prisma.class.findUnique({
       where: { id: classId },
       include: {
-        supervisor: true,
         grade: true,
       },
     });

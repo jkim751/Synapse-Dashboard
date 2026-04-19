@@ -73,7 +73,6 @@ model Teacher {
   createdAt       DateTime          @default(now())
   birthday        DateTime
   xeroEmployeeId  String?
-  classes         Class[]
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]
   subjects        Subject[]         @relation("SubjectToTeacher")
@@ -110,7 +109,6 @@ model Class {
   gradeId         Int
   announcements   Announcement[]
   grade           Grade             @relation(fields: [gradeId], references: [id])
-  supervisor      Teacher?          @relation(fields: [supervisorId], references: [id])
   events          Event[]
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]

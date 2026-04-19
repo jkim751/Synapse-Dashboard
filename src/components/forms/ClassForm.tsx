@@ -53,7 +53,7 @@ const ClassForm = ({
     }
   }, [state, router, type, setOpen]);
 
-  const { teachers, grades } = relatedData;
+  const { teachers, teacherAdmins, grades } = relatedData;
 
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {
@@ -97,13 +97,27 @@ const ClassForm = ({
             <select
               className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
               {...register("supervisorId")}
-              defaultValue={data?.supervisorId}
+              defaultValue={data?.supervisorId ?? ""}
             >
-              {teachers.map((teacher: { id: string; name: string; surname: string }) => (
-                <option value={teacher.id} key={teacher.id}>
-                  {teacher.name + " " + teacher.surname}
-                </option>
-              ))}
+              <option value="">— No supervisor —</option>
+              {teachers.length > 0 && (
+                <optgroup label="Teachers">
+                  {teachers.map((teacher: { id: string; name: string; surname: string }) => (
+                    <option value={teacher.id} key={teacher.id}>
+                      {teacher.name + " " + teacher.surname}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {teacherAdmins?.length > 0 && (
+                <optgroup label="Teacher-Admins">
+                  {teacherAdmins.map((ta: { id: string; name: string; surname: string }) => (
+                    <option value={ta.id} key={ta.id}>
+                      {ta.name + " " + ta.surname}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             {errors.supervisorId?.message && (
               <p className="text-xs text-red-400">

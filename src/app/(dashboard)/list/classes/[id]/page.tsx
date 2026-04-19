@@ -35,11 +35,22 @@ const SingleClassPage = async ({
   const classInfo = await prisma.class.findUnique({
     where: { id: classId },
     include: {
-      supervisor: true,
       grade: true,
       _count: { select: { students: true } },
     },
   });
+
+  // Resolve supervisor name from Teacher or Admin table
+  let supervisorName: string | null = null;
+  if (classInfo?.supervisorId) {
+    const teacher = await prisma.teacher.findUnique({ where: { id: classInfo.supervisorId }, select: { name: true, surname: true } });
+    if (teacher) {
+      supervisorName = `${teacher.name} ${teacher.surname}`;
+    } else {
+      const admin = await prisma.admin.findUnique({ where: { id: classInfo.supervisorId }, select: { name: true, surname: true } });
+      if (admin) supervisorName = `${admin.name} ${admin.surname}`;
+    }
+  }
 
   if (!classInfo) {
     return notFound();
@@ -182,7 +193,7 @@ const SingleClassPage = async ({
           </div>
           <div className="text-sm text-gray-500 mt-1">
             <p>Grade: {classInfo.grade?.level}</p>
-            <p>Supervisor: {classInfo.supervisor?.name} {classInfo.supervisor?.surname}</p>
+            <p>Supervisor: {supervisorName ?? "—"}</p>
             <p>Count: {classInfo._count.students}</p>
           </div>
         </div>
