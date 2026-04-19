@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       const empDetail = await xero.payrollAUApi.getEmployee(tenantId, employeeId!);
       const earningsLines = empDetail.body.employees?.[0]?.payTemplate?.earningsLines ?? [];
       earningsRateId = earningsLines[0]?.earningsRateID ?? null;
-    } catch { /* ignore */ }
+    } catch { /* ignore, will fall back below */ }
 
     if (!earningsRateId) {
       const ratesRes = await xero.payrollAUApi.getPayItems(tenantId);
@@ -124,11 +124,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the pay run period that contains the selected date
-    const payRunsRes = await xero.payrollAUApi.getPayRuns(tenantId);
-    const allRuns: any[] = payRunsRes.body.payRuns ?? [];
-
-    // Parse Xero /Date(ms+offset)/ or YYYY-MM-DD to a comparable date string "YYYY-MM-DD"
+    // Parse Xero /Date(ms+offset)/ or YYYY-MM-DD → "YYYY-MM-DD"
     const parseXeroDate = (d: any): string | null => {
       if (!d) return null;
       const s = String(d);
@@ -138,27 +134,76 @@ export async function POST(req: NextRequest) {
       return null;
     };
 
-    const selectedDate = new Date(date);
-    const matchingRun = allRuns.find((r: any) => {
-      const start = parseXeroDate(r.payRunPeriodStartDate);
-      const end = parseXeroDate(r.payRunPeriodEndDate);
-      if (!start || !end) return false;
-      return selectedDate >= new Date(start) && selectedDate <= new Date(end);
-    });
+    const addDays = (dateStr: string, n: number) => {
+      const d = new Date(dateStr);
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
 
-    if (!matchingRun) {
-      return NextResponse.json(
-        { error: 'The selected date does not fall within any pay period in Xero. Please check your payroll calendar.' },
-        { status: 422 }
-      );
+    // Get employee's payroll calendar to compute period boundaries
+    const empRes = await xero.payrollAUApi.getEmployee(tenantId, employeeId!);
+    const emp = empRes.body.employees?.[0] as any;
+    const calendarId = emp?.payrollCalendarID;
+    if (!calendarId) {
+      return NextResponse.json({ error: 'Employee has no payroll calendar assigned in Xero.' }, { status: 422 });
     }
 
-    const periodStart = parseXeroDate(matchingRun.payRunPeriodStartDate)!;
-    const periodEnd = parseXeroDate(matchingRun.payRunPeriodEndDate)!;
+    const calRes = await xero.payrollAUApi.getPayrollCalendar(tenantId, calendarId);
+    const cal = calRes.body.payrollCalendars?.[0] as any;
+    if (!cal) {
+      return NextResponse.json({ error: 'Could not fetch payroll calendar from Xero.' }, { status: 422 });
+    }
+
+    const calType: string = cal.calendarType ?? '';
+    // anchorStart is a known period start we can step from
+    const anchorStart = parseXeroDate(cal.startDate);
+    if (!anchorStart) {
+      return NextResponse.json({ error: 'Payroll calendar has no start date.' }, { status: 422 });
+    }
+
+    // Period length in days for fixed-length calendars
+    const fixedLengths: Record<string, number> = {
+      WEEKLY: 7, FORTNIGHTLY: 14, FOURWEEKLY: 28,
+    };
+
+    const selectedTs = new Date(date).getTime();
+    let periodStart: string;
+    let periodEnd: string;
+
+    if (calType === 'MONTHLY') {
+      const d = new Date(date);
+      periodStart = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      periodEnd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${lastDay}`;
+    } else if (calType === 'TWICEMONTHLY') {
+      const d = new Date(date);
+      const day = d.getUTCDate();
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      if (day <= 15) {
+        periodStart = `${y}-${m}-01`;
+        periodEnd = `${y}-${m}-15`;
+      } else {
+        periodStart = `${y}-${m}-16`;
+        const lastDay = new Date(Date.UTC(y, d.getUTCMonth() + 1, 0)).getUTCDate();
+        periodEnd = `${y}-${m}-${lastDay}`;
+      }
+    } else {
+      const len = fixedLengths[calType];
+      if (!len) {
+        return NextResponse.json({ error: `Unsupported calendar type: ${calType}` }, { status: 422 });
+      }
+      // Step from anchor to find the period containing the selected date
+      const anchorTs = new Date(anchorStart).getTime();
+      const diffDays = Math.floor((selectedTs - anchorTs) / 86400000);
+      const periodIndex = Math.floor(diffDays / len);
+      periodStart = addDays(anchorStart, periodIndex * len);
+      periodEnd = addDays(periodStart, len - 1);
+    }
 
     // Build numberOfUnits array: one slot per day in the period, hours on the selected day
     const periodDays = Math.round((new Date(periodEnd).getTime() - new Date(periodStart).getTime()) / 86400000) + 1;
-    const dayIndex = Math.round((selectedDate.getTime() - new Date(periodStart).getTime()) / 86400000);
+    const dayIndex = Math.round((selectedTs - new Date(periodStart).getTime()) / 86400000);
     const numberOfUnits = Array(periodDays).fill(0);
     numberOfUnits[dayIndex] = hours;
 
