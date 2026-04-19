@@ -125,22 +125,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Create single-day draft timesheet
-    const timesheetBody = {
-      timesheets: [{
-        employeeID: employeeId,
-        startDate: new Date(date),
-        endDate: new Date(date),
-        status: 'DRAFT',
+    // startDate/endDate must be "YYYY-MM-DD" strings; createTimesheet takes Array<Timesheet> directly
+    await xero.payrollAUApi.createTimesheet(tenantId, [
+      {
+        employeeID: employeeId!,
+        startDate: date,
+        endDate: date,
         timesheetLines: [{ earningsRateID: earningsRateId, numberOfUnits: [hours] }],
-      }],
-    };
-
-    await (xero.payrollAUApi as any).createTimesheet(tenantId, timesheetBody);
+      } as any,
+    ]);
 
     return NextResponse.json({ success: true, date, hours });
 
   } catch (error: any) {
-    console.error('Log hours error:', error?.response?.body ?? error?.message);
+    const detail = error?.response?.body ?? error?.response?.data ?? error?.message ?? String(error);
+    console.error('Log hours error:', typeof detail === 'object' ? JSON.stringify(detail) : detail);
     return NextResponse.json({ error: 'Failed to log hours to Xero' }, { status: 500 });
   }
 }
