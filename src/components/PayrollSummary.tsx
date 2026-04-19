@@ -65,7 +65,7 @@ const PayrollSummary = ({ teacher, targetId, personType }: { teacher: Teacher; t
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "payslip.html";
+      a.download = "payslip.pdf";
       a.click();
       URL.revokeObjectURL(url);
     } catch {
