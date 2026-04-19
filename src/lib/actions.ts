@@ -34,6 +34,31 @@ import { safeDeleteClerkUser } from "@/lib/clerkSafe";
 
 type CurrentState = { success: boolean; error: boolean; message?: string };
 
+// When a teacher-admin is assigned to a lesson, ensure a Teacher record exists for them
+// so the Lesson/RecurringLesson FK constraint is satisfied.
+async function ensureTeacherRecord(id: string): Promise<void> {
+  const existing = await prisma.teacher.findUnique({ where: { id }, select: { id: true } });
+  if (existing) return;
+  const admin = await prisma.admin.findUnique({ where: { id } });
+  if (!admin) return;
+  await prisma.teacher.upsert({
+    where: { id },
+    create: {
+      id: admin.id,
+      username: admin.username,
+      name: admin.name,
+      surname: admin.surname,
+      email: admin.email,
+      phone: admin.phone,
+      address: admin.address,
+      img: admin.img,
+      sex: admin.sex,
+      birthday: admin.birthday,
+    },
+    update: {},
+  });
+}
+
 export interface PhotoUploadResult {
   success: boolean;
   error?: string;
@@ -1046,6 +1071,8 @@ export async function createRecurringLesson(payload: {
   rrule: string; // required for weekly
 }) {
   try {
+    await ensureTeacherRecord(payload.teacherId);
+
     const startDate = new Date(payload.startTime + '+08:00');
     const endDate = new Date(payload.endTime + '+08:00');
 
@@ -1133,6 +1160,8 @@ export async function updateLesson(payload: {
 }) {
   try {
     const { id, ...rest } = payload;
+    if (rest.teacherId) await ensureTeacherRecord(rest.teacherId);
+
     const existing = await prisma.lesson.findUnique({ where: { id: Number(id) } });
     if (!existing) return { success: false, error: true, message: `Update failed: Lesson with ID ${id} not found.` };
 
@@ -1183,6 +1212,8 @@ export async function updateRecurringLesson(payload: {
 }) {
   try {
     const { id, updateScope = "series", originalDate, ...rest } = payload;
+    if (rest.teacherId) await ensureTeacherRecord(rest.teacherId);
+
     const series = await prisma.recurringLesson.findUnique({ where: { id: Number(id) } });
     if (!series) return { success: false, error: true, message: `Update failed: Recurring series with ID ${id} not found.` };
 
@@ -1296,6 +1327,8 @@ export async function createLesson(payload: {
   endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
 }) {
   try {
+    await ensureTeacherRecord(payload.teacherId);
+
     const startDate = new Date(payload.startTime + '+08:00');
     const endDate = new Date(payload.endTime + '+08:00');
 
