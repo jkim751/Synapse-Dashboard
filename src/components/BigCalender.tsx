@@ -104,11 +104,13 @@ const BigCalendar = ({
   initialEvents = [],
   showNotifications = false,
   canDragDrop = false,
+  onEventClick,
 }: {
   initialLessons?: CalendarEvent[];
   initialEvents?: CalendarEvent[];
   showNotifications?: boolean;
   canDragDrop?: boolean;
+  onEventClick?: (event: ProcessedEvent) => void;
 }) => {
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
 
@@ -156,7 +158,12 @@ const BigCalendar = ({
   const handleNavigate = (newDate: Date) => setDate(newDate);
 
   const handleEventClick = (event: object) => {
-    setSelectedEvent(event as ProcessedEvent);
+    const e = event as ProcessedEvent;
+    if (onEventClick && e.type === 'event') {
+      onEventClick(e);
+      return;
+    }
+    setSelectedEvent(e);
     setIsModalOpen(true);
   };
 

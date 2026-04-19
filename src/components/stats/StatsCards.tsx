@@ -13,10 +13,7 @@ interface StatsCardsProps {
 
 const StatsCards = ({ stats }: StatsCardsProps) => {
   const cards = [
-    {
-      title: "Total Enrollments",
-      value: stats.totalEnrollments,
-    },
+  
     {
       title: "Trial Students",
       value: stats.trialStudents,
@@ -33,6 +30,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
       title: "Disenrollment Rate",
       value: `${stats.disenrollmentRate.toFixed(1)}%`,
     },
+ 
   ];
 
   return (

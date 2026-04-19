@@ -1,0 +1,287 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import BigCalendar from "./BigCalender";
+import AddEventModal from "./AddEventModal";
+
+type ScheduleRecord = {
+  id: string;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  type: string;
+  rrule?: string | null;
+};
+
+const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function toSGTString(date: Date): string {
+  const sgt = new Date(date.getTime() + SGT_OFFSET_MS);
+  const y = sgt.getUTCFullYear();
+  const mo = String(sgt.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(sgt.getUTCDate()).padStart(2, "0");
+  const h = String(sgt.getUTCHours()).padStart(2, "0");
+  const mi = String(sgt.getUTCMinutes()).padStart(2, "0");
+  const s = String(sgt.getUTCSeconds()).padStart(2, "0");
+  return `${y}-${mo}-${d}T${h}:${mi}:${s}`;
+}
+
+function toSGTDatetimeLocal(isoString: string): string {
+  const sgt = new Date(new Date(isoString).getTime() + SGT_OFFSET_MS);
+  return sgt.toISOString().slice(0, 16);
+}
+
+function toCalendarEvent(s: ScheduleRecord) {
+  return {
+    title: s.title,
+    start: toSGTString(new Date(s.startTime)),
+    end: toSGTString(new Date(s.endTime)),
+    description: s.description,
+    type: "event" as const,
+    // store schedule ID so onEventClick can retrieve it
+    scheduleId: s.id,
+  };
+}
+
+export default function AdminScheduleCalendar() {
+  const [schedules, setSchedules] = useState<ScheduleRecord[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduleRecord | null>(null);
+
+  // Edit form state
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editType, setEditType] = useState<"event" | "shift">("event");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+
+  const fetchSchedules = useCallback(async () => {
+    const res = await fetch("/api/events");
+    if (!res.ok) return;
+    const data: ScheduleRecord[] = await res.json();
+    setSchedules(data);
+    setCalendarEvents(data.map(toCalendarEvent));
+  }, []);
+
+  useEffect(() => {
+    fetchSchedules();
+  }, [fetchSchedules]);
+
+  const openEdit = (calendarEvent: any) => {
+    const schedule = schedules.find((s) => s.id === calendarEvent.scheduleId);
+    if (!schedule) return;
+    setEditingSchedule(schedule);
+    setEditTitle(schedule.title);
+    setEditDescription(schedule.description);
+    setEditType(schedule.type === "shift" ? "shift" : "event");
+    setEditStart(toSGTDatetimeLocal(schedule.startTime));
+    setEditEnd(toSGTDatetimeLocal(schedule.endTime));
+    setEditError(null);
+    setDeleteConfirming(false);
+  };
+
+  const closeEdit = () => {
+    setEditingSchedule(null);
+    setDeleteConfirming(false);
+    setEditError(null);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingSchedule) return;
+    if (!editTitle.trim() || !editDescription.trim() || !editStart || !editEnd) {
+      setEditError("All fields are required");
+      return;
+    }
+    if (new Date(editEnd) <= new Date(editStart)) {
+      setEditError("End time must be after start time");
+      return;
+    }
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/events/${editingSchedule.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          startTime: editStart,
+          endTime: editEnd,
+          type: editType,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        setEditError(json.error ?? "Failed to update");
+        return;
+      }
+      closeEdit();
+      fetchSchedules();
+    } catch {
+      setEditError("An unexpected error occurred");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingSchedule) return;
+    setEditSubmitting(true);
+    try {
+      await fetch(`/api/events/${editingSchedule.id}`, { method: "DELETE" });
+      closeEdit();
+      fetchSchedules();
+    } catch {
+      setEditError("Failed to delete");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full gap-3">
+      <div className="flex justify-end">
+        <AddEventModal onSuccess={fetchSchedules} />
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <BigCalendar
+          initialLessons={[]}
+          initialEvents={calendarEvents}
+          showNotifications={false}
+          canDragDrop={false}
+          onEventClick={openEdit}
+        />
+      </div>
+
+      {/* Edit modal */}
+      {editingSchedule && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-semibold text-gray-800">Edit {editType === "shift" ? "Shift" : "Event"}</h2>
+              <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+
+            {/* Type toggle */}
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-5">
+              {(["event", "shift"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEditType(t)}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-xl transition-colors ${
+                    editType === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {t === "event" ? "Event" : "Shift / Schedule"}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editType === "shift" ? "Shift name" : "Title"}
+                </label>
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editType === "shift" ? "Notes" : "Description"}
+                </label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                  <input
+                    type="datetime-local"
+                    value={editStart}
+                    onChange={(e) => setEditStart(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+                  <input
+                    type="datetime-local"
+                    value={editEnd}
+                    onChange={(e) => setEditEnd(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  />
+                </div>
+              </div>
+
+              {editError && <p className="text-red-500 text-sm">{editError}</p>}
+
+              <div className="flex items-center justify-between pt-2">
+                {/* Delete side */}
+                {deleteConfirming ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-red-600">Are you sure?</span>
+                    <button
+                      onClick={handleDelete}
+                      disabled={editSubmitting}
+                      className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-60"
+                    >
+                      Yes, delete
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirming(false)}
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeleteConfirming(true)}
+                    className="text-sm text-red-400 hover:text-red-600 transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
+
+                {/* Save/cancel side */}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeEdit}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdate}
+                    disabled={editSubmitting}
+                    className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {editSubmitting && (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {editSubmitting ? "Saving..." : "Save changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -104,9 +104,13 @@ const renderRow = (item: ParentList) => {
 
   // URL PARAMS CONDITION
 
-  const query: Prisma.ParentWhereInput = {};
+  const isSearchingDisenrolled = resolvedSearchParams.search?.toLowerCase() === "disenrolled";
 
-  if (queryParams) {
+  const query: Prisma.ParentWhereInput = isSearchingDisenrolled
+    ? { students: { none: { status: { not: "DISENROLLED" } } } }
+    : { students: { some: { status: { not: "DISENROLLED" } } } };
+
+  if (!isSearchingDisenrolled && queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined && value !== "") {
         switch (key) {

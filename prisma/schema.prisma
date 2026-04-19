@@ -404,6 +404,67 @@ model StudentTag {
   @@unique([noteId, studentId])
 }
 
+model Expense {
+  id          String   @id @default(cuid())
+  description String
+  price       Float
+  date        DateTime
+  userId      String 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@map("expenses")
+}
+
+model ChecklistItem {
+  id          String        @id @default(cuid())
+  text        String
+  type        ChecklistType
+  userId      String
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("checklist_items")
+}
+
+model PayRate {
+  id         String   @id @default(cuid())
+  name       String
+  personType String
+  payRate    Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("pay_rates")
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  startTime   DateTime
+  endTime     DateTime
+  type        String   @default("event")
+  rrule       String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("schedules")
+}
+
+
+
+
+enum ChecklistType {
+  DAILY
+  MONTHLY
+}
+
 enum UserSex {
   MALE
   FEMALE

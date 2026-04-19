@@ -19,7 +19,11 @@ const UserCard = async ({
       parent: prisma.parent,
     };
     data = await modelMap[type].count(
-      type === "student" ? { where: { status: { not: "DISENROLLED" } } } : undefined
+      type === "student"
+        ? { where: { status: { not: "DISENROLLED" } } }
+        : type === "parent"
+        ? { where: { students: { some: { status: { not: "DISENROLLED" } } } } }
+        : undefined
     );
     label = `${type.charAt(0).toUpperCase() + type.slice(1)}s`;
   }

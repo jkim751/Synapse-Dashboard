@@ -23,15 +23,24 @@ interface PayrollData {
 const fmt = (amount: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
 
-const PayrollSummary = ({ teacher }: { teacher: Teacher }) => {
+const PayrollSummary = ({ teacher, targetId, personType }: { teacher: Teacher; targetId?: string; personType?: string }) => {
   const [payroll, setPayroll] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPayroll = async () => {
+      setLoading(true);
+      setError(null);
+      setPayroll(null);
       try {
-        const response = await fetch("/api/xero/payroll");
+        let url = '/api/xero/payroll';
+        if (targetId && personType) {
+          url = `/api/xero/payroll?targetId=${targetId}&personType=${personType}`;
+        } else if (targetId) {
+          url = `/api/xero/payroll?targetId=${targetId}`;
+        }
+        const response = await fetch(url);
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.error || "Failed to fetch payroll data.");
@@ -46,7 +55,7 @@ const PayrollSummary = ({ teacher }: { teacher: Teacher }) => {
     };
 
     fetchPayroll();
-  }, [teacher]);
+  }, [teacher, targetId, personType]);
 
   if (loading) return <div className="text-sm text-gray-500">Loading payroll data…</div>;
   if (error) return <div className="text-sm text-red-500">Error: {error}</div>;

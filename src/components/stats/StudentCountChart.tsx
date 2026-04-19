@@ -152,31 +152,32 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
             
             <div className="relative h-8 bg-gray-100 rounded overflow-hidden">
               {/* Current students bar */}
-              <div
-                className="absolute left-0 top-0 h-8 bg-orange-400 flex items-center justify-start px-2 transition-all duration-300"
-                style={{ width: `${Math.max((item.current / maxValue) * 100, 5)}%` }}
-              >
-                {item.current > 0 && (
+              {item.current > 0 && (
+                <div
+                  className="absolute left-0 top-0 h-8 bg-orange-400 flex items-center justify-start px-2 transition-all duration-300"
+                  style={{ width: `${(item.current / maxValue) * 100}%` }}
+                >
                   <span className="text-white text-xs font-medium whitespace-nowrap">
                     {item.current}
                   </span>
-                )}
-              </div>
-              
+                </div>
+              )}
+
               {/* Trial students bar */}
-              <div
-                className="absolute h-8 bg-orange-200 flex items-center justify-start px-2 transition-all duration-300"
-                style={{ 
-                  left: `${(item.current / maxValue) * 100}%`,
-                  width: `${Math.max((item.trial / maxValue) * 100, 5)}%` 
-                }}
-              >
-                {item.trial > 0 && (
-                  <span className="text-white text-xs font-medium whitespace-nowrap">
+              {item.trial > 0 && (
+                <div
+                  className="absolute h-8 bg-orange-200 flex items-center justify-start px-2 transition-all duration-300"
+                  style={{
+                    left: `${(item.current / maxValue) * 100}%`,
+                    width: `${(item.trial / maxValue) * 100}%`,
+                  }}
+                >
+                  <span className="text-gray-700 text-xs font-medium whitespace-nowrap">
                     {item.trial}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
+              
             </div>
           </div>
         ))}

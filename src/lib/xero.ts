@@ -19,6 +19,7 @@ const SCOPES = [
   'payroll.employees',
   'payroll.payruns',
   'payroll.payslip',
+  'payroll.timesheets',
   'offline_access',
 ].join(' ');
 

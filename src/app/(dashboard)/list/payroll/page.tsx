@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
-import PayrollSummary from "@/components/PayrollSummary";
+import PayrollView from "@/components/PayrollView";
 
 const PayrollPage = async () => {
   const { userId, sessionClaims } = await auth();
@@ -11,80 +11,63 @@ const PayrollPage = async () => {
     redirect("/");
   }
 
-  // Admin/director don't have a teacher record — show a general payroll overview
-  if (role === "admin" || role === "director" || role === "teacher-admin") {
-    const teachers = await prisma.teacher.findMany({
-      select: {
-        id: true,
-        name: true,
-        surname: true,
-        xeroEmployeeId: true,
-        subjects: { select: { name: true } },
-        classes: { select: { id: true } },
-        lessons: { select: { id: true } },
-      },
-    });
+  // Directors see all teachers + admins in the selector. Everyone else sees only themselves.
+  if (role === "director") {
+    const [teachers, admins] = await Promise.all([
+      prisma.teacher.findMany({
+        select: { id: true, name: true, surname: true },
+        orderBy: [{ name: "asc" }, { surname: "asc" }],
+      }),
+      prisma.admin.findMany({
+        select: { id: true, name: true, surname: true },
+        orderBy: [{ name: "asc" }, { surname: "asc" }],
+      }),
+    ]);
+
+    const people = [
+      ...teachers.map((t: { id: string; name: string; surname: string }) => ({ ...t, personType: "teacher" as const })),
+      ...admins.map((a: { id: string; name: string; surname: string }) => ({ ...a, personType: "admin" as const })),
+    ];
 
     return (
       <div className="flex flex-col gap-6 p-4">
-        <h1 className="text-2xl font-bold">Payroll Overview</h1>
-
-        {teachers.length === 0 ? (
-          <p className="text-gray-500">No teachers found.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {teachers.map((t: { id: string; name: string; surname: string; xeroEmployeeId: string | null; subjects: { name: string }[]; classes: { id: number }[]; lessons: { id: number }[] }) => (
-              <div key={t.id} className="rounded-xl bg-white p-6 shadow">
-                <h2 className="mb-4 text-base font-semibold">
-                  {t.name} {t.surname}
-                </h2>
-                <PayrollSummary teacher={t} />
-              </div>
-            ))}
-          </div>
-        )}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Payroll</h1>
+          <p className="text-sm text-gray-400 mt-1">View Xero payslips and log timesheet hours.</p>
+        </div>
+        <PayrollView role={role} people={people} defaultPersonId={people[0]?.id ?? ""} />
       </div>
     );
   }
 
-  // Teacher view — their own payslip
-  const teacher = await prisma.teacher.findUnique({
-    where: { id: userId },
-    include: {
-      lessons: { include: { class: true, subject: true } },
-      subjects: true,
-      classes: true,
-    },
-  });
+  // Admin, teacher-admin, teacher — resolve self from the right table
+  let selfName = "";
+  let selfSurname = "";
 
-  if (!teacher) redirect("/");
+  if (role === "teacher") {
+    const t = await prisma.teacher.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
+    if (!t) redirect("/");
+    selfName = t.name;
+    selfSurname = t.surname;
+  } else {
+    // admin / teacher-admin
+    const a = await prisma.admin.findUnique({ where: { id: userId }, select: { name: true, surname: true } });
+    if (!a) redirect("/");
+    selfName = a.name;
+    selfSurname = a.surname;
+  }
 
   return (
     <div className="flex flex-col gap-6 p-4">
-      <h1 className="text-2xl font-bold">My Payroll</h1>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-base font-semibold">Latest Payslip</h2>
-          <PayrollSummary teacher={teacher} />
-        </div>
-
-        <div className="rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-base font-semibold">Teaching Load</h2>
-          <div className="space-y-2 text-sm">
-            <p>
-              <span className="font-medium">Classes:</span> {teacher.classes.length}
-            </p>
-            <p>
-              <span className="font-medium">Lessons:</span> {teacher.lessons.length}
-            </p>
-            <p>
-              <span className="font-medium">Subjects:</span>{" "}
-              {teacher.subjects.map((s: { name: string }) => s.name).join(", ") || "—"}
-            </p>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">My Payroll</h1>
+        <p className="text-sm text-gray-400 mt-1">View your Xero payslip and log timesheet hours.</p>
       </div>
+      <PayrollView
+        role={role}
+        people={[{ id: userId, name: selfName, surname: selfSurname, personType: role === "teacher" ? "teacher" : "admin" }]}
+        defaultPersonId={userId}
+      />
     </div>
   );
 };

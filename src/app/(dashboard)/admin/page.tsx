@@ -1,7 +1,8 @@
 import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
-import UserCard from "@/components/UserCard";
-import TeacherAdminViewToggle from "@/components/TeacherAdminViewToggle";
+import AdminScheduleCalendar from "@/components/AdminScheduleCalendar";
+import Checklist from "@/components/Checklist";
+import Link from "next/link";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 
@@ -19,12 +20,14 @@ const AdminPage = async ({
   const userName = user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || "Admin";
 
   const resolvedSearchParams = await searchParams;
-  const calendarView = (resolvedSearchParams.calendarView === "teacher" ? "teacher" : "admin") as "admin" | "teacher";
   const isTeacherAdmin = role === "teacher-admin";
+  const rawTab = resolvedSearchParams.tab;
+  const tab = rawTab === "schedule" ? "schedule" : rawTab === "my-schedule" && isTeacherAdmin ? "my-schedule" : "master";
 
-  const calendarTitle = isTeacherAdmin && calendarView === "teacher"
-    ? "My Schedule"
-    : "Master Schedule - All Lessons";
+  const calendarTitle =
+    tab === "schedule" ? "Admin Schedule" :
+    tab === "my-schedule" ? "My Schedule" :
+    "Master Schedule - All Lessons";
 
   return (
     <div className="flex flex-col">
@@ -41,25 +44,52 @@ const AdminPage = async ({
       <div className="p-4 pt-2 flex gap-4 flex-col md:flex-col">
         {/* LEFT */}
         <div className="w-full lg:w-full flex flex-col gap-8">
-          {/* USER CARDS */}
-          <div className="flex gap-4 justify-between flex-wrap">
-            <UserCard type="admin" />
-            <UserCard type="teacher" />
-            <UserCard type="student" />
-            <UserCard type="parent" />
-            <UserCard type="enrollment" />
+          {/* CHECKLISTS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Checklist type="DAILY" />
+            <Checklist type="MONTHLY" />
           </div>
-          {/* MASTER CALENDAR */}
+          {/* CALENDAR */}
           <div className="w-full h-[1000px]">
-            <div className="bg-white p-4 rounded-md h-full">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white p-4 rounded-md h-full flex flex-col">
+              {/* Header row */}
+              <div className="flex items-center gap-4 mb-4 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-gray-800">{calendarTitle}</h2>
-                {isTeacherAdmin && (
-                  <TeacherAdminViewToggle currentView={calendarView} />
-                )}
+                {/* Tab bar */}
+                <div className="flex bg-gray-100 rounded-xl p-1 text-xs font-medium">
+                  <Link
+                    href="?tab=master"
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      tab === "master" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Master
+                  </Link>
+                  <Link
+                    href="?tab=schedule"
+                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                      tab === "schedule" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Admin Schedule
+                  </Link>
+                  {isTeacherAdmin && (
+                    <Link
+                      href="?tab=my-schedule"
+                      className={`px-3 py-1.5 rounded-lg transition-colors ${
+                        tab === "my-schedule" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      My Schedule
+                    </Link>
+                  )}
+                </div>
               </div>
-              <div className="h-[calc(100%-3rem)]">
-                <BigCalendarContainer viewMode={calendarView} />
+              {/* Calendar content */}
+              <div className="flex-1 min-h-0">
+                {tab === "master" && <BigCalendarContainer viewMode="admin" />}
+                {tab === "schedule" && <AdminScheduleCalendar />}
+                {tab === "my-schedule" && <BigCalendarContainer viewMode="teacher" />}
               </div>
             </div>
           </div>
