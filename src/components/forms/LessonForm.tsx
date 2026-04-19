@@ -57,7 +57,9 @@ const LessonForm = ({
         teacherId: String(data.teacherId || data.teacher?.id || ""),
         startTime: formatDateTimeLocal(data.startTime),
         endTime: formatDateTimeLocal(data.endTime),
-        repeats: data.rrule ? "weekly" : "never",
+        repeats: data.rrule
+          ? (data.rrule.includes("INTERVAL=2") ? "fortnightly" : "weekly")
+          : "never",
         updateScope: isRecurring ? "instance" : undefined,
         originalDate: isRecurring && data.startTime ? formatDateTimeLocal(data.startTime) : undefined,
       }
@@ -92,38 +94,38 @@ const LessonForm = ({
   const { subjects, classes, teachers, variant } = relatedData || {};
 
   const onSubmit = handleSubmit((formData) => {
-    // build rrule if weekly
+    // build rrule if weekly or fortnightly
     let rruleString: string | null = null;
-    if (formData.repeats === "weekly" && formData.day && formData.endDate) {
-      const dayMap: Record<string, number> = { 
-        MO: RRule.MO.weekday, 
-        TU: RRule.TU.weekday, 
-        WE: RRule.WE.weekday, 
-        TH: RRule.TH.weekday, 
-        FR: RRule.FR.weekday, 
-        SA: RRule.SA.weekday, 
-        SU: RRule.SU.weekday 
+    if ((formData.repeats === "weekly" || formData.repeats === "fortnightly") && formData.day && formData.endDate) {
+      const dayMap: Record<string, number> = {
+        MO: RRule.MO.weekday,
+        TU: RRule.TU.weekday,
+        WE: RRule.WE.weekday,
+        TH: RRule.TH.weekday,
+        FR: RRule.FR.weekday,
+        SA: RRule.SA.weekday,
+        SU: RRule.SU.weekday
       };
-      
+
       // Parse datetime-local as local time
       const [datePart, timePart] = formData.startTime.split('T');
       const [year, month, day] = datePart.split('-').map(Number);
       const [hours, minutes] = timePart.split(':').map(Number);
       const startDate = new Date(year, month - 1, day, hours, minutes);
-      
+
       // Parse end date as local time (end of day)
       const [endYear, endMonth, endDay] = formData.endDate.split('-').map(Number);
       const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-      
+
       const rule = new RRule({
         freq: RRule.WEEKLY,
+        interval: formData.repeats === "fortnightly" ? 2 : 1,
         byweekday: [dayMap[formData.day]],
         dtstart: startDate,
         until: endDate,
       });
-      
+
       rruleString = rule.toString();
-      console.log("Generated RRule:", rruleString);
     }
 
     // Keep datetime-local format (browser will send it as-is)
@@ -137,7 +139,7 @@ const LessonForm = ({
       repeats: formData.repeats,
       rrule: rruleString,
       // variant reflects the desired outcome (what the user picked), not the original
-      variant: (formData.repeats === "weekly" ? "recurring" : "single") as "recurring" | "single",
+      variant: (formData.repeats === "weekly" || formData.repeats === "fortnightly" ? "recurring" : "single") as "recurring" | "single",
       originalVariant: (relatedData?.variant || "single") as "recurring" | "single",
       ...(type === "update" && data?.id ? {
         id: data.id,
@@ -190,9 +192,9 @@ const LessonForm = ({
 
           {/* unified repeats UI */}
           <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats}
-            options={[{ value: "never", label: "Never" }, { value: "weekly", label: "Weekly" }]} />
+            options={[{ value: "never", label: "Never" }, { value: "weekly", label: "Weekly" }, { value: "fortnightly", label: "Fortnightly" }]} />
 
-          {repeatsValue === "weekly" && (
+          {(repeatsValue === "weekly" || repeatsValue === "fortnightly") && (
             <>
               <InputField label="On Day" name="day" type="select" register={register} error={errors?.day}
                 options={[
@@ -232,6 +234,3 @@ const LessonForm = ({
 };
 
 export default LessonForm;
-function actionFn(state: { success: boolean; error: boolean; message: string; }): { success: boolean; error: boolean; message: string; } | Promise<{ success: boolean; error: boolean; message: string; }> {
-  throw new Error("Function not implemented.");
-}
