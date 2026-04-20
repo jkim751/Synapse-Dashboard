@@ -96,7 +96,7 @@ const menuItems = [
       },
       {
         icon: "/setting.png",
-        label: "Pay Sheet",
+        label: "Pricing Sheet",
         href: "/list/paysheet",
         visible: ["admin", "director", "teacher-admin"],
       },
