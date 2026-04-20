@@ -17,6 +17,15 @@ const DAYS = [
   { label: "Sun", value: "SU" },
 ];
 
+function pastelColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
+  }
+  const hue = hash % 360;
+  return `hsl(${hue}, 55%, 72%)`;
+}
+
 type ScheduleRecord = {
   id: string;
   title: string;
@@ -61,7 +70,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
         description: s.description,
         type: "event" as const,
         scheduleId: s.id,
-        color: "#fed7aa",
+        color: s.type === "event" ? "#fed7aa" : pastelColor(s.id),
       });
       continue;
     }
@@ -84,7 +93,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
           description: s.description,
           type: "event" as const,
           scheduleId: s.id,
-          color: "#fed7aa",
+          color: s.type === "event" ? "#fed7aa" : pastelColor(s.id),
         });
       }
     } catch {
@@ -95,7 +104,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
         description: s.description,
         type: "event" as const,
         scheduleId: s.id,
-        color: "#fed7aa",
+        color: s.type === "event" ? "#fed7aa" : pastelColor(s.id),
       });
     }
   }
