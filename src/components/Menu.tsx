@@ -118,6 +118,12 @@ const menuItems = [
         visible: ["director"],
       },
       {
+        icon: "/note.png",
+        label: "Staff Reports",
+        href: "/list/reports",
+        visible: ["director"],
+      },
+      {
         icon: "/finance.png",
         label: "Payroll",
         href: "/list/payroll",

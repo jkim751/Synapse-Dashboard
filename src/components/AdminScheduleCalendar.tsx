@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import BigCalendar from "./BigCalender";
 import AddEventModal from "./AddEventModal";
 import DateTimeInput from "./ui/DateTimeInput";
+import { toSydneyString, toSydneyDatetimeLocal, sydneyLocalToUTC } from "@/lib/dateUtils";
 
 type ScheduleRecord = {
   id: string;
@@ -15,32 +16,13 @@ type ScheduleRecord = {
   rrule?: string | null;
 };
 
-const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
-
-function toSGTString(date: Date): string {
-  const sgt = new Date(date.getTime() + SGT_OFFSET_MS);
-  const y = sgt.getUTCFullYear();
-  const mo = String(sgt.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(sgt.getUTCDate()).padStart(2, "0");
-  const h = String(sgt.getUTCHours()).padStart(2, "0");
-  const mi = String(sgt.getUTCMinutes()).padStart(2, "0");
-  const s = String(sgt.getUTCSeconds()).padStart(2, "0");
-  return `${y}-${mo}-${d}T${h}:${mi}:${s}`;
-}
-
-function toSGTDatetimeLocal(isoString: string): string {
-  const sgt = new Date(new Date(isoString).getTime() + SGT_OFFSET_MS);
-  return sgt.toISOString().slice(0, 16);
-}
-
 function toCalendarEvent(s: ScheduleRecord) {
   return {
     title: s.title,
-    start: toSGTString(new Date(s.startTime)),
-    end: toSGTString(new Date(s.endTime)),
+    start: toSydneyString(new Date(s.startTime)),
+    end: toSydneyString(new Date(s.endTime)),
     description: s.description,
     type: "event" as const,
-    // store schedule ID so onEventClick can retrieve it
     scheduleId: s.id,
   };
 }
@@ -79,8 +61,8 @@ export default function AdminScheduleCalendar() {
     setEditTitle(schedule.title);
     setEditDescription(schedule.description);
     setEditType(schedule.type === "shift" ? "shift" : "event");
-    setEditStart(toSGTDatetimeLocal(schedule.startTime));
-    setEditEnd(toSGTDatetimeLocal(schedule.endTime));
+    setEditStart(toSydneyDatetimeLocal(schedule.startTime));
+    setEditEnd(toSydneyDatetimeLocal(schedule.endTime));
     setEditError(null);
     setDeleteConfirming(false);
   };
@@ -110,8 +92,8 @@ export default function AdminScheduleCalendar() {
         body: JSON.stringify({
           title: editTitle.trim(),
           description: editDescription.trim(),
-          startTime: editStart,
-          endTime: editEnd,
+          startTime: sydneyLocalToUTC(editStart),
+          endTime: sydneyLocalToUTC(editEnd),
           type: editType,
         }),
       });

@@ -440,6 +440,20 @@ model PayRate {
   @@map("pay_rates")
 }
 
+model StaffReport {
+  id          String   @id @default(cuid())
+  staffId     String
+  staffType   String
+  subject     String
+  content     String
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([staffId])
+  @@map("staff_reports")
+}
+
 model RecurringExpense {
   id          String   @id @default(cuid())
   description String

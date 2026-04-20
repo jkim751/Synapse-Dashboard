@@ -6,6 +6,7 @@ import DateTimeInput from "./ui/DateTimeInput";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { sydneyLocalToUTC } from "@/lib/dateUtils";
 
 const DAYS = [
   { label: "Mon", value: "MO" },
@@ -114,7 +115,12 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, rrule }),
+        body: JSON.stringify({
+          ...data,
+          startTime: sydneyLocalToUTC(data.startTime),
+          endTime: sydneyLocalToUTC(data.endTime),
+          rrule,
+        }),
       });
 
       if (!res.ok) {
