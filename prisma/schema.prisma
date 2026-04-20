@@ -121,6 +121,18 @@ model Subject {
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]
   teachers        Teacher[]         @relation("SubjectToTeacher")
+  subjectRate     SubjectRate?
+}
+
+model SubjectRate {
+  id         String   @id @default(cuid())
+  subjectId  Int      @unique
+  subject    Subject  @relation(fields: [subjectId], references: [id])
+  hourlyRate Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("subject_rates")
 }
 
 model Lesson {
