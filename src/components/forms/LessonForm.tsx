@@ -187,8 +187,8 @@ const LessonForm = ({
           <InputField label="Teacher" name="teacherId" type="select"
             options={teachers?.map((t: any) => ({ value: t.id, label: `${t.name} ${t.surname}` })) || []}
             register={register} error={errors?.teacherId} />
-          <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} />
-          <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime} />
+          <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} defaultValue={defaults.startTime} />
+          <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime}   defaultValue={defaults.endTime} />
 
           {/* unified repeats UI */}
           <InputField label="Repeats" name="repeats" type="select" register={register} error={errors?.repeats}

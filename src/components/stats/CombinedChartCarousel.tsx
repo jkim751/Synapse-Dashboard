@@ -36,6 +36,12 @@ interface Subject {
   name: string;
 }
 
+interface Teacher {
+  id: string;
+  name: string;
+  surname: string;
+}
+
 interface ConversionTrendData {
   month: string;
   conversions: number;
@@ -48,6 +54,7 @@ interface CombinedChartCarouselProps {
   conversionTrendData: ConversionTrendData[];
   grades: Grade[];
   subjects: Subject[];
+  teachers: Teacher[];
 }
 
 const CombinedChartCarousel = ({
@@ -57,6 +64,7 @@ const CombinedChartCarousel = ({
   conversionTrendData,
   grades,
   subjects,
+  teachers,
 }: CombinedChartCarouselProps) => {
   const [activeChart, setActiveChart] = useState(0);
 
@@ -74,7 +82,7 @@ const CombinedChartCarousel = ({
     {
       title: "Student Count Trends",
       subtitle: "Active students over time",
-      component: <StudentCountChart data={studentCountData} grades={grades} subjects={subjects} />
+      component: <StudentCountChart data={studentCountData} grades={grades} subjects={subjects} teachers={teachers} />
     },
     {
       title: "Trial Conversion Trend",

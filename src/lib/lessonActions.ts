@@ -29,7 +29,7 @@ export async function handleLessonFormSubmission(
     
     // For creation
     if (type === "create") {
-      if (payload.repeats === "weekly" && payload.rrule) {
+      if ((payload.repeats === "weekly" || payload.repeats === "fortnightly") && payload.rrule) {
         return await createRecurringLesson({
           name: payload.name,
           subjectId: Number(payload.subjectId),
@@ -54,7 +54,7 @@ export async function handleLessonFormSubmission(
     // For updates
     if (type === "update" && payload.id) {
       // Single lesson being converted to recurring
-      if (payload.originalVariant === "single" && payload.variant === "recurring" && payload.rrule) {
+      if (payload.originalVariant === "single" && payload.variant === "recurring" && (payload.repeats === "weekly" || payload.repeats === "fortnightly") && payload.rrule) {
         return await convertLessonToRecurring({
           lessonId: payload.id,
           name: payload.name,

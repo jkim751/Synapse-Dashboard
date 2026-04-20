@@ -10,7 +10,7 @@ interface StatsContainerProps {
 }
 
 const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
-  const { startDate, endDate, gradeId, subjectId } = searchParams;
+  const { startDate, endDate, gradeId, subjectId, teacherId } = searchParams;
 
   const dateFilter = {
     startDate: startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1),
@@ -25,10 +25,11 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
   const studentCountFilters = {
     ...filters,
     subjectId: subjectId ? parseInt(subjectId) : undefined,
+    teacherId: teacherId || undefined,
   };
 
   // Fetch all stats data and filter options
-  const [studentStats, paymentStats, enrollmentStats, studentCountStats, conversionTrend, grades, subjects] = await Promise.all([
+  const [studentStats, paymentStats, enrollmentStats, studentCountStats, conversionTrend, grades, subjects, teachers] = await Promise.all([
     getStudentStats(filters),
     getPaymentTypeStats(filters),
     getEnrollmentStats(filters),
@@ -41,7 +42,11 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
     prisma.subject.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, name: true }
-    })
+    }),
+    prisma.teacher.findMany({
+      orderBy: [{ name: 'asc' }, { surname: 'asc' }],
+      select: { id: true, name: true, surname: true }
+    }),
   ]);
 
   return (
@@ -68,6 +73,7 @@ const StatsContainer = async ({ searchParams }: StatsContainerProps) => {
         conversionTrendData={conversionTrend}
         grades={grades}
         subjects={subjects}
+        teachers={teachers}
       />
 
        {/* Summary Cards */}

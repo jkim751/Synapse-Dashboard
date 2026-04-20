@@ -21,27 +21,38 @@ interface Subject {
   name: string;
 }
 
+interface Teacher {
+  id: string;
+  name: string;
+  surname: string;
+}
+
 interface StudentCountChartProps {
   data: StudentCountData[];
   grades: Grade[];
   subjects: Subject[];
+  teachers: Teacher[];
 }
 
-const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) => {
+const StudentCountChart = ({ data, grades, subjects, teachers }: StudentCountChartProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState(searchParams.get("gradeId") || "");
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get("subjectId") || "");
+  const [selectedTeacher, setSelectedTeacher] = useState(searchParams.get("teacherId") || "");
 
   const applyFilters = () => {
     const params = new URLSearchParams(searchParams);
-    
+
     if (selectedGrade) params.set("gradeId", selectedGrade);
     else params.delete("gradeId");
-    
+
     if (selectedSubject) params.set("subjectId", selectedSubject);
     else params.delete("subjectId");
+
+    if (selectedTeacher) params.set("teacherId", selectedTeacher);
+    else params.delete("teacherId");
 
     router.push(`/list/stats?${params.toString()}`);
   };
@@ -49,13 +60,15 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
   const clearFilters = () => {
     setSelectedGrade("");
     setSelectedSubject("");
+    setSelectedTeacher("");
     const params = new URLSearchParams(searchParams);
     params.delete("gradeId");
     params.delete("subjectId");
+    params.delete("teacherId");
     router.push(`/list/stats?${params.toString()}`);
   };
 
-  const hasActiveFilters = selectedGrade || selectedSubject;
+  const hasActiveFilters = selectedGrade || selectedSubject || selectedTeacher;
 
   if (data.length === 0) {
     return (
@@ -83,7 +96,7 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
           Filters
           {hasActiveFilters && (
             <span className="bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-              {(selectedGrade ? 1 : 0) + (selectedSubject ? 1 : 0)}
+              {(selectedGrade ? 1 : 0) + (selectedSubject ? 1 : 0) + (selectedTeacher ? 1 : 0)}
             </span>
           )}
         </button>
@@ -120,6 +133,19 @@ const StudentCountChart = ({ data, grades, subjects }: StudentCountChartProps) =
                 ))}
               </select>
             </div>
+
+            <select
+              value={selectedTeacher}
+              onChange={(e) => setSelectedTeacher(e.target.value)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+            >
+              <option value="">All Teachers</option>
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.name} {teacher.surname}
+                </option>
+              ))}
+            </select>
 
             <div className="flex gap-2 justify-end">
               <button

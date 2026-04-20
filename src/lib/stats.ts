@@ -9,6 +9,7 @@ interface DateFilter {
 
 interface StudentCountFilter extends DateFilter {
   subjectId?: number;
+  teacherId?: string;
 }
 
 export async function getTrialConversionRate(filters: DateFilter) {
@@ -235,7 +236,7 @@ export async function getEnrollmentStats(filters: DateFilter) {
 }
 
 export async function getStudentCountTrends(filters: StudentCountFilter) {
-  const { startDate, endDate, gradeId, subjectId } = filters;
+  const { startDate, endDate, gradeId, subjectId, teacherId } = filters;
 
   // Generate monthly data between start and end dates
   const months: StudentCountData[] = [];
@@ -276,6 +277,19 @@ export async function getStudentCountTrends(filters: StudentCountFilter) {
                   },
                 },
               },
+            ],
+          },
+        },
+      };
+    }
+
+    if (teacherId) {
+      baseWhere.classes = {
+        some: {
+          class: {
+            OR: [
+              { lessons: { some: { teacherId } } },
+              { RecurringLesson: { some: { teacherId } } },
             ],
           },
         },

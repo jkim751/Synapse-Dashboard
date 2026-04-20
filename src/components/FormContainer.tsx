@@ -158,7 +158,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           getAllTeachers(),
           getAllTeacherAdmins(),
         ]);
-        const allTeachers = [...teachers, ...teacherAdmins];
+        const teacherAdminIds = new Set(teacherAdmins.map((ta) => ta.id));
+        const allTeachers = [...teachers.filter((t) => !teacherAdminIds.has(t.id)), ...teacherAdmins];
 
         // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
         if (type === "update" && id && !data?.id) {
@@ -184,7 +185,8 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
           getAllTeachers(),
           getAllTeacherAdmins(),
         ]);
-        const allTeachers = [...teachers, ...teacherAdmins];
+        const teacherAdminIds = new Set(teacherAdmins.map((ta) => ta.id));
+        const allTeachers = [...teachers.filter((t) => !teacherAdminIds.has(t.id)), ...teacherAdmins];
 
         // Skip fetch if data was already passed (e.g. from list page) to avoid per-row findUnique
         if (type === "update" && id && !data?.id) {
