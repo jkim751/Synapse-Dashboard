@@ -19,8 +19,10 @@ const ReportsPage = async () => {
     }) as Promise<{ id: string; name: string; surname: string; img: string | null; role: string }[]>,
   ]);
 
+  const teacherAdminIds = new Set(admins.filter(a => a.role === 'teacher-admin').map(a => a.id));
+
   const staff = [
-    ...teachers.map(t => ({ ...t, staffType: 'teacher' as const })),
+    ...teachers.filter(t => !teacherAdminIds.has(t.id)).map(t => ({ ...t, staffType: 'teacher' as const })),
     ...admins.map(a => ({ ...a, staffType: a.role === 'teacher-admin' ? 'teacher-admin' as const : 'admin' as const })),
   ].sort((a, b) => a.name.localeCompare(b.name));
 

@@ -7,6 +7,16 @@ import DateTimeInput from "./ui/DateTimeInput";
 import { toSydneyString, toSydneyDatetimeLocal, sydneyLocalToUTC } from "@/lib/dateUtils";
 import { RRule } from "rrule";
 
+const DAYS = [
+  { label: "Mon", value: "MO" },
+  { label: "Tue", value: "TU" },
+  { label: "Wed", value: "WE" },
+  { label: "Thu", value: "TH" },
+  { label: "Fri", value: "FR" },
+  { label: "Sat", value: "SA" },
+  { label: "Sun", value: "SU" },
+];
+
 type ScheduleRecord = {
   id: string;
   title: string;
@@ -40,8 +50,16 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
     const templateStart = new Date(s.startTime);
     const templateEnd = new Date(s.endTime);
     const durationMs = templateEnd.getTime() - templateStart.getTime();
-    const templateH = templateStart.getUTCHours();
-    const templateM = templateStart.getUTCMinutes();
+
+    // Convert template start to Sydney local to get the correct day/time anchor.
+    // Using Sydney local (no Z = floating) means BYDAY days are interpreted in
+    // Sydney time rather than UTC, avoiding the day-shift bug.
+    const sydneyStr = toSydneyString(templateStart); // "YYYY-MM-DDTHH:MM:SS"
+    const sydneyYear = sydneyStr.slice(0, 4);
+    const sydneyMonth = sydneyStr.slice(5, 7);
+    const sydneyDay = sydneyStr.slice(8, 10);
+    const sydneyH = parseInt(sydneyStr.slice(11, 13));
+    const sydneyM = parseInt(sydneyStr.slice(14, 16));
 
     if (!s.rrule) {
       events.push({
@@ -57,12 +75,15 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
     }
 
     try {
-      const dtstart = `${templateStart.getUTCFullYear()}${pad(templateStart.getUTCMonth() + 1)}${pad(templateStart.getUTCDate())}T${pad(templateH)}${pad(templateM)}00Z`;
+      // No Z suffix = floating time; BYDAY days align with Sydney local calendar
+      const dtstart = `${sydneyYear}${sydneyMonth}${sydneyDay}T${pad(sydneyH)}${pad(sydneyM)}00`;
       const rule = RRule.fromString(`DTSTART:${dtstart}\n${s.rrule}`);
       const occurrences = rule.between(windowStart, windowEnd, true);
 
       for (const occ of occurrences) {
-        const start = new Date(Date.UTC(occ.getFullYear(), occ.getMonth(), occ.getDate(), templateH, templateM));
+        // In floating mode, occ's UTC getters hold the Sydney local date values
+        const occDateStr = `${occ.getUTCFullYear()}-${pad(occ.getUTCMonth() + 1)}-${pad(occ.getUTCDate())}T${pad(sydneyH)}:${pad(sydneyM)}`;
+        const start = new Date(sydneyLocalToUTC(occDateStr));
         const end = new Date(start.getTime() + durationMs);
         events.push({
           title: s.title,
@@ -75,7 +96,6 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
         });
       }
     } catch {
-      // Fallback: show just the first occurrence
       events.push({
         title: s.title,
         start: toSydneyString(templateStart),
@@ -89,6 +109,43 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
   }
 
   return events;
+}
+
+function buildRRule(freq: "WEEKLY" | "DAILY", days: string[], until: string): string {
+  const parts: string[] = [`FREQ=${freq}`];
+  if (freq === "WEEKLY" && days.length > 0) {
+    parts.push(`BYDAY=${days.join(",")}`);
+  }
+  if (until) {
+    const d = new Date(until + "T23:59:59Z");
+    if (!isNaN(d.getTime())) {
+      const pad = (n: number) => String(n).padStart(2, "0");
+      parts.push(`UNTIL=${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T235959Z`);
+    }
+  }
+  return `RRULE:${parts.join(";")}`;
+}
+
+function parseRRule(rrule: string | null | undefined): {
+  recurring: boolean;
+  freq: "WEEKLY" | "DAILY";
+  days: string[];
+  until: string;
+} {
+  if (!rrule) return { recurring: false, freq: "WEEKLY", days: [], until: "" };
+
+  const freqMatch = rrule.match(/FREQ=(WEEKLY|DAILY)/);
+  const freq = (freqMatch?.[1] ?? "WEEKLY") as "WEEKLY" | "DAILY";
+
+  const bydayMatch = rrule.match(/BYDAY=([^;]+)/);
+  const days = bydayMatch ? bydayMatch[1].split(",") : [];
+
+  const untilMatch = rrule.match(/UNTIL=(\d{8})/);
+  const until = untilMatch
+    ? `${untilMatch[1].slice(0, 4)}-${untilMatch[1].slice(4, 6)}-${untilMatch[1].slice(6, 8)}`
+    : "";
+
+  return { recurring: true, freq, days, until };
 }
 
 export default function AdminScheduleCalendar() {
@@ -105,6 +162,12 @@ export default function AdminScheduleCalendar() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
+
+  // Recurrence edit state
+  const [editRecurring, setEditRecurring] = useState(false);
+  const [editFreq, setEditFreq] = useState<"WEEKLY" | "DAILY">("WEEKLY");
+  const [editDays, setEditDays] = useState<string[]>([]);
+  const [editUntil, setEditUntil] = useState("");
 
   const fetchSchedules = useCallback(async () => {
     const res = await fetch("/api/events");
@@ -129,12 +192,24 @@ export default function AdminScheduleCalendar() {
     setEditEnd(toSydneyDatetimeLocal(schedule.endTime));
     setEditError(null);
     setDeleteConfirming(false);
+
+    const parsed = parseRRule(schedule.rrule);
+    setEditRecurring(parsed.recurring);
+    setEditFreq(parsed.freq);
+    setEditDays(parsed.days);
+    setEditUntil(parsed.until);
   };
 
   const closeEdit = () => {
     setEditingSchedule(null);
     setDeleteConfirming(false);
     setEditError(null);
+  };
+
+  const toggleEditDay = (day: string) => {
+    setEditDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
   };
 
   const handleUpdate = async () => {
@@ -147,8 +222,25 @@ export default function AdminScheduleCalendar() {
       setEditError("End time must be after start time");
       return;
     }
+    if (editType === "shift" && editRecurring) {
+      if (editFreq === "WEEKLY" && editDays.length === 0) {
+        setEditError("Select at least one day for weekly recurrence");
+        return;
+      }
+      if (!editUntil) {
+        setEditError("An end date is required for recurring shifts");
+        return;
+      }
+    }
+
     setEditSubmitting(true);
     setEditError(null);
+
+    const rrule =
+      editType === "shift" && editRecurring
+        ? buildRRule(editFreq, editDays, editUntil)
+        : null;
+
     try {
       const res = await fetch(`/api/events/${editingSchedule.id}`, {
         method: "PUT",
@@ -159,6 +251,7 @@ export default function AdminScheduleCalendar() {
           startTime: sydneyLocalToUTC(editStart),
           endTime: sydneyLocalToUTC(editEnd),
           type: editType,
+          rrule,
         }),
       });
       if (!res.ok) {
@@ -219,7 +312,10 @@ export default function AdminScheduleCalendar() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setEditType(t)}
+                  onClick={() => {
+                    setEditType(t);
+                    if (t !== "shift") setEditRecurring(false);
+                  }}
                   className={`flex-1 py-1.5 text-sm font-medium rounded-xl transition-colors ${
                     editType === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -255,7 +351,9 @@ export default function AdminScheduleCalendar() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {editType === "shift" && editRecurring ? "First occurrence" : "Start"}
+                  </label>
                   <DateTimeInput value={editStart} onChange={setEditStart} />
                 </div>
                 <div>
@@ -263,6 +361,83 @@ export default function AdminScheduleCalendar() {
                   <DateTimeInput value={editEnd} onChange={setEditEnd} />
                 </div>
               </div>
+
+              {/* Recurrence — shifts only */}
+              {editType === "shift" && (
+                <div className="border border-gray-200 rounded-xl p-4 space-y-4">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={editRecurring}
+                      onChange={(e) => setEditRecurring(e.target.checked)}
+                      className="w-4 h-4 accent-orange-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Repeating shift</span>
+                  </label>
+
+                  {editRecurring && (
+                    <div className="space-y-4">
+                      {/* Frequency */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Repeats</label>
+                        <div className="flex bg-gray-100 rounded-xl p-1">
+                          {(["WEEKLY", "DAILY"] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => {
+                                setEditFreq(f);
+                                if (f === "DAILY") setEditDays([]);
+                              }}
+                              className={`flex-1 py-1.5 text-sm font-medium rounded-xl transition-colors ${
+                                editFreq === f
+                                  ? "bg-white text-gray-900 shadow-sm"
+                                  : "text-gray-500 hover:text-gray-700"
+                              }`}
+                            >
+                              {f === "WEEKLY" ? "Weekly" : "Daily"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Days of week */}
+                      {editFreq === "WEEKLY" && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">On these days</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {DAYS.map(({ label, value }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => toggleEditDay(value)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                                  editDays.includes(value)
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Until */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Repeat until</label>
+                        <input
+                          type="date"
+                          value={editUntil}
+                          onChange={(e) => setEditUntil(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {editError && <p className="text-red-500 text-sm">{editError}</p>}
 
