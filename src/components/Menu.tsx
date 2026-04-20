@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const menuItems = [
   {
@@ -14,30 +15,6 @@ const menuItems = [
         label: "Home",
         href: "/",
         visible: ["admin", "director", "teacher-admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/admin.png",
-        label: "Admins",
-        href: "/list/admins",
-        visible: ["admin", "director", "teacher-admin"],
-      },
-      {
-        icon: "/teacher.png",
-        label: "Teachers",
-        href: "/list/teachers",
-        visible: ["admin", "director", "teacher-admin"],
-      },
-      {
-        icon: "/student.png",
-        label: "Students",
-        href: "/list/students",
-        visible: ["admin", "director", "teacher", "teacher-admin"],
-      },
-      {
-        icon: "/parent.png",
-        label: "Parents",
-        href: "/list/parents",
-        visible: ["admin", "director", "teacher-admin"],
       },
       {
         icon: "/stats.png",
@@ -139,7 +116,7 @@ const menuItems = [
         icon: "/calendar.png",
         label: "Events",
         href: "/list/events",
-        visible: ["admin", "director", "teacher-admin"],
+        visible: [],
       },
       {
         icon: "/announcement.png",
@@ -151,11 +128,22 @@ const menuItems = [
   },
 ];
 
+const accountItems = [
+  { icon: "/admin.png", label: "Admins", href: "/list/admins", visible: ["admin", "director", "teacher-admin"] },
+  { icon: "/teacher.png", label: "Teachers", href: "/list/teachers", visible: ["admin", "director", "teacher-admin"] },
+  { icon: "/student.png", label: "Students", href: "/list/students", visible: ["admin", "director", "teacher", "teacher-admin"] },
+  { icon: "/parent.png", label: "Parents", href: "/list/parents", visible: ["admin", "director", "teacher-admin"] },
+];
+
 const Menu = () => {
   const { user } = useUser();
   const role = user?.publicMetadata?.role as string;
   const pathname = usePathname();
-  
+  const [accountsOpen, setAccountsOpen] = useState(false);
+
+  const visibleAccountItems = accountItems.filter((item) => item.visible.includes(role));
+  const isAccountsActive = accountItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
@@ -163,21 +151,56 @@ const Menu = () => {
           <span className="hidden lg:block text-gray-400 font-light my-4">
             {i.title}
           </span>
+
           {i.items.map((item) => {
-            if (item.visible.includes(role)) {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-              return (
+            if (!item.visible.includes(role)) return null;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <div key={item.label}>
                 <Link
                   href={item.href}
-                  key={item.label}
-                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
-                    isActive ? 'bg-orange-100' : ''
-                  }`}                >
+                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${isActive ? 'bg-orange-100' : ''}`}
+                >
                   <Image src={item.icon} alt="" width={20} height={20} />
                   <span className="hidden lg:block">{item.label}</span>
-                </Link> 
-              );
-            }
+                </Link>
+                {item.href === '/' && visibleAccountItems.length > 0 && (
+                  <div key="accounts-dropdown">
+                    <button
+                      onClick={() => setAccountsOpen((o) => !o)}
+                      className={`w-full flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
+                        isAccountsActive ? 'bg-orange-100' : ''
+                      }`}
+                    >
+                      <Image src="/admin.png" alt="" width={20} height={20} />
+                      <span className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-between">
+                        Accounts
+                        <span className="mr-1 text-xs">{accountsOpen ? '▴' : '▾'}</span>
+                      </span>
+                    </button>
+                    {accountsOpen && (
+                      <div className="flex flex-col gap-1 ml-0 lg:ml-4 mt-1">
+                        {visibleAccountItems.map((acc) => {
+                          const accActive = pathname === acc.href || pathname.startsWith(acc.href + '/');
+                          return (
+                            <Link
+                              href={acc.href}
+                              key={acc.label}
+                              className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
+                                accActive ? 'bg-orange-100' : ''
+                              }`}
+                            >
+                              <Image src={acc.icon} alt="" width={20} height={20} />
+                              <span className="hidden lg:block">{acc.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
           })}
         </div>
       ))}
