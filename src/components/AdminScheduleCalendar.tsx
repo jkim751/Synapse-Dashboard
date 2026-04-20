@@ -27,14 +27,6 @@ type ScheduleRecord = {
   rrule?: string | null;
 };
 
-function pastelColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
-  }
-  const hue = hash % 360;
-  return `hsl(${hue}, 55%, 72%)`;
-}
 
 function expandSchedules(schedules: ScheduleRecord[]): any[] {
   const now = new Date();
@@ -69,7 +61,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
         description: s.description,
         type: "event" as const,
         scheduleId: s.id,
-        color: pastelColor(s.id),
+        color: "#fed7aa",
       });
       continue;
     }
@@ -92,7 +84,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
           description: s.description,
           type: "event" as const,
           scheduleId: s.id,
-          color: pastelColor(s.id),
+          color: "#fed7aa",
         });
       }
     } catch {
@@ -103,7 +95,7 @@ function expandSchedules(schedules: ScheduleRecord[]): any[] {
         description: s.description,
         type: "event" as const,
         scheduleId: s.id,
-        color: pastelColor(s.id),
+        color: "#fed7aa",
       });
     }
   }
