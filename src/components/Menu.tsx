@@ -100,19 +100,19 @@ const menuItems = [
         visible: ["parent"],
       },
       {
-        icon: "/finance.png",
+        icon: "/xero.png",
         label: "Xero Dashboard",
         href: "/list/xero",
         visible: ["admin", "director", "teacher-admin"],
       },
       {
-        icon: "/finance.png",
+        icon: "/expenses.png",
         label: "Expenses",
         href: "/list/expenses",
         visible: [ "director"],
       },
       {
-        icon: "/setting.png",
+        icon: "/payrates.png",
         label: "Pay Rates",
         href: "/list/pay",
         visible: ["director"],
@@ -124,7 +124,7 @@ const menuItems = [
         visible: ["admin", "director", "teacher-admin"],
       },
       {
-        icon: "/note.png",
+        icon: "/reports.png",
         label: "Staff Reports",
         href: "/list/reports",
         visible: ["director"],

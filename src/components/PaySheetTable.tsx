@@ -62,13 +62,22 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
           <tr className="text-left text-gray-500 border-b border-gray-100">
             <th className="pb-3 font-medium">Subject</th>
             <th className="pb-3 font-medium w-48">Hourly Rate ($)</th>
+            <th className="pb-3 font-medium w-48 text-gray-400">Per Term <span className="text-xs font-normal">(10 wks)</span></th>
+            <th className="pb-3 font-medium w-40 text-gray-400">GST <span className="text-xs font-normal">(10%)</span></th>
+            <th className="pb-3 font-medium w-48 text-gray-400">Inc. GST</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const draftVal = drafts[row.id] !== undefined ? parseFloat(drafts[row.id]) : null;
+            const effectiveRate = draftVal !== null && !isNaN(draftVal) ? draftVal : row.hourlyRate;
+            const termRate = effectiveRate !== null ? effectiveRate * 10 : null;
+            const gst = termRate !== null ? termRate * 0.1 : null;
+            const incGst = termRate !== null ? termRate * 1.1 : null;
+            return (
             <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
               <td className="py-3 pr-4 font-medium text-gray-800">{row.name}</td>
-              <td className="py-2">
+              <td className="py-2 pr-4">
                 <div className="relative w-36">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                   <input
@@ -89,8 +98,18 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
                   )}
                 </div>
               </td>
+              <td className="py-3 pr-4 text-gray-500">
+                {termRate !== null ? `$${termRate.toFixed(2)}` : <span className="text-gray-300">—</span>}
+              </td>
+              <td className="py-3 pr-4 text-gray-500">
+                {gst !== null ? `$${gst.toFixed(2)}` : <span className="text-gray-300">—</span>}
+              </td>
+              <td className="py-3 font-medium text-gray-800">
+                {incGst !== null ? `$${incGst.toFixed(2)}` : <span className="text-gray-300 font-normal">—</span>}
+              </td>
             </tr>
-          ))}
+            );
+          })}
           {rows.length === 0 && (
             <tr>
               <td colSpan={2} className="py-8 text-center text-gray-400">
