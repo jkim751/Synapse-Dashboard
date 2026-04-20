@@ -19,6 +19,7 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [showAddRow, setShowAddRow] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const draftKey = (id: number, type: "private" | "group"): DraftKey => `${id}-${type}`;
 
@@ -74,20 +75,23 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
     const name = newName.trim();
     if (!name) return;
     setAdding(true);
+    setAddError("");
     try {
       const res = await fetch("/api/paysheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
+      const json = await res.json();
       if (res.ok) {
-        const subject = await res.json();
         setRows((prev) =>
-          [...prev, { id: subject.id, name: subject.name, privateRate: null, groupRate: null }]
+          [...prev, { id: json.id, name: json.name, privateRate: null, groupRate: null }]
             .sort((a, b) => a.name.localeCompare(b.name))
         );
         setNewName("");
         setShowAddRow(false);
+      } else {
+        setAddError(json.error ?? "Failed to add subject");
       }
     } finally {
       setAdding(false);
@@ -142,11 +146,12 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
             {adding ? "Adding…" : "Save"}
           </button>
           <button
-            onClick={() => { setShowAddRow(false); setNewName(""); }}
+            onClick={() => { setShowAddRow(false); setNewName(""); setAddError(""); }}
             className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm"
           >
             Cancel
           </button>
+          {addError && <p className="mt-1.5 text-sm text-red-500">{addError}</p>}
         </div>
       )}
 

@@ -33,6 +33,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
 
+  // Subject name is unique — if it already exists, just attach a SubjectRate to it
+  const existing = await prisma.subject.findUnique({ where: { name: name.trim() } });
+
+  if (existing) {
+    const alreadyHasRate = await prisma.subjectRate.findUnique({ where: { subjectId: existing.id } });
+    if (alreadyHasRate) {
+      return NextResponse.json({ error: "Subject already exists on pay sheet" }, { status: 409 });
+    }
+    await prisma.subjectRate.create({ data: { subjectId: existing.id } });
+    return NextResponse.json({ id: existing.id, name: existing.name, subjectRate: null }, { status: 201 });
+  }
+
   const subject = await prisma.subject.create({
     data: {
       name: name.trim(),
@@ -41,7 +53,7 @@ export async function POST(req: NextRequest) {
     select: {
       id: true,
       name: true,
-      subjectRate: { select: { hourlyRate: true, privateRate: true, groupRate: true } },
+      subjectRate: { select: { privateRate: true, groupRate: true } },
     },
   });
 
