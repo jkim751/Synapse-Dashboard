@@ -36,7 +36,7 @@ export default function ExpensesShell({ role }: { role: string }) {
       {/* Content */}
       <div className="p-6">
         {tab === "one-off" && <ExpensesTable />}
-        {tab === "recurring" && role === "director" && <RecurringExpensesTable />}
+        {tab === "recurring" && role === "director" && <RecurringExpensesTable isDirector />}
       </div>
     </div>
   );

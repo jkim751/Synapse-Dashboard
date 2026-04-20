@@ -440,6 +440,18 @@ model PayRate {
   @@map("pay_rates")
 }
 
+model RecurringExpense {
+  id          String   @id @default(cuid())
+  description String
+  price       Float
+  frequency   String
+  nextDate    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("recurring_expenses")
+}
+
 model Schedule {
   id          String   @id @default(cuid())
   title       String

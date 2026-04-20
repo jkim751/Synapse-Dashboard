@@ -1,15 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Frequency = "weekly" | "fortnightly" | "monthly" | "quarterly" | "annually";
 
 type RecurringExpense = {
   id: string;
   description: string;
+  price: number;
+  frequency: string;
+  nextDate: string | null;
+};
+
+type PendingRow = {
+  id: string; // temp client id
+  description: string;
   price: string;
   frequency: Frequency;
   nextDate: string;
+  saving: boolean;
 };
 
 const FREQUENCIES: { value: Frequency; label: string }[] = [
@@ -20,7 +29,7 @@ const FREQUENCIES: { value: Frequency; label: string }[] = [
   { value: "annually", label: "Annually" },
 ];
 
-const monthlyEquivalent: Record<Frequency, number> = {
+const monthlyEquivalent: Record<string, number> = {
   weekly: 52 / 12,
   fortnightly: 26 / 12,
   monthly: 1,
@@ -28,35 +37,85 @@ const monthlyEquivalent: Record<Frequency, number> = {
   annually: 1 / 12,
 };
 
-const emptyRow = (): RecurringExpense => ({
-  id: crypto.randomUUID(),
-  description: "",
-  price: "",
-  frequency: "monthly",
-  nextDate: new Date().toISOString().split("T")[0],
-});
+export default function RecurringExpensesTable({ isDirector }: { isDirector?: boolean }) {
+  const [rows, setRows] = useState<RecurringExpense[]>([]);
+  const [pending, setPending] = useState<PendingRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-export default function RecurringExpensesTable() {
-  const [rows, setRows] = useState<RecurringExpense[]>([emptyRow()]);
+  useEffect(() => {
+    fetch('/api/expenses/recurring')
+      .then(r => r.json())
+      .then(data => setRows(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const update = (id: string, field: keyof RecurringExpense, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
+  const saveField = (id: string, field: string, value: string) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const body: Record<string, string | number> = { [field]: field === 'price' ? parseFloat(value) || 0 : value };
+      await fetch(`/api/expenses/recurring/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }, 600);
   };
 
-  const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+  const updateRow = (id: string, field: keyof RecurringExpense, value: string) => {
+    setRows(prev =>
+      prev.map(r => r.id === id ? { ...r, [field]: field === 'price' ? parseFloat(value) || 0 : value } : r)
+    );
+    saveField(id, field, value);
+  };
 
-  const deleteRow = (id: string) =>
-    setRows((prev) => prev.filter((row) => row.id !== id));
+  const deleteRow = async (id: string) => {
+    setRows(prev => prev.filter(r => r.id !== id));
+    await fetch(`/api/expenses/recurring/${id}`, { method: 'DELETE' });
+  };
 
-  const monthlyTotal = rows.reduce((sum, row) => {
-    const val = parseFloat(row.price);
-    if (isNaN(val)) return sum;
-    return sum + val * monthlyEquivalent[row.frequency];
+  const addRow = () => {
+    setPending({
+      id: crypto.randomUUID(),
+      description: '',
+      price: '',
+      frequency: 'monthly',
+      nextDate: '',
+      saving: false,
+    });
+  };
+
+  const savePending = async () => {
+    if (!pending || !pending.description.trim()) return;
+    setPending(p => p ? { ...p, saving: true } : null);
+    const res = await fetch('/api/expenses/recurring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: pending.description,
+        price: parseFloat(pending.price) || 0,
+        frequency: pending.frequency,
+        nextDate: pending.nextDate || null,
+      }),
+    });
+    if (res.ok) {
+      const saved = await res.json();
+      setRows(prev => [...prev, saved]);
+      setPending(null);
+    }
+  };
+
+  const allRows = [
+    ...rows.map(r => ({ price: r.price, frequency: r.frequency })),
+    ...(pending ? [{ price: parseFloat(pending.price) || 0, frequency: pending.frequency }] : []),
+  ];
+
+  const monthlyTotal = allRows.reduce((sum, r) => {
+    return sum + (Number(r.price) || 0) * (monthlyEquivalent[r.frequency] ?? 1);
   }, 0);
-
   const annualTotal = monthlyTotal * 12;
+
+  if (loading) return <p className="text-sm text-gray-400">Loading…</p>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -67,20 +126,21 @@ export default function RecurringExpensesTable() {
               <th className="px-4 py-3 text-left font-medium w-[38%]">Expense</th>
               <th className="px-4 py-3 text-left font-medium w-[18%]">Price</th>
               <th className="px-4 py-3 text-left font-medium w-[18%]">Frequency</th>
-              <th className="px-4 py-3 text-left font-medium w-[18%]">Paymnent Date</th>
+              <th className="px-4 py-3 text-left font-medium w-[18%]">Payment Date</th>
               <th className="px-4 py-3 w-[8%]" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {rows.map((row) => (
+            {rows.map(row => (
               <tr key={row.id} className="group hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-2">
                   <input
                     type="text"
-                    value={row.description}
-                    onChange={(e) => update(row.id, "description", e.target.value)}
+                    defaultValue={row.description}
+                    onBlur={e => updateRow(row.id, 'description', e.target.value)}
                     placeholder="Enter expense description"
-                    className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700 focus:ring-0"
+                    className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700"
+                    disabled={!isDirector}
                   />
                 </td>
                 <td className="px-4 py-2">
@@ -88,47 +148,114 @@ export default function RecurringExpensesTable() {
                     <span className="text-gray-400">$</span>
                     <input
                       type="number"
-                      value={row.price}
-                      onChange={(e) => update(row.id, "price", e.target.value)}
+                      defaultValue={row.price}
+                      onBlur={e => updateRow(row.id, 'price', e.target.value)}
                       placeholder="0.00"
                       min="0"
                       step="0.01"
-                      className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700 focus:ring-0"
+                      className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700"
+                      disabled={!isDirector}
                     />
                   </div>
                 </td>
                 <td className="px-4 py-2">
                   <select
                     value={row.frequency}
-                    onChange={(e) => update(row.id, "frequency", e.target.value)}
-                    className="w-full bg-transparent outline-none text-gray-700 cursor-pointer"
+                    onChange={e => updateRow(row.id, 'frequency', e.target.value)}
+                    className="w-full bg-transparent outline-none text-gray-700 cursor-pointer disabled:cursor-default"
+                    disabled={!isDirector}
                   >
-                    {FREQUENCIES.map((f) => (
-                      <option key={f.value} value={f.value}>
-                        {f.label}
-                      </option>
+                    {FREQUENCIES.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
                     ))}
                   </select>
                 </td>
                 <td className="px-4 py-2">
                   <input
                     type="date"
-                    value={row.nextDate}
-                    onChange={(e) => update(row.id, "nextDate", e.target.value)}
-                    className="w-full bg-transparent outline-none text-gray-700 focus:ring-0"
+                    defaultValue={row.nextDate ?? ''}
+                    onBlur={e => updateRow(row.id, 'nextDate', e.target.value)}
+                    className="w-full bg-transparent outline-none text-gray-700"
+                    disabled={!isDirector}
                   />
                 </td>
                 <td className="px-4 py-2 text-center">
+                  {isDirector && (
+                    <button
+                      onClick={() => deleteRow(row.id)}
+                      className="text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+
+            {/* Pending new row */}
+            {pending && (
+              <tr className="bg-orange-50">
+                <td className="px-4 py-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={pending.description}
+                    onChange={e => setPending(p => p ? { ...p, description: e.target.value } : null)}
+                    placeholder="Enter expense description"
+                    className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-400">$</span>
+                    <input
+                      type="number"
+                      value={pending.price}
+                      onChange={e => setPending(p => p ? { ...p, price: e.target.value } : null)}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full bg-transparent outline-none placeholder-gray-300 text-gray-700"
+                    />
+                  </div>
+                </td>
+                <td className="px-4 py-2">
+                  <select
+                    value={pending.frequency}
+                    onChange={e => setPending(p => p ? { ...p, frequency: e.target.value as Frequency } : null)}
+                    className="w-full bg-transparent outline-none text-gray-700 cursor-pointer"
+                  >
+                    {FREQUENCIES.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    type="date"
+                    value={pending.nextDate}
+                    onChange={e => setPending(p => p ? { ...p, nextDate: e.target.value } : null)}
+                    className="w-full bg-transparent outline-none text-gray-700"
+                  />
+                </td>
+                <td className="px-4 py-2 flex items-center justify-center gap-2 pt-3">
                   <button
-                    onClick={() => deleteRow(row.id)}
-                    className="text-gray-400 hover:text-red-400 transition-colors"
-                    title="Remove row"
+                    onClick={savePending}
+                    disabled={pending.saving || !pending.description.trim()}
+                    className="text-xs px-2 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setPending(null)}
+                    className="text-xs text-gray-400 hover:text-gray-600"
                   >
                     ✕
                   </button>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
           <tfoot>
             <tr className="bg-gray-50 border-t-2 border-gray-300 font-semibold text-gray-700">
@@ -151,7 +278,7 @@ export default function RecurringExpensesTable() {
         </table>
       </div>
 
-      <div>
+      {isDirector && !pending && (
         <button
           onClick={addRow}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#FC7118] transition-colors py-1 px-2 rounded-lg hover:bg-orange-50"
@@ -159,7 +286,7 @@ export default function RecurringExpensesTable() {
           <span className="text-lg leading-none">+</span>
           Add row
         </button>
-      </div>
+      )}
     </div>
   );
 }

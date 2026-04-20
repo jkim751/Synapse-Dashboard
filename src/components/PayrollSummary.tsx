@@ -63,35 +63,21 @@ export default function PayrollSummary({
     load();
   }, [teacher, targetId, personType]);
 
-  const download = (payslipId: string) => {
-    window.open(`/api/xero/payroll/download?payslipId=${payslipId}`, "_blank");
-  };
-
   if (loading) return <p className="text-sm text-gray-500">Loading payslips…</p>;
   if (error) return <p className="text-sm text-red-500">Error: {error}</p>;
   if (payslips.length === 0) return <p className="text-sm text-gray-400">No payslips found in Xero.</p>;
 
   return (
     <div className="divide-y divide-gray-100">
-      {payslips.map((p) => {
-        return (
-          <div key={p.payslipId} className="flex items-center justify-between py-3 gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">{fmtPeriod(p.payPeriodStart, p.payPeriodEnd)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Gross {fmt(p.wages)} · Net {fmt(p.netPay)}</p>
-            </div>
-            <button
-              onClick={() => download(p.payslipId)}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              View
-            </button>
+      {payslips.map((p) => (
+        <div key={p.payslipId} className="flex items-center justify-between py-3 gap-4">
+          <p className="text-sm font-medium text-gray-700">{fmtPeriod(p.payPeriodStart, p.payPeriodEnd)}</p>
+          <div className="flex gap-4 text-sm text-right">
+            <span className="text-gray-500">Gross <span className="font-semibold text-gray-800">{fmt(p.wages)}</span></span>
+            <span className="text-gray-500">Net <span className="font-semibold text-green-600">{fmt(p.netPay)}</span></span>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
