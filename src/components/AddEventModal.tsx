@@ -29,12 +29,12 @@ function buildRRule(
     parts.push(`BYDAY=${days.join(",")}`);
   }
   if (until) {
-    // Convert local datetime-local string to UTC RRULE UNTIL format
-    const d = new Date(until);
+    // until is a date-only string "YYYY-MM-DD" — set UNTIL to end of that day UTC
+    const d = new Date(until + 'T23:59:59Z');
     if (!isNaN(d.getTime())) {
       const pad = (n: number) => String(n).padStart(2, "0");
       parts.push(
-        `UNTIL=${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`
+        `UNTIL=${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T235959Z`
       );
     }
   }
@@ -328,7 +328,12 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Repeat until
                         </label>
-                        <DateTimeInput value={until} onChange={setUntil} />
+                        <input
+                          type="date"
+                          value={until}
+                          onChange={e => setUntil(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        />
                       </div>
                     </div>
                   )}
