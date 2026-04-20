@@ -28,10 +28,12 @@ export async function POST(req: NextRequest) {
   const role = (sessionClaims?.metadata as { role?: string })?.role;
   if (!allowed(role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name } = await req.json();
+  const { name, classType } = await req.json();
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
+
+  const rateData = classType === "group" ? { groupRate: null } : { privateRate: null };
 
   // Subject name is unique — if it already exists, just attach a SubjectRate to it
   const existing = await prisma.subject.findUnique({ where: { name: name.trim() } });
@@ -41,20 +43,16 @@ export async function POST(req: NextRequest) {
     if (alreadyHasRate) {
       return NextResponse.json({ error: "Subject already exists on pay sheet" }, { status: 409 });
     }
-    await prisma.subjectRate.create({ data: { subjectId: existing.id } });
-    return NextResponse.json({ id: existing.id, name: existing.name, subjectRate: null }, { status: 201 });
+    await prisma.subjectRate.create({ data: { subjectId: existing.id, ...rateData } });
+    return NextResponse.json({ id: existing.id, name: existing.name }, { status: 201 });
   }
 
   const subject = await prisma.subject.create({
     data: {
       name: name.trim(),
-      subjectRate: { create: {} },
+      subjectRate: { create: rateData },
     },
-    select: {
-      id: true,
-      name: true,
-      subjectRate: { select: { privateRate: true, groupRate: true } },
-    },
+    select: { id: true, name: true },
   });
 
   return NextResponse.json(subject, { status: 201 });
