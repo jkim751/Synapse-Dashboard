@@ -84,6 +84,7 @@ interface CalendarEvent {
   isMakeup?: boolean;
   type: 'lesson' | 'event' | 'exam' | 'assignment';
   subjectColor?: string;
+  color?: string;
 }
 
 type ProcessedEvent = CalendarEvent & { start: Date; end: Date };
@@ -309,15 +310,17 @@ const BigCalendar = ({
 
   const eventStyleGetter = (event: object) => {
     const e = event as CalendarEvent;
-    const backgroundColor = e.subject
-      ? generateColor(e.subject, e.type)
-      : e.type === 'event'
-        ? '#6B7280'
-        : e.type === 'exam'
-          ? '#E3735E'
-          : e.type === 'assignment'
-            ? '#059669'
-            : '#3B82F6';
+    const backgroundColor = e.color
+      ? e.color
+      : e.subject
+        ? generateColor(e.subject, e.type)
+        : e.type === 'event'
+          ? '#6B7280'
+          : e.type === 'exam'
+            ? '#E3735E'
+            : e.type === 'assignment'
+              ? '#059669'
+              : '#3B82F6';
 
     const isEvent = e.type === 'event';
 

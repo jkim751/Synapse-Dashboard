@@ -5,6 +5,7 @@ import BigCalendar from "./BigCalender";
 import AddEventModal from "./AddEventModal";
 import DateTimeInput from "./ui/DateTimeInput";
 import { toSydneyString, toSydneyDatetimeLocal, sydneyLocalToUTC } from "@/lib/dateUtils";
+import { RRule } from "rrule";
 
 type ScheduleRecord = {
   id: string;
@@ -16,15 +17,78 @@ type ScheduleRecord = {
   rrule?: string | null;
 };
 
-function toCalendarEvent(s: ScheduleRecord) {
-  return {
-    title: s.title,
-    start: toSydneyString(new Date(s.startTime)),
-    end: toSydneyString(new Date(s.endTime)),
-    description: s.description,
-    type: "event" as const,
-    scheduleId: s.id,
-  };
+function pastelColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
+  }
+  const hue = hash % 360;
+  return `hsl(${hue}, 55%, 72%)`;
+}
+
+function expandSchedules(schedules: ScheduleRecord[]): any[] {
+  const now = new Date();
+  const windowStart = new Date(now);
+  windowStart.setMonth(windowStart.getMonth() - 6);
+  const windowEnd = new Date(now);
+  windowEnd.setMonth(windowEnd.getMonth() + 6);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const events: any[] = [];
+
+  for (const s of schedules) {
+    const templateStart = new Date(s.startTime);
+    const templateEnd = new Date(s.endTime);
+    const durationMs = templateEnd.getTime() - templateStart.getTime();
+    const templateH = templateStart.getUTCHours();
+    const templateM = templateStart.getUTCMinutes();
+
+    if (!s.rrule) {
+      events.push({
+        title: s.title,
+        start: toSydneyString(templateStart),
+        end: toSydneyString(templateEnd),
+        description: s.description,
+        type: "event" as const,
+        scheduleId: s.id,
+        color: pastelColor(s.id),
+      });
+      continue;
+    }
+
+    try {
+      const dtstart = `${templateStart.getUTCFullYear()}${pad(templateStart.getUTCMonth() + 1)}${pad(templateStart.getUTCDate())}T${pad(templateH)}${pad(templateM)}00Z`;
+      const rule = RRule.fromString(`DTSTART:${dtstart}\n${s.rrule}`);
+      const occurrences = rule.between(windowStart, windowEnd, true);
+
+      for (const occ of occurrences) {
+        const start = new Date(Date.UTC(occ.getFullYear(), occ.getMonth(), occ.getDate(), templateH, templateM));
+        const end = new Date(start.getTime() + durationMs);
+        events.push({
+          title: s.title,
+          start: toSydneyString(start),
+          end: toSydneyString(end),
+          description: s.description,
+          type: "event" as const,
+          scheduleId: s.id,
+          color: pastelColor(s.id),
+        });
+      }
+    } catch {
+      // Fallback: show just the first occurrence
+      events.push({
+        title: s.title,
+        start: toSydneyString(templateStart),
+        end: toSydneyString(templateEnd),
+        description: s.description,
+        type: "event" as const,
+        scheduleId: s.id,
+        color: pastelColor(s.id),
+      });
+    }
+  }
+
+  return events;
 }
 
 export default function AdminScheduleCalendar() {
@@ -47,7 +111,7 @@ export default function AdminScheduleCalendar() {
     if (!res.ok) return;
     const data: ScheduleRecord[] = await res.json();
     setSchedules(data);
-    setCalendarEvents(data.map(toCalendarEvent));
+    setCalendarEvents(expandSchedules(data));
   }, []);
 
   useEffect(() => {
