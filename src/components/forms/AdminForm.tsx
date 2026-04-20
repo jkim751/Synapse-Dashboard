@@ -57,23 +57,31 @@ const AdminForm = ({
       router.refresh();
     }
     if (state.error && !state.success) {
-      toast.error(type === "create" ? "Unable to create" : "Unable to update");
+      toast.error(state.message || (type === "create" ? "Unable to create" : "Unable to update"));
     }
   }, [state, router, type, setOpen]);
 
-  const onSubmit = handleSubmit((formData) => {
-    const formattedData = {
-      ...formData,
-      img: img || undefined,
-      email: formData.email || undefined,
-      phone: formData.phone || undefined,
-      password: type === "update" && formData.password === "" ? undefined : formData.password,
-    };
-    
-    startTransition(() => {
-      formAction(formattedData);
-    });
-  });
+  const onSubmit = handleSubmit(
+    (formData) => {
+      const formattedData = {
+        ...formData,
+        img: img || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        password: type === "update" && formData.password === "" ? undefined : formData.password,
+      };
+
+      startTransition(() => {
+        formAction(formattedData);
+      });
+    },
+    (validationErrors) => {
+      console.error("AdminForm validation errors:", validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      const msg = firstError?.message?.toString() || "Please check the form for errors.";
+      toast.error(msg);
+    }
+  );
 
   return (
     <div className="max-h-[90vh] overflow-y-auto bg-white p-6 rounded-lg">

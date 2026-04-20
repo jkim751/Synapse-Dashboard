@@ -15,6 +15,23 @@ function formatDateTime(iso: string) {
   });
 }
 
+const EMAIL_SIGNATURE = `
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 16px" />
+  <table style="border-collapse:collapse;font-size:13px;color:#333;line-height:1.7">
+    <tr>
+      <td style="padding-right:20px;vertical-align:middle">
+        <img src="https://synapseeducation.com.au/email.png" alt="Synapse Education" width="110" style="display:block" />
+      </td>
+      <td style="vertical-align:middle;border-left:2px solid #e5e7eb;padding-left:20px">
+        <div style="font-size:15px;font-weight:700;color:#111">Synapse Education Administration</div>
+        <div style="color:#555">HSC Specialists | Holistic Education</div>
+        <div>w: <a href="https://synapseeducation.com.au/" style="color:#f97316;text-decoration:none">https://synapseeducation.com.au/</a> &nbsp;|&nbsp; e: Synapse Education</div>
+        <div style="color:#555;margin-top:6px">Suite 305 | 160 Rowe St | Eastwood 2122 NSW</div>
+      </td>
+    </tr>
+  </table>
+`;
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-AU", {
     hour: "2-digit",
@@ -113,7 +130,7 @@ export async function sendLessonRescheduleEmails(params: {
       <tr><td style="padding:4px 12px 4px 0;color:#666">New time</td><td><strong>${formatTime(newStart)} – ${formatTime(newEnd)}</strong></td></tr>
     </table>
     <p style="font-size:13px;color:#555">${scopeNote}</p>
-    <p style="font-size:12px;color:#999;margin-top:24px">Synapse Dashboard — automated notification</p>
+    ${EMAIL_SIGNATURE}
   `;
 
   const results = await Promise.allSettled(
@@ -190,7 +207,7 @@ export async function sendMakeupLessonEmails(lessonId: number) {
       <tr><td style="padding:4px 12px 4px 0;color:#666">Lesson</td><td><strong>${lesson.name}</strong></td></tr>
       <tr><td style="padding:4px 12px 4px 0;color:#666">Date &amp; time</td><td><strong>${startStr} – ${endTimeStr}</strong></td></tr>
     </table>
-    <p style="font-size:12px;color:#999;margin-top:24px">Synapse Dashboard — automated notification</p>
+    ${EMAIL_SIGNATURE}
   `;
 
   const results = await Promise.allSettled(
