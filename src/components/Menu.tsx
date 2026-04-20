@@ -109,7 +109,7 @@ const menuItems = [
         icon: "/finance.png",
         label: "Expenses",
         href: "/list/expenses",
-        visible: ["admin", "director", "teacher-admin"],
+        visible: [ "director"],
       },
       {
         icon: "/setting.png",
