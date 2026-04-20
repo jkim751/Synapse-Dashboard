@@ -12,11 +12,11 @@ const ReportsPage = async () => {
     prisma.teacher.findMany({
       orderBy: [{ name: 'asc' }, { surname: 'asc' }],
       select: { id: true, name: true, surname: true, img: true },
-    }),
+    }) as Promise<{ id: string; name: string; surname: string; img: string | null }[]>,
     prisma.admin.findMany({
       orderBy: [{ name: 'asc' }, { surname: 'asc' }],
       select: { id: true, name: true, surname: true, img: true, role: true },
-    }),
+    }) as Promise<{ id: string; name: string; surname: string; img: string | null; role: string }[]>,
   ]);
 
   const staff = [
