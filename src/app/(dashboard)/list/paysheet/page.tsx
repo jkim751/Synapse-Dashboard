@@ -12,6 +12,7 @@ const PaySheetPage = async () => {
   }
 
   const subjects = await prisma.subject.findMany({
+    where: { subjectRate: { isNot: null } },
     orderBy: { name: "asc" },
     select: {
       id: true,

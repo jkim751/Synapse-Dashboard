@@ -11,6 +11,7 @@ export async function GET() {
   if (!allowed(role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const subjects = await prisma.subject.findMany({
+    where: { subjectRate: { isNot: null } },
     orderBy: { name: "asc" },
     select: {
       id: true,
