@@ -16,14 +16,15 @@ const PaySheetPage = async () => {
     select: {
       id: true,
       name: true,
-      subjectRate: { select: { hourlyRate: true } },
+      subjectRate: { select: { privateRate: true, groupRate: true } },
     },
-  }) as { id: number; name: string; subjectRate: { hourlyRate: number } | null }[];
+  });
 
   const data = subjects.map((s) => ({
     id: s.id,
     name: s.name,
-    hourlyRate: s.subjectRate?.hourlyRate ?? null,
+    privateRate: s.subjectRate?.privateRate ?? null,
+    groupRate: s.subjectRate?.groupRate ?? null,
   }));
 
   return (

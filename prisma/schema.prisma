@@ -125,12 +125,14 @@ model Subject {
 }
 
 model SubjectRate {
-  id         String   @id @default(cuid())
-  subjectId  Int      @unique
-  subject    Subject  @relation(fields: [subjectId], references: [id])
-  hourlyRate Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  subjectId   Int      @unique
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  hourlyRate  Float?
+  privateRate Float?
+  groupRate   Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("subject_rates")
 }
