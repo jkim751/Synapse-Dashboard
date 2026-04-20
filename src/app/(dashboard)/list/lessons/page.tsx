@@ -115,7 +115,7 @@ const LessonListPage = async ({
   // Cap at 500 each to prevent Prisma Accelerate Worker memory limits (P6000).
   // In-memory sort + paginate below is only correct within this window.
   const MAX_FETCH = 500;
-  const [lessons, lessonsCount, recurring, recurringCount] = await prisma.$transaction([
+  const [lessons, lessonsCount, recurring, recurringCount] = await Promise.all([
     prisma.lesson.findMany({
       where: lessonWhere,
       include: {
