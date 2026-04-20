@@ -49,7 +49,7 @@ const LessonForm = ({
   const [state, formAction] = useActionState(actionFn, { success: false, error: false, message: "" });
 
   // Default values: prefill from `data` if present
-  const defaults: Partial<LessonSchema> = data
+  const defaults = data
     ? {
         name: data.name ?? "",
         subjectId: Number(data.subjectId || data.subject?.id) || undefined,

@@ -10,10 +10,10 @@ const getAllClasses = cache(() =>
 const getAllSubjects = cache(() =>
   prisma.subject.findMany({ select: { id: true, name: true } })
 );
-const getAllTeachers = cache(() =>
+const getAllTeachers = cache((): Promise<{ id: string; name: string; surname: string }[]> =>
   prisma.teacher.findMany({ select: { id: true, name: true, surname: true } })
 );
-const getAllTeacherAdmins = cache(() =>
+const getAllTeacherAdmins = cache((): Promise<{ id: string; name: string; surname: string }[]> =>
   prisma.admin.findMany({ where: { role: "teacher-admin" }, select: { id: true, name: true, surname: true } })
 );
 
