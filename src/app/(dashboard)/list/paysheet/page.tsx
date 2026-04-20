@@ -18,7 +18,7 @@ const PaySheetPage = async () => {
       name: true,
       subjectRate: { select: { privateRate: true, groupRate: true } },
     },
-  });
+  }) as { id: number; name: string; subjectRate: { privateRate: number | null; groupRate: number | null } | null }[];
 
   const data = subjects.map((s) => ({
     id: s.id,

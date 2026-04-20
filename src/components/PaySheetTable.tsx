@@ -226,7 +226,7 @@ export default function PaySheetTable({ subjects }: { subjects: SubjectRow[] }) 
           {rows.length === 0 && (
             <tr>
               <td colSpan={7} className="py-8 text-center text-gray-400">
-                No subjects yet. Click "+ Add Subject" to get started.
+                No subjects yet. Click &quot;+ Add Subject&quot; to get started.
               </td>
             </tr>
           )}
