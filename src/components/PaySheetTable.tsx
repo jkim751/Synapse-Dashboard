@@ -108,11 +108,14 @@ export default function PaySheetTable({
       });
       const json = await res.json();
       if (res.ok) {
-        setRows((prev) =>
-          [...prev, { id: json.id, name: json.name, classType: newType, rate: null }].sort(
-            (a, b) => a.name.localeCompare(b.name)
-          )
-        );
+        setRows((prev) => {
+          const extractNum = (n: string) => { const m = n.match(/\d+/); return m ? parseInt(m[0], 10) : -1; };
+          return [...prev, { id: json.id, name: json.name, classType: newType, rate: null }].sort((a, b) => {
+            const na = extractNum(a.name), nb = extractNum(b.name);
+            if (na !== nb) return nb - na;
+            return a.name.localeCompare(b.name);
+          });
+        });
         setNewName("");
         setShowAddRow(false);
       } else {
@@ -202,6 +205,9 @@ export default function PaySheetTable({
             <th className="pb-3 font-medium w-36 text-gray-400">
               Per Term <span className="text-xs font-normal">(10 wks)</span>
             </th>
+            <th className="pb-3 font-medium w-36 text-gray-400">
+              Per Term <span className="text-xs font-normal">(11 wks)</span>
+            </th>
             <th className="pb-3 font-medium w-32 text-gray-400">
               GST <span className="text-xs font-normal">(10%)</span>
             </th>
@@ -212,9 +218,10 @@ export default function PaySheetTable({
         <tbody>
           {rows.map((row) => {
             const effectiveRate = getEffectiveRate(row);
-            const term = effectiveRate !== null ? effectiveRate * 10 : null;
-            const gst = term !== null ? term * 0.1 : null;
-            const incGst = term !== null ? term * 1.1 : null;
+            const term10 = effectiveRate !== null ? effectiveRate * 10 : null;
+            const term11 = effectiveRate !== null ? effectiveRate * 11 : null;
+            const gst = term10 !== null ? term10 * 0.1 : null;
+            const incGst = term10 !== null ? term10 * 1.1 : null;
             const isSaving = saving === row.id;
             const isDeleting = deleting === row.id;
 
@@ -250,7 +257,10 @@ export default function PaySheetTable({
                   </div>
                 </td>
                 <td className="py-3 pr-4 text-gray-500">
-                  {term !== null ? `$${term.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                  {term10 !== null ? `$${term10.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="py-3 pr-4 text-gray-500">
+                  {term11 !== null ? `$${term11.toFixed(2)}` : <span className="text-gray-300">—</span>}
                 </td>
                 <td className="py-3 pr-4 text-gray-500">
                   {gst !== null ? `$${gst.toFixed(2)}` : <span className="text-gray-300">—</span>}
@@ -273,7 +283,7 @@ export default function PaySheetTable({
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="py-8 text-center text-gray-400">
+              <td colSpan={7} className="py-8 text-center text-gray-400">
                 No subjects yet. Click &quot;+ Add Subject&quot; to get started.
               </td>
             </tr>

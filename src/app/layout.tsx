@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s · Synapse Portal",
   },
   description:
-    "Synapse Education Portal, the portal of Sydney's leading HSC specialist centre used to delivering a holistic education to maximise student potential.",
+    "Synapse Education Portal, the portal of Sydney's leading HSC specialist centre, delivering a holistic education to maximise student potential.",
   keywords: [
     "Synapse Education",
     "Sydney education",

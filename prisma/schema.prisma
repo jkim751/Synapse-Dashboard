@@ -149,6 +149,8 @@ model Lesson {
   isCancelled       Boolean          @default(false)
   isMakeup          Boolean          @default(false)
   day               Day
+  term              Int?
+  year              Int?
   assessments       Assessment[]
   attendances       Attendance[]
   class             Class?           @relation(fields: [classId], references: [id])
@@ -325,6 +327,8 @@ model RecurringLesson {
   subjectId       Int
   classId         Int
   teacherId       String
+  term            Int?
+  year            Int?
   assessments     Assessment[]
   attendances     Attendance[]
   lessonInstances Lesson[]

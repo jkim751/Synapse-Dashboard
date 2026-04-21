@@ -2,6 +2,7 @@ import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+import TermYearFilter from "@/components/TermYearFilter";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Prisma } from "@prisma/client";
@@ -14,6 +15,8 @@ type LessonRow = {
   subject: { name: string };
   class: { name: string };
   teacher: { name: string; surname: string };
+  term: number | null;
+  year: number | null;
   lessonId?: number;
   recurringId?: number;
   rawData?: any;
@@ -33,6 +36,7 @@ const LessonListPage = async ({
     { header: "Subject Name", accessor: "name" },
     { header: "Class", accessor: "classes" },
     { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
+    { header: "Term", accessor: "term", className: "hidden md:table-cell" },
     ...((role === "admin" || role === "director" || role === "teacher-admin") ? [{ header: "Actions", accessor: "action" }] : []),
   ];
 
@@ -48,6 +52,19 @@ const LessonListPage = async ({
       <td>{item.class.name}</td>
       <td className="hidden md:table-cell">
         {item.teacher.name + " " + item.teacher.surname}
+      </td>
+      <td className="hidden md:table-cell">
+        {item.term && item.year ? (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+            T{item.term} {item.year}
+          </span>
+        ) : item.term ? (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+            Term {item.term}
+          </span>
+        ) : (
+          <span className="text-gray-300 text-xs">—</span>
+        )}
       </td>
       <td>
         <div className="flex items-center gap-2">
@@ -105,6 +122,14 @@ const LessonListPage = async ({
             { teacher: { surname: { contains: value, mode: "insensitive" } } },
           ];
           break;
+        case "term":
+          lessonWhere.term = parseInt(value);
+          recurringWhere.term = parseInt(value);
+          break;
+        case "year":
+          lessonWhere.year = parseInt(value);
+          recurringWhere.year = parseInt(value);
+          break;
         default:
           break;
       }
@@ -145,6 +170,8 @@ const LessonListPage = async ({
     subject: l.subject!,
     class: l.class!,
     teacher: l.teacher!,
+    term: l.term ?? null,
+    year: l.year ?? null,
     lessonId: l.id,
     rawData: l,
   }));
@@ -155,6 +182,8 @@ const LessonListPage = async ({
     subject: r.subject!,
     class: r.class!,
     teacher: r.teacher!,
+    term: r.term ?? null,
+    year: r.year ?? null,
     recurringId: r.id,
     rawData: r,
   }));
@@ -173,14 +202,17 @@ const LessonListPage = async ({
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
-      <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">Lessons</h1>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
-          <div className="flex items-center gap-4 self-end">
-            {(role === "admin" || role === "director" || role === "teacher-admin") && <FormContainer table="lesson" type="create" />}
+      <div className="flex flex-col gap-3 mb-2">
+        <div className="flex items-center justify-between">
+          <h1 className="hidden md:block text-lg font-semibold">Lessons</h1>
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            <TableSearch />
+            <div className="flex items-center gap-4 self-end">
+              {(role === "admin" || role === "director" || role === "teacher-admin") && <FormContainer table="lesson" type="create" />}
+            </div>
           </div>
         </div>
+        <TermYearFilter />
       </div>
 
       {/* LIST */}

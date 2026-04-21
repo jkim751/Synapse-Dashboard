@@ -1157,6 +1157,8 @@ export async function updateLesson(payload: {
   teacherId?: string;
   startTime?: string; // datetime-local string
   endTime?: string;   // datetime-local string
+  term?: number | null;
+  year?: number | null;
 }) {
   try {
     const { id, ...rest } = payload;
@@ -1170,6 +1172,8 @@ export async function updateLesson(payload: {
     if (rest.subjectId !== undefined) updateData.subjectId = Number(rest.subjectId);
     if (rest.classId !== undefined) updateData.classId = Number(rest.classId);
     if (rest.teacherId !== undefined) updateData.teacherId = rest.teacherId;
+    if (rest.term !== undefined) updateData.term = rest.term ? Number(rest.term) : null;
+    if (rest.year !== undefined) updateData.year = rest.year ? Number(rest.year) : null;
     
     if (rest.startTime !== undefined) {
       const startDate = new Date(rest.startTime + '+08:00');
@@ -1209,6 +1213,8 @@ export async function updateRecurringLesson(payload: {
   startTime?: string; // datetime-local string
   endTime?: string;   // datetime-local string
   rrule?: string | null;
+  term?: number | null;
+  year?: number | null;
 }) {
   try {
     const { id, updateScope = "series", originalDate, ...rest } = payload;
@@ -1233,6 +1239,8 @@ export async function updateRecurringLesson(payload: {
       }
       
       if (rest.rrule !== undefined) updateData.rrule = rest.rrule;
+      if (rest.term !== undefined) updateData.term = rest.term ? Number(rest.term) : null;
+      if (rest.year !== undefined) updateData.year = rest.year ? Number(rest.year) : null;
 
       await prisma.recurringLesson.update({
         where: { id: Number(id) },
@@ -1325,6 +1333,8 @@ export async function createLesson(payload: {
   teacherId: string;
   startTime: string; // datetime-local string "YYYY-MM-DDTHH:mm"
   endTime: string;   // datetime-local string "YYYY-MM-DDTHH:mm"
+  term?: number | null;
+  year?: number | null;
 }) {
   try {
     await ensureTeacherRecord(payload.teacherId);
@@ -1346,6 +1356,8 @@ export async function createLesson(payload: {
         endTime: endDate,
         day: dayOfWeek,
         recurringLessonId: null,
+        term: payload.term ? Number(payload.term) : null,
+        year: payload.year ? Number(payload.year) : null,
       },
     });
     

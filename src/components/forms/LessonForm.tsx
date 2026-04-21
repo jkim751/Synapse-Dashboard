@@ -62,8 +62,10 @@ const LessonForm = ({
           : "never",
         updateScope: isRecurring ? "instance" : undefined,
         originalDate: isRecurring && data.startTime ? formatDateTimeLocal(data.startTime) : undefined,
+        term: data.term ? String(data.term) : "",
+        year: data.year ? String(data.year) : "",
       }
-    : { repeats: "never" };
+    : { repeats: "never", term: "", year: "" };
 
   console.log("LessonForm mounting with data:", data);
   console.log("LessonForm defaults:", defaults);
@@ -138,6 +140,8 @@ const LessonForm = ({
       endTime: formData.endTime,
       repeats: formData.repeats,
       rrule: rruleString,
+      term: (formData as any).term ? Number((formData as any).term) : null,
+      year: (formData as any).year ? Number((formData as any).year) : null,
       // variant reflects the desired outcome (what the user picked), not the original
       variant: (formData.repeats === "weekly" || formData.repeats === "fortnightly" ? "recurring" : "single") as "recurring" | "single",
       originalVariant: (relatedData?.variant || "single") as "recurring" | "single",
@@ -187,6 +191,21 @@ const LessonForm = ({
           <InputField label="Teacher" name="teacherId" type="select"
             options={teachers?.map((t: any) => ({ value: t.id, label: `${t.name} ${t.surname}` })) || []}
             register={register} error={errors?.teacherId} />
+          <InputField label="Term" name="term" type="select"
+            options={[
+              { value: "", label: "— No term —" },
+              { value: "1", label: "Term 1" },
+              { value: "2", label: "Term 2" },
+              { value: "3", label: "Term 3" },
+              { value: "4", label: "Term 4" },
+            ]}
+            register={register} error={undefined} />
+          <InputField label="Year" name="year" type="select"
+            options={[
+              { value: "", label: "— No year —" },
+              ...([2024, 2025, 2026, 2027, 2028].map((y) => ({ value: String(y), label: String(y) }))),
+            ]}
+            register={register} error={undefined} />
           <InputField label="Start Time" name="startTime" type="datetime-local" register={register} error={errors?.startTime} defaultValue={defaults.startTime} />
           <InputField label="End Time"   name="endTime"   type="datetime-local" register={register} error={errors?.endTime}   defaultValue={defaults.endTime} />
 
