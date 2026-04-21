@@ -444,12 +444,13 @@ model ChecklistItem {
 }
 
 model PayRate {
-  id         String   @id @default(cuid())
-  name       String
-  personType String
-  payRate    Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  personType  String
+  payRate     Float
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("pay_rates")
 }

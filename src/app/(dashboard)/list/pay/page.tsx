@@ -31,11 +31,12 @@ const PayPage = async ({
   const count = filtered.length;
   const paginated: PayEntry[] = filtered
     .slice((page - 1) * ITEM_PER_PAGE, page * ITEM_PER_PAGE)
-    .map((r: { id: any; name: any; personType: string; payRate: any; }) => ({
+    .map((r: { id: any; name: any; personType: string; payRate: any; description?: string | null }) => ({
       id: r.id,
       name: r.name,
       personType: r.personType as "TUTOR" | "ADMIN",
       payRate: r.payRate,
+      description: r.description ?? null,
     }));
 
   return (

@@ -22,6 +22,7 @@ export async function PUT(
       ...(body.name !== undefined && { name: body.name }),
       ...(body.personType !== undefined && { personType: body.personType }),
       ...(body.payRate !== undefined && { payRate: parseFloat(body.payRate) }),
+      ...(body.description !== undefined && { description: body.description || null }),
     },
   });
 

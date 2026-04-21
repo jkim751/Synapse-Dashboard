@@ -8,6 +8,7 @@ export type PayEntry = {
   name: string;
   personType: "TUTOR" | "ADMIN";
   payRate: number;
+  description: string | null;
 };
 
 const columns = [
@@ -22,6 +23,8 @@ type Pending = { name: string; personType: "TUTOR" | "ADMIN"; payRate: string };
 export default function PayTable({ data: initialData }: { data: PayEntry[] }) {
   const [data, setData] = useState(initialData);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [editingDesc, setEditingDesc] = useState<string | null>(null);
+  const [descDraft, setDescDraft] = useState("");
 
   const addRow = () => {
     if (pending) return;
@@ -45,7 +48,7 @@ export default function PayTable({ data: initialData }: { data: PayEntry[] }) {
       }),
     });
     const created: PayEntry = await res.json();
-    setData((prev) => [...prev, created]);
+    setData((prev) => [...prev, { ...created, description: null }]);
     setPending(null);
   };
 
@@ -54,12 +57,58 @@ export default function PayTable({ data: initialData }: { data: PayEntry[] }) {
     await fetch(`/api/pay/${id}`, { method: "DELETE" });
   };
 
+  const startEditDesc = (entry: PayEntry) => {
+    setEditingDesc(entry.id);
+    setDescDraft(entry.description ?? "");
+  };
+
+  const saveDesc = async (id: string) => {
+    const trimmed = descDraft.trim();
+    await fetch(`/api/pay/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: trimmed }),
+    });
+    setData((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, description: trimmed || null } : r))
+    );
+    setEditingDesc(null);
+  };
+
   const renderRow = (entry: PayEntry) => (
     <tr
       key={entry.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaSkyLight group"
     >
-      <td className="p-4 font-semibold">{entry.name}</td>
+      <td className="p-4">
+        <div className="font-semibold text-gray-800">{entry.name}</div>
+        {editingDesc === entry.id ? (
+          <textarea
+            autoFocus
+            value={descDraft}
+            onChange={(e) => setDescDraft(e.target.value)}
+            onBlur={() => saveDesc(entry.id)}
+            onKeyDown={(e) => { if (e.key === "Escape") setEditingDesc(null); }}
+            placeholder="Describe pay structure…"
+            rows={2}
+            className="mt-1 w-full text-xs text-gray-600 bg-orange-50 border border-orange-200 rounded-md px-2 py-1 resize-none focus:outline-none focus:border-orange-400"
+          />
+        ) : (
+          <div
+            onClick={() => startEditDesc(entry)}
+            className="mt-0.5 cursor-text"
+            title="Click to edit description"
+          >
+            {entry.description ? (
+              <p className="text-xs text-gray-400 italic leading-snug">{entry.description}</p>
+            ) : (
+              <p className="text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity italic">
+                + add note
+              </p>
+            )}
+          </div>
+        )}
+      </td>
       <td className="hidden md:table-cell p-4">
         <span
           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -88,7 +137,6 @@ export default function PayTable({ data: initialData }: { data: PayEntry[] }) {
     <div className="flex flex-col gap-4">
       <Table columns={columns} renderRow={renderRow} data={data} />
 
-      {/* Pending new row */}
       {pending && (
         <div className="flex items-center gap-3 px-4 py-2 bg-orange-50 rounded-lg border border-orange-100 text-sm">
           <input
