@@ -5,10 +5,11 @@ import { useState } from "react";
 type ClassType = "private" | "group";
 
 type SubjectRow = {
-  id: number;
+  id: string;
   name: string;
   classType: ClassType | null;
   rate: number | null;
+  hours: number | null;
 };
 
 function deriveType(privateRate: number | null, groupRate: number | null): ClassType | null {
@@ -30,19 +31,22 @@ const TYPE_COLORS: Record<ClassType, string> = {
 export default function PaySheetTable({
   subjects,
 }: {
-  subjects: { id: number; name: string; privateRate: number | null; groupRate: number | null }[];
+  subjects: { id: string; name: string; classType: "private" | "group" | null; privateRate: number | null; groupRate: number | null; hours: number | null }[];
 }) {
   const [rows, setRows] = useState<SubjectRow[]>(
     subjects.map((s) => ({
       id: s.id,
       name: s.name,
-      classType: deriveType(s.privateRate, s.groupRate),
+      classType: s.classType ?? deriveType(s.privateRate, s.groupRate),
       rate: deriveRate(s.privateRate, s.groupRate),
+      hours: s.hours,
     }))
   );
-  const [saving, setSaving] = useState<number | null>(null);
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
-  const [deleting, setDeleting] = useState<number | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [hoursDrafts, setHoursDrafts] = useState<Record<string, string>>({});
+  const [savingHours, setSavingHours] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const [showAddRow, setShowAddRow] = useState(false);
   const [newName, setNewName] = useState("");
@@ -64,6 +68,39 @@ export default function PaySheetTable({
     return row.rate;
   };
 
+  const getHoursDraftValue = (row: SubjectRow) => {
+    if (hoursDrafts[row.id] !== undefined) return hoursDrafts[row.id];
+    return row.hours !== null ? String(row.hours) : "";
+  };
+
+  const getEffectiveHours = (row: SubjectRow) => {
+    const draft = hoursDrafts[row.id];
+    if (draft !== undefined) { const n = parseFloat(draft); return isNaN(n) ? null : n; }
+    return row.hours;
+  };
+
+  const handleHoursBlur = async (row: SubjectRow) => {
+    const raw = hoursDrafts[row.id];
+    if (raw === undefined) return;
+    const value = raw === "" ? null : parseFloat(raw);
+    if (value !== null && (isNaN(value) || value < 0)) {
+      setHoursDrafts((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
+      return;
+    }
+    setSavingHours(row.id);
+    try {
+      const res = await fetch("/api/paysheet", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, hours: value }),
+      });
+      if (res.ok) setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, hours: value } : r)));
+    } finally {
+      setSavingHours(null);
+      setHoursDrafts((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
+    }
+  };
+
   const handleBlur = async (row: SubjectRow) => {
     const raw = drafts[row.id];
     if (raw === undefined) return;
@@ -78,8 +115,8 @@ export default function PaySheetTable({
     try {
       const body =
         row.classType === "group"
-          ? { subjectId: row.id, groupRate: value, privateRate: null }
-          : { subjectId: row.id, privateRate: value, groupRate: null };
+          ? { id: row.id, groupRate: value, privateRate: null }
+          : { id: row.id, privateRate: value, groupRate: null };
 
       const res = await fetch("/api/paysheet", {
         method: "PUT",
@@ -110,7 +147,7 @@ export default function PaySheetTable({
       if (res.ok) {
         setRows((prev) => {
           const extractNum = (n: string) => { const m = n.match(/\d+/); return m ? parseInt(m[0], 10) : -1; };
-          return [...prev, { id: json.id, name: json.name, classType: newType, rate: null }].sort((a, b) => {
+          return [...prev, { id: json.id, name: json.name, classType: newType, rate: null, hours: null }].sort((a, b) => {
             const na = extractNum(a.name), nb = extractNum(b.name);
             if (na !== nb) return nb - na;
             return a.name.localeCompare(b.name);
@@ -126,7 +163,7 @@ export default function PaySheetTable({
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     setDeleting(id);
     try {
       const res = await fetch(`/api/paysheet/${id}`, { method: "DELETE" });
@@ -201,6 +238,7 @@ export default function PaySheetTable({
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-100">
             <th className="pb-3 font-medium">Subject</th>
+            <th className="pb-3 font-medium w-28">Hrs / wk</th>
             <th className="pb-3 font-medium w-40">Hourly Rate ($)</th>
             <th className="pb-3 font-medium w-36 text-gray-400">
               Per Term <span className="text-xs font-normal">(10 wks)</span>
@@ -218,11 +256,13 @@ export default function PaySheetTable({
         <tbody>
           {rows.map((row) => {
             const effectiveRate = getEffectiveRate(row);
-            const term10 = effectiveRate !== null ? effectiveRate * 10 : null;
-            const term11 = effectiveRate !== null ? effectiveRate * 11 : null;
+            const effectiveHours = getEffectiveHours(row) ?? 1;
+            const term10 = effectiveRate !== null ? effectiveRate * effectiveHours * 10 : null;
+            const term11 = effectiveRate !== null ? effectiveRate * effectiveHours * 11 : null;
             const gst = term10 !== null ? term10 * 0.1 : null;
             const incGst = term10 !== null ? term10 * 1.1 : null;
             const isSaving = saving === row.id;
+            const isSavingHours = savingHours === row.id;
             const isDeleting = deleting === row.id;
 
             return (
@@ -234,6 +274,24 @@ export default function PaySheetTable({
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[row.classType]}`}>
                         {TYPE_LABELS[row.classType]}
                       </span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-2 pr-4">
+                  <div className="relative w-24">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="1"
+                      value={getHoursDraftValue(row)}
+                      onChange={(e) => setHoursDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                      onBlur={() => handleHoursBlur(row)}
+                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 disabled:opacity-50"
+                      disabled={isSavingHours}
+                    />
+                    {isSavingHours && (
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                     )}
                   </div>
                 </td>
@@ -283,7 +341,7 @@ export default function PaySheetTable({
           })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="py-8 text-center text-gray-400">
+              <td colSpan={8} className="py-8 text-center text-gray-400">
                 No subjects yet. Click &quot;+ Add Subject&quot; to get started.
               </td>
             </tr>

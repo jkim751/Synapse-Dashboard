@@ -160,6 +160,10 @@ export const lessonSchema = z.object({
 
   // routing hint
   variant: z.enum(["single", "recurring"]).optional(),
+
+  // term/year allocation
+  term: z.coerce.number().int().min(1).max(4).optional().nullable(),
+  year: z.coerce.number().int().optional().nullable(),
 });
 
 export type LessonSchema = z.infer<typeof lessonSchema>;

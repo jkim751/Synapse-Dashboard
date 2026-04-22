@@ -17,6 +17,8 @@ type LessonFormPayload = {
   id?: number;
   updateScope?: "series" | "instance";
   originalDate?: string;
+  term?: number | null;
+  year?: number | null;
 };
 
 export async function handleLessonFormSubmission(
@@ -38,6 +40,8 @@ export async function handleLessonFormSubmission(
           startTime: payload.startTime,
           endTime: payload.endTime,
           rrule: payload.rrule,
+          term: payload.term,
+          year: payload.year,
         });
       } else {
         return await createLesson({
@@ -47,6 +51,8 @@ export async function handleLessonFormSubmission(
           teacherId: payload.teacherId,
           startTime: payload.startTime,
           endTime: payload.endTime,
+          term: payload.term,
+          year: payload.year,
         });
       }
     }
@@ -64,6 +70,8 @@ export async function handleLessonFormSubmission(
           startTime: payload.startTime,
           endTime: payload.endTime,
           rrule: payload.rrule,
+          term: payload.term,
+          year: payload.year,
         });
       }
 
@@ -79,6 +87,8 @@ export async function handleLessonFormSubmission(
           updateScope: payload.updateScope,
           originalDate: payload.originalDate,
           rrule: payload.rrule,
+          term: payload.term,
+          year: payload.year,
         });
       } else {
         return await updateLesson({
@@ -89,6 +99,8 @@ export async function handleLessonFormSubmission(
           teacherId: payload.teacherId,
           startTime: payload.startTime,
           endTime: payload.endTime,
+          term: payload.term,
+          year: payload.year,
         });
       }
     }

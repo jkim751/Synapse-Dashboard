@@ -1069,6 +1069,8 @@ export async function createRecurringLesson(payload: {
   startTime: string; // datetime-local string
   endTime: string;   // datetime-local string
   rrule: string; // required for weekly
+  term?: number | null;
+  year?: number | null;
 }) {
   try {
     await ensureTeacherRecord(payload.teacherId);
@@ -1093,9 +1095,11 @@ export async function createRecurringLesson(payload: {
         startTime: startDate,
         endTime: endDate,
         rrule: payload.rrule,
+        term: payload.term ? Number(payload.term) : null,
+        year: payload.year ? Number(payload.year) : null,
       },
     });
-    
+
     revalidatePath("/list/lessons");
     return { success: true, error: false, message: "Recurring lesson created" };
   } catch (e: any) {
@@ -1114,6 +1118,8 @@ export async function convertLessonToRecurring(payload: {
   startTime: string;
   endTime: string;
   rrule: string;
+  term?: number | null;
+  year?: number | null;
 }) {
   try {
     try {
@@ -1136,6 +1142,8 @@ export async function convertLessonToRecurring(payload: {
           startTime: startDate,
           endTime: endDate,
           rrule: payload.rrule,
+          term: payload.term ? Number(payload.term) : null,
+          year: payload.year ? Number(payload.year) : null,
         },
       });
     });

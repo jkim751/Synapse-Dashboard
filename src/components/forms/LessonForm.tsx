@@ -48,24 +48,40 @@ const LessonForm = ({
   // IMPORTANT: use the right action state hook
   const [state, formAction] = useActionState(actionFn, { success: false, error: false, message: "" });
 
+  // Parse BYDAY and UNTIL out of an rrule string
+  const parseRRuleFields = (rrule: string | null | undefined) => {
+    if (!rrule) return { day: undefined, endDate: undefined };
+    const dayMatch = rrule.match(/BYDAY=([A-Z]{2})/);
+    const untilMatch = rrule.match(/UNTIL=(\d{4})(\d{2})(\d{2})/);
+    return {
+      day: dayMatch?.[1] as string | undefined,
+      endDate: untilMatch ? `${untilMatch[1]}-${untilMatch[2]}-${untilMatch[3]}` : undefined,
+    };
+  };
+
   // Default values: prefill from `data` if present
   const defaults = data
-    ? {
-        name: data.name ?? "",
-        subjectId: Number(data.subjectId || data.subject?.id) || undefined,
-        classId: Number(data.classId || data.class?.id) || undefined,
-        teacherId: String(data.teacherId || data.teacher?.id || ""),
-        startTime: formatDateTimeLocal(data.startTime),
-        endTime: formatDateTimeLocal(data.endTime),
-        repeats: data.rrule
-          ? (data.rrule.includes("INTERVAL=2") ? "fortnightly" : "weekly")
-          : "never",
-        updateScope: isRecurring ? "instance" : undefined,
-        originalDate: isRecurring && data.startTime ? formatDateTimeLocal(data.startTime) : undefined,
-        term: data.term ? String(data.term) : "",
-        year: data.year ? String(data.year) : "",
-      }
-    : { repeats: "never", term: "", year: "" };
+    ? (() => {
+        const { day, endDate } = parseRRuleFields(data.rrule);
+        return {
+          name: data.name ?? "",
+          subjectId: Number(data.subjectId || data.subject?.id) || undefined,
+          classId: Number(data.classId || data.class?.id) || undefined,
+          teacherId: String(data.teacherId || data.teacher?.id || ""),
+          startTime: formatDateTimeLocal(data.startTime),
+          endTime: formatDateTimeLocal(data.endTime),
+          repeats: data.rrule
+            ? (data.rrule.includes("INTERVAL=2") ? "fortnightly" : "weekly")
+            : "never",
+          day,
+          endDate,
+          updateScope: isRecurring ? "instance" : undefined,
+          originalDate: isRecurring && data.startTime ? formatDateTimeLocal(data.startTime) : undefined,
+          term: data.term ? String(data.term) : "",
+          year: data.year ? String(data.year) : "",
+        };
+      })()
+    : { repeats: "never", term: "", year: "", startTime: undefined, endTime: undefined };
 
   console.log("LessonForm mounting with data:", data);
   console.log("LessonForm defaults:", defaults);
@@ -140,8 +156,8 @@ const LessonForm = ({
       endTime: formData.endTime,
       repeats: formData.repeats,
       rrule: rruleString,
-      term: (formData as any).term ? Number((formData as any).term) : null,
-      year: (formData as any).year ? Number((formData as any).year) : null,
+      term: formData.term || null,
+      year: formData.year || null,
       // variant reflects the desired outcome (what the user picked), not the original
       variant: (formData.repeats === "weekly" || formData.repeats === "fortnightly" ? "recurring" : "single") as "recurring" | "single",
       originalVariant: (relatedData?.variant || "single") as "recurring" | "single",

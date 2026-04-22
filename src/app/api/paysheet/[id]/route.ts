@@ -14,23 +14,6 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const subjectId = parseInt(id, 10);
-  if (isNaN(subjectId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-
-  // Check if subject is used in any lessons before deleting
-  const [lessonCount, recurringCount] = await Promise.all([
-    prisma.lesson.count({ where: { subjectId } }),
-    prisma.recurringLesson.count({ where: { subjectId } }),
-  ]);
-
-  if (lessonCount > 0 || recurringCount > 0) {
-    // Subject is in use — just clear the rates, keep the subject
-    await prisma.subjectRate.deleteMany({ where: { subjectId } });
-    return NextResponse.json({ deleted: "rates-only" });
-  }
-
-  // Delete subjectRate first, then subject (no DB cascade configured)
-  await prisma.subjectRate.deleteMany({ where: { subjectId } });
-  await prisma.subject.delete({ where: { id: subjectId } });
-  return NextResponse.json({ deleted: "subject" });
+  await prisma.paySheetEntry.delete({ where: { id } });
+  return NextResponse.json({ deleted: true });
 }

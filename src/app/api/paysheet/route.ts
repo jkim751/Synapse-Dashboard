@@ -10,17 +10,11 @@ export async function GET() {
   const role = (sessionClaims?.metadata as { role?: string })?.role;
   if (!allowed(role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const subjects = await prisma.subject.findMany({
-    where: { subjectRate: { isNot: null } },
+  const entries = await prisma.paySheetEntry.findMany({
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      subjectRate: { select: { hourlyRate: true, privateRate: true, groupRate: true } },
-    },
   });
 
-  return NextResponse.json(subjects);
+  return NextResponse.json(entries);
 }
 
 export async function POST(req: NextRequest) {
@@ -33,29 +27,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
 
-  const rateData = classType === "group" ? { groupRate: null } : { privateRate: null };
-
-  // Subject name is unique — if it already exists, just attach a SubjectRate to it
-  const existing = await prisma.subject.findUnique({ where: { name: name.trim() } });
-
+  const existing = await prisma.paySheetEntry.findFirst({
+    where: { name: name.trim(), classType: classType ?? null },
+  });
   if (existing) {
-    const alreadyHasRate = await prisma.subjectRate.findUnique({ where: { subjectId: existing.id } });
-    if (alreadyHasRate) {
-      return NextResponse.json({ error: "Subject already exists on pay sheet" }, { status: 409 });
-    }
-    await prisma.subjectRate.create({ data: { subjectId: existing.id, ...rateData } });
-    return NextResponse.json({ id: existing.id, name: existing.name }, { status: 201 });
+    return NextResponse.json({ error: "Entry already exists on pay sheet" }, { status: 409 });
   }
 
-  const subject = await prisma.subject.create({
-    data: {
-      name: name.trim(),
-      subjectRate: { create: rateData },
-    },
-    select: { id: true, name: true },
+  const entry = await prisma.paySheetEntry.create({
+    data: { name: name.trim(), classType: classType ?? null },
   });
 
-  return NextResponse.json(subject, { status: 201 });
+  return NextResponse.json(entry, { status: 201 });
 }
 
 export async function PUT(req: NextRequest) {
@@ -63,22 +46,16 @@ export async function PUT(req: NextRequest) {
   const role = (sessionClaims?.metadata as { role?: string })?.role;
   if (!allowed(role)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { subjectId, hourlyRate, privateRate, groupRate } = await req.json();
-
-  if (typeof subjectId !== "number") {
+  const { id, privateRate, groupRate, hours } = await req.json();
+  if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
   const data: Record<string, number | null> = {};
-  if (hourlyRate !== undefined) data.hourlyRate = hourlyRate;
   if (privateRate !== undefined) data.privateRate = privateRate;
   if (groupRate !== undefined) data.groupRate = groupRate;
+  if (hours !== undefined) data.hours = hours;
 
-  const rate = await prisma.subjectRate.upsert({
-    where: { subjectId },
-    update: data,
-    create: { subjectId, ...data },
-  });
-
-  return NextResponse.json(rate);
+  const entry = await prisma.paySheetEntry.update({ where: { id }, data });
+  return NextResponse.json(entry);
 }

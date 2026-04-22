@@ -131,10 +131,24 @@ model SubjectRate {
   hourlyRate  Float?
   privateRate Float?
   groupRate   Float?
+  hours       Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("subject_rates")
+}
+
+model PaySheetEntry {
+  id          String   @id @default(cuid())
+  name        String
+  classType   String?
+  privateRate Float?
+  groupRate   Float?
+  hours       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pay_sheet_entries")
 }
 
 model Lesson {
