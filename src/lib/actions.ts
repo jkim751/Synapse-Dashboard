@@ -369,11 +369,8 @@ export const deleteSubject = async (
       return { success: false, error: true, message: "Cannot delete subject with associated lessons!" };
     }
 
-    await prisma.subject.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
+    await prisma.subjectRate.deleteMany({ where: { subjectId: parseInt(id) } });
+    await prisma.subject.delete({ where: { id: parseInt(id) } });
 
     revalidatePath("/list/subjects");
     return { success: true, error: false, message: "Subject deleted successfully!" };
