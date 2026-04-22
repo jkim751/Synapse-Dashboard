@@ -114,7 +114,7 @@ const SubjectForm = ({
           className="bg-orange-400 text-white p-2 rounded-xl"
           disabled={isPending}
         >
-          {isPending ? "Loading..." : type === "create" ? "Create" : "Update"}
+          {isPending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : type === "create" ? "Create" : "Update"}
         </button>
       </form>
     </div>

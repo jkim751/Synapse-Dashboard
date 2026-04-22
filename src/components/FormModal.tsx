@@ -14,6 +14,7 @@ import {
   deleteResult,
   deleteAdmin,
 } from "@/lib/actions";
+import { useFormStatus } from "react-dom";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -295,6 +296,22 @@ const forms: {
 };
 
 
+const DeleteButton = () => {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      className="bg-red-700 text-white py-2 px-4 rounded-xl border-none w-max self-center flex items-center justify-center min-w-[80px]"
+      disabled={pending}
+    >
+      {pending ? (
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      ) : (
+        "Delete"
+      )}
+    </button>
+  );
+};
+
 const FormModal = ({
   table,
   type,
@@ -356,12 +373,11 @@ const FormModal = ({
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
-        <input type="hidden" name="id" value={id} />        <span className="text-center font-medium">
+        <input type="hidden" name="id" value={id} />
+        <span className="text-center font-medium">
           All data will be lost. Are you sure you want to delete this {table}?
         </span>
-        <button className="bg-red-700 text-white py-2 px-4 rounded-xl border-none w-max self-center">
-          Delete
-        </button>
+        <DeleteButton />
       </form>
     ) : type === "create" || type === "update" ? (
       forms[table] ? forms[table](setOpen, type, data, relatedData) : (

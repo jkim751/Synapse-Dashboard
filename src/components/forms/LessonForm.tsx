@@ -261,7 +261,7 @@ const LessonForm = ({
 
         {state.error && <span className="text-red-500">{state.message || "Something went wrong!"}</span>}
         <button className="bg-orange-400 text-white p-2 rounded-xl" disabled={isPending}>
-          {isPending ? "Loading..." : type === "update" ? "Update" : "Create"}
+          {isPending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : type === "update" ? "Update" : "Create"}
         </button>
       </form>
     </div>
