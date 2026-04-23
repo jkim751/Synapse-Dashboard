@@ -1,45 +1,48 @@
-
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface DateFilterProps {
-  fromDate: Date;
-  toDate: Date;
+  currentDate: Date;
 }
 
-const DateFilter = ({ fromDate, toDate }: DateFilterProps) => {
+const DateFilter = ({ currentDate }: DateFilterProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  const handleFromDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('from', e.target.value);
-    router.push(`?${params.toString()}`);
-  };
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(formatDate(currentDate));
 
-  const handleToDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setSelectedDate(newDate);
     const params = new URLSearchParams(searchParams);
-    params.set('to', e.target.value);
-    router.push(`?${params.toString()}`);
+    params.set('date', newDate);
+    params.delete('page');
+    startTransition(() => {
+      router.push(`?${params.toString()}`);
+    });
   };
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm font-medium text-gray-700">From:</label>
-      <input
-        type="date"
-        value={fromDate.toISOString().split('T')[0]}
-        onChange={handleFromDateChange}
-        className="border border-gray-300 rounded px-2 py-1 text-sm"
-      />
-      <label className="text-sm font-medium text-gray-700">To:</label>
-      <input
-        type="date"
-        value={toDate.toISOString().split('T')[0]}
-        onChange={handleToDateChange}
-        className="border border-gray-300 rounded px-2 py-1 text-sm"
-      />
+      <label className="text-sm font-medium text-gray-700">Date:</label>
+      <div className="relative">
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={handleChange}
+          disabled={isPending}
+          className={`border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition-opacity ${isPending ? "opacity-50" : ""}`}
+        />
+        {isPending && (
+          <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+            <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

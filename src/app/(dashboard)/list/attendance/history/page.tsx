@@ -41,15 +41,20 @@ const AttendanceHistoryPage = async ({
   const { page, ...queryParams } = resolvedSearchParams;
   const p = page ? parseInt(page) : 1;
 
-  // Date filtering
-  const fromDate = queryParams.from ? new Date(queryParams.from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-  const toDate = queryParams.to ? new Date(queryParams.to) : new Date();
+  // Date filtering — single day
+  const today = new Date();
+  const selectedDateStr = queryParams.date || today.toISOString().split('T')[0];
+  const selectedDate = new Date(selectedDateStr);
+  const startOfDay = new Date(selectedDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(selectedDate);
+  endOfDay.setHours(23, 59, 59, 999);
 
   // Build query with role-based filtering
   const query: Prisma.AttendanceWhereInput = {
     date: {
-      gte: fromDate,
-      lte: toDate,
+      gte: startOfDay,
+      lte: endOfDay,
     },
   };
 
@@ -243,10 +248,15 @@ const AttendanceHistoryPage = async ({
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold">Attendance History</h1>
+        <div>
+          <h1 className="text-lg font-semibold">Attendance History</h1>
+          <p className="text-sm text-gray-500">
+            {selectedDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
-          <DateFilter fromDate={fromDate} toDate={toDate} />
+          <DateFilter currentDate={selectedDate} />
         </div>
       </div>
 
