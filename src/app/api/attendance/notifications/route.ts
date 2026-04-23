@@ -73,24 +73,18 @@ export async function DELETE(request: NextRequest) {
         },
         data: { isRead: true },
       });
-      console.log(`Marked all notifications as read for user: ${userId}`);
     } else {
       // --- Default to deleting all ---
       try {
         await prisma.notification.deleteMany({
-          where: { recipientId: userId }, // Crucial: Only delete for the current user
+          where: { recipientId: userId },
         });
-        console.log(`Deleted all notifications for user: ${userId}`);
       } catch (deleteError) {
-        console.warn("Delete failed, falling back to mark as read:", deleteError);
         // Fallback: mark all as read instead of deleting
         await prisma.notification.updateMany({
-          where: {
-            recipientId: userId,
-          },
+          where: { recipientId: userId },
           data: { isRead: true },
         });
-        console.log(`Marked all notifications as read for user: ${userId} (fallback)`);
       }
     }
 
@@ -129,7 +123,6 @@ export async function POST(request: NextRequest) {
       });
       if (lesson?.teacher?.id) {
         finalRecipients.push(lesson.teacher.id);
-        console.log(`Notification for lesson ${lessonId} will be sent to teacher ${lesson.teacher.id}`);
       }
     } else if (recurringLessonId) {
       const recurringLesson = await prisma.recurringLesson.findUnique({
@@ -138,7 +131,6 @@ export async function POST(request: NextRequest) {
       });
       if (recurringLesson?.teacher?.id) {
         finalRecipients.push(recurringLesson.teacher.id);
-        console.log(`Notification for recurring lesson ${recurringLessonId} will be sent to teacher ${recurringLesson.teacher.id}`);
       }
     }
 
@@ -161,7 +153,6 @@ export async function POST(request: NextRequest) {
     // Case 2: No specific lesson, but sender is a student (general inquiry),
     // or if the lesson had no teacher, find all of the student's teachers as a fallback.
     if (finalRecipients.length === 0 && student) {
-      console.log("Sender is a student, finding all associated teachers as recipients.");
       const teacherIds = new Set<string>();
       student.classes.forEach((studentClass: { class: { supervisorId: string | null; lessons: any[]; }; }) => {
         if (studentClass.class.supervisorId) {
@@ -183,12 +174,10 @@ export async function POST(request: NextRequest) {
 
     // Case 4: Fallback - if no recipients found by any other means, notify the sender.
     if (finalRecipients.length === 0) {
-        console.log("No specific recipients found, defaulting to sender.");
         finalRecipients.push(userId);
     }
 
     const uniqueRecipients = [...new Set(finalRecipients)];
-    console.log("Final unique recipients for notification:", uniqueRecipients);
 
     if (uniqueRecipients.length === 0) {
         return NextResponse.json({ message: "No recipients found for notification." });
@@ -215,7 +204,6 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    console.log(`Created ${notifications.length} notifications.`);
     return NextResponse.json(notifications[0] || { message: "Notification processed." });
 
   } catch (error) {

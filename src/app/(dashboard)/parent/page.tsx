@@ -10,29 +10,22 @@ const ParentPage = async () => {
     return <div>Please log in to access this page.</div>;
   }
 
-  const students = await prisma.student.findMany({
-    where: { parentId: userId },
-    include: {
-      classes: {
-        include: {
-          class: true,
-        },
-      }, 
-    },
-  });
-
-  // Fetch parent info
-  const parent = await prisma.parent.findUnique({
-    where: { id: userId },
-    select: { name: true, surname: true }
-  });
+  const [students, parent, classes] = await Promise.all([
+    prisma.student.findMany({
+      where: { parentId: userId },
+      include: { classes: { include: { class: true } } },
+    }),
+    prisma.parent.findUnique({
+      where: { id: userId },
+      select: { name: true, surname: true },
+    }),
+    prisma.class.findMany({
+      where: { students: { some: { student: { parentId: userId } } } },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   const userName = parent ? `${parent.name} ${parent.surname}` : "Parent";
-  
-  const classes = await prisma.class.findMany({
-    where: { students: { some: { student: { parentId: userId } } } },
-    select: { id: true, name: true },
-  });
 
   const classIds = classes.map((c: { id: any; }) => c.id);
 

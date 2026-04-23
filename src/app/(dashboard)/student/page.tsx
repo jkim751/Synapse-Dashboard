@@ -10,12 +10,16 @@ const StudentPage = async () => {
     return <div>Please log in to access this page.</div>;
   }
 
-  const student = await prisma.student.findUnique({
-    where: { id: userId },
-    include: { 
-      classes: { include: { class: true } }
-    },
-  });
+  const [student, classes] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: userId },
+      include: { classes: { include: { class: true } } },
+    }),
+    prisma.class.findMany({
+      where: { students: { some: { studentId: userId } } },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   if (!student) {
     return (
@@ -33,11 +37,6 @@ const StudentPage = async () => {
   }
 
   const userName = student.name || "Student";
-
-  const classes = await prisma.class.findMany({
-    where: { students: { some: { studentId: userId } } },
-    select: { id: true, name: true },
-  });
 
   const classIds = classes.map((c: { id: any; }) => c.id);
 
