@@ -47,7 +47,7 @@ const PayPage = async ({
         </h1>
         <TableSearch />
       </div>
-      <PayTable data={paginated} />
+      <PayTable key={`${query}-${page}`} data={paginated} />
       <Pagination page={page} count={count} />
     </div>
   );
