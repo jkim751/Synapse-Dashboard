@@ -22,7 +22,7 @@ export async function GET() {
   }
 
   const items = await prisma.checklistItem.findMany({
-    where: { userId },
+    where: { userId: "shared" },
     orderBy: [{ type: "asc" }, { createdAt: "asc" }],
   });
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   const item = await prisma.checklistItem.create({
-    data: { text: text.trim(), type, userId },
+    data: { text: text.trim(), type, userId: "shared" },
   });
 
   return NextResponse.json({ ...item, isCompleted: false }, { status: 201 });

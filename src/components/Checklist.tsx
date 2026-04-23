@@ -17,6 +17,8 @@ export default function Checklist({ type }: Props) {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [newText, setNewText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const label = type === "DAILY" ? "Daily" : "Monthly";
 
@@ -55,6 +57,28 @@ export default function Checklist({ type }: Props) {
       setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
     }
   };
+
+  const startEdit = (item: ChecklistItem) => {
+    setEditingId(item.id);
+    setEditText(item.text);
+  };
+
+  const saveEdit = async (id: string) => {
+    const trimmed = editText.trim();
+    if (!trimmed) { setEditingId(null); return; }
+    const res = await fetch(`/api/checklist/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: trimmed }),
+    });
+    if (res.ok) {
+      const updated: ChecklistItem = await res.json();
+      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+    }
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => setEditingId(null);
 
   const deleteItem = async (id: string) => {
     const res = await fetch(`/api/checklist/${id}`, { method: "DELETE" });
@@ -99,15 +123,29 @@ export default function Checklist({ type }: Props) {
                   </svg>
                 )}
               </button>
-              <span
-                className={`flex-1 text-sm ${
-                  item.isCompleted
-                    ? "line-through text-gray-400"
-                    : "text-gray-700"
-                }`}
-              >
-                {item.text}
-              </span>
+              {editingId === item.id ? (
+                <input
+                  autoFocus
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onBlur={() => saveEdit(item.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit(item.id);
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  className="flex-1 text-sm border-b border-orange-400 outline-none bg-transparent text-gray-700"
+                />
+              ) : (
+                <span
+                  onDoubleClick={() => startEdit(item)}
+                  className={`flex-1 text-sm cursor-text ${
+                    item.isCompleted ? "line-through text-gray-400" : "text-gray-700"
+                  }`}
+                  title="Double-click to edit"
+                >
+                  {item.text}
+                </span>
+              )}
               <button
                 onClick={() => deleteItem(item.id)}
                 className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-lg leading-none flex-shrink-0"
