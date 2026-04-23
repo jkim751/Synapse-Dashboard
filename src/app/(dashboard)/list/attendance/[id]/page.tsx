@@ -75,11 +75,13 @@ const SingleClassAttendancePage = async ({
 
     if (userRoles.includes("teacher")) {
       const isSupervisor = classInfo.supervisorId === userId;
-      
+
       // Check if the teacher teaches any single OR recurring lesson in this class
-      const lessonCount = await prisma.lesson.count({ where: { classId: classId, teacherId: userId! } });
-      const recurringLessonCount = await prisma.recurringLesson.count({ where: { classId: classId, teacherId: userId! } });
-      
+      const [lessonCount, recurringLessonCount] = await Promise.all([
+        prisma.lesson.count({ where: { classId: classId, teacherId: userId! } }),
+        prisma.recurringLesson.count({ where: { classId: classId, teacherId: userId! } }),
+      ]);
+
       const teachesHere = lessonCount > 0 || recurringLessonCount > 0;
   
       // If the teacher is not the supervisor AND does not teach here, redirect.
@@ -123,73 +125,71 @@ const SingleClassAttendancePage = async ({
       ];
     }
 
-    // Get students with their attendance records (including recurring lessons)
-    const [students, count] = await prisma.$transaction([
-      prisma.student.findMany({
-        where: query,
-        include: {
-          attendances: {
-            where: {
-              date: {
-                gte: startOfDay,
-                lte: endOfDay,
-              },
-            },
-            include: {
-              lesson: true,
-              recurringLesson: true, // Include recurring lesson data
+    const needsMakeupData = role === "admin" || role === "director" || role === "teacher-admin";
+
+    // Run all date-dependent queries in parallel
+    const [
+      [students, count],
+      dayLessons,
+      makeupLessons,
+      allRecurringLessons,
+      attendanceData,
+      allSubjects,
+      allTeachers,
+    ] = await Promise.all([
+      prisma.$transaction([
+        prisma.student.findMany({
+          where: query,
+          include: {
+            attendances: {
+              where: { date: { gte: startOfDay, lte: endOfDay } },
+              include: { lesson: true, recurringLesson: true },
             },
           },
+          take: ITEM_PER_PAGE,
+          skip: ITEM_PER_PAGE * (p - 1),
+          orderBy: { name: "asc" },
+        }),
+        prisma.student.count({ where: query }),
+      ]),
+      // Standalone lessons (recurringLessonId: null) match by day of week.
+      // Exception lessons (recurringLessonId != null) were rescheduled to a specific date
+      // via drag-and-drop, so match by actual startTime.
+      prisma.lesson.findMany({
+        where: {
+          classId: classId,
+          isMakeup: false,
+          OR: [
+            { recurringLessonId: null, day: getDayFromDate(selectedDate) },
+            { recurringLessonId: { not: null }, startTime: { gte: startOfDay, lte: endOfDay } },
+          ],
         },
-        take: ITEM_PER_PAGE,
-        skip: ITEM_PER_PAGE * (p - 1),
-        orderBy: { name: "asc" },
+        include: { subject: true, teacher: true },
+        orderBy: { startTime: "asc" },
       }),
-      prisma.student.count({ where: query }),
+      prisma.lesson.findMany({
+        where: { classId: classId, isMakeup: true, startTime: { gte: startOfDay, lte: endOfDay } },
+        include: { subject: true, teacher: true, makeupStudents: { select: { studentId: true } } },
+        orderBy: { startTime: "asc" },
+      }),
+      prisma.recurringLesson.findMany({
+        where: { classId: classId },
+        include: { subject: true, teacher: true },
+        orderBy: { startTime: "asc" },
+      }),
+      prisma.attendance.findMany({
+        where: {
+          date: { gte: startOfDay, lte: endOfDay },
+          OR: [
+            { lesson: { classId: classId } },
+            { recurringLesson: { classId: classId } },
+          ],
+        },
+        include: { lesson: true, recurringLesson: true },
+      }),
+      needsMakeupData ? prisma.subject.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+      needsMakeupData ? prisma.teacher.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     ]);
-
-    // Get lessons for the selected date for this class.
-    // Standalone lessons (recurringLessonId: null) match by day of week — they recur weekly.
-    // Exception lessons (recurringLessonId != null) were rescheduled to a specific date via
-    // drag-and-drop, so match by actual startTime to avoid showing them on every occurrence
-    // of that weekday.
-    // Makeup lessons always match by actual date and include their specific student list.
-    const dayLessons = await prisma.lesson.findMany({
-      where: {
-        classId: classId,
-        isMakeup: false,
-        OR: [
-          {
-            recurringLessonId: null,
-            day: getDayFromDate(selectedDate),
-          },
-          {
-            recurringLessonId: { not: null },
-            startTime: { gte: startOfDay, lte: endOfDay },
-          },
-        ],
-      },
-      include: {
-        subject: true,
-        teacher: true,
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    // Fetch makeup lessons for this date separately so we can include their student lists
-    const makeupLessons = await prisma.lesson.findMany({
-      where: {
-        classId: classId,
-        isMakeup: true,
-        startTime: { gte: startOfDay, lte: endOfDay },
-      },
-      include: {
-        subject: true,
-        teacher: true,
-        makeupStudents: { select: { studentId: true } },
-      },
-      orderBy: { startTime: "asc" },
-    });
 
     // Track which recurring series have an exception on this date so we can
     // suppress the parent recurring occurrence (avoid double-showing).
@@ -199,47 +199,14 @@ const SingleClassAttendancePage = async ({
         .map((l: any) => l.recurringLessonId as number)
     );
 
-    // Get ALL recurring lessons for this class (we'll filter them below)
-    const allRecurringLessons = await prisma.recurringLesson.findMany({
-      where: {
-        classId: classId,
-      },
-      include: {
-        subject: true,
-        teacher: true,
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    // Filter recurring lessons to only include those that actually occur on the selected date,
-    // and exclude any series that already have an exception lesson on this date.
+    // Filter recurring lessons to only those that actually occur on the selected date,
+    // excluding any series that already have an exception lesson on this date.
     const dayRecurringLessons = allRecurringLessons.filter((lesson: { id: number; startTime: Date; rrule: string | undefined; }) => {
-      // If there's an exception for this series on this date, show the exception instead
-      if (exceptionRecurringIds.has(lesson.id)) {
-        return false;
-      }
-
-      // Skip lessons without rrule
-      if (!lesson.rrule) {
-        return false;
-      }
-
-      // Check if the lesson period includes the selected date
-      if (!isDateWithinLessonPeriod(lesson.startTime, selectedDate, lesson.rrule)) {
-        return false;
-      }
-
-      // Check if the lesson actually occurs on this specific date based on RRule
+      if (exceptionRecurringIds.has(lesson.id)) return false;
+      if (!lesson.rrule) return false;
+      if (!isDateWithinLessonPeriod(lesson.startTime, selectedDate, lesson.rrule)) return false;
       return doesRecurringLessonOccurOnDate(lesson.rrule, lesson.startTime, selectedDate);
     });
-
-    console.log(`Found ${allRecurringLessons.length} total recurring lessons, ${dayRecurringLessons.length} occur on ${selectedDate.toDateString()}`);
-
-    // Fetch subjects and teachers for the makeup class creation modal
-    const [allSubjects, allTeachers] = await Promise.all([
-      prisma.subject.findMany({ orderBy: { name: "asc" } }),
-      prisma.teacher.findMany({ orderBy: { name: "asc" } }),
-    ]);;
 
     // Combine regular, recurring, and makeup lessons
     const allLessons = [
@@ -253,32 +220,6 @@ const SingleClassAttendancePage = async ({
         makeupStudentIds: lesson.makeupStudents.map((ms: any) => ms.studentId) as string[],
       })),
     ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-    // Get attendance data for the selected date (both regular and recurring lessons)
-    const attendanceData = await prisma.attendance.findMany({
-      where: {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        OR: [
-          {
-            lesson: {
-              classId: classId,
-            },
-          },
-          {
-            recurringLesson: {
-              classId: classId,
-            },
-          },
-        ],
-      },
-      include: {
-        lesson: true,
-        recurringLesson: true,
-      },
-    });
 
     const columns = [
       {

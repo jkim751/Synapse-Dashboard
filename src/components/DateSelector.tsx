@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface DateSelectorProps {
@@ -11,15 +11,12 @@ interface DateSelectorProps {
 const DateSelector = ({ currentDate, classId }: DateSelectorProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Format date for input (YYYY-MM-DD)
-  const formatDateForInput = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
+  const [isPending, startTransition] = useTransition();
+
+  const formatDateForInput = (date: Date) => date.toISOString().split('T')[0];
 
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(currentDate));
 
-  // Update local state when currentDate prop changes
   useEffect(() => {
     setSelectedDate(formatDateForInput(currentDate));
   }, [currentDate]);
@@ -27,13 +24,13 @@ const DateSelector = ({ currentDate, classId }: DateSelectorProps) => {
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = event.target.value;
     setSelectedDate(newDate);
-    
-    // Create new URL with updated date
+
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('date', newDate);
-    
-    // Navigate to new URL
-    router.push(`/list/attendance/${classId}?${newSearchParams.toString()}`);
+
+    startTransition(() => {
+      router.push(`/list/attendance/${classId}?${newSearchParams.toString()}`);
+    });
   };
 
   return (
@@ -41,13 +38,21 @@ const DateSelector = ({ currentDate, classId }: DateSelectorProps) => {
       <label htmlFor="date-selector" className="text-sm font-medium text-gray-700">
         Date:
       </label>
-      <input
-        id="date-selector"
-        type="date"
-        value={selectedDate}
-        onChange={handleDateChange}
-        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      <div className="relative">
+        <input
+          id="date-selector"
+          type="date"
+          value={selectedDate}
+          onChange={handleDateChange}
+          disabled={isPending}
+          className={`px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 transition-opacity ${isPending ? "opacity-50" : ""}`}
+        />
+        {isPending && (
+          <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+            <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
