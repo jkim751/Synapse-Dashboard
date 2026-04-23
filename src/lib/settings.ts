@@ -22,6 +22,7 @@ export const routeAccessMap: RouteAccessMap = {
   "/list/invoices": ["parent"],
   "/list/xero": ["admin", "director", "teacher-admin"],
   "/list/payroll": ["admin", "director", "teacher", "teacher-admin"],
+  "/list/hours": ["director", "teacher", "teacher-admin"],
   "/list/stats": ["admin", "director", "teacher-admin"],
   "/list/notes": ["admin", "director", "teacher-admin"],
   "/list/admins": ["admin", "director", "teacher-admin"],

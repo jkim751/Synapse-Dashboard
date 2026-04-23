@@ -151,6 +151,20 @@ model PaySheetEntry {
   @@map("pay_sheet_entries")
 }
 
+model WorkedHours {
+  id          String   @id @default(cuid())
+  teacherId   String
+  date        DateTime @default(now())
+  className   String
+  hoursWorked Float
+  attendees   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("worked_hours")
+}
+
 model Lesson {
   id                Int              @id @default(autoincrement())
   name              String

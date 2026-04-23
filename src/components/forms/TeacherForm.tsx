@@ -27,9 +27,18 @@ const TeacherForm = ({
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<TeacherSchema>({
     resolver: zodResolver(teacherSchema),
+    defaultValues: {
+      subjects: data?.subjects?.map((s: any) => s.id.toString()) || [],
+    },
   });
+
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    data?.subjects?.map((s: any) => s.id.toString()) || []
+  );
+  const [subjectSearch, setSubjectSearch] = useState("");
 
   const [img, setImg] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
@@ -59,24 +68,27 @@ const TeacherForm = ({
 
   const { subjects } = relatedData;
 
+  const handleSubjectToggle = (id: string) => {
+    const next = selectedSubjects.includes(id)
+      ? selectedSubjects.filter((s) => s !== id)
+      : [...selectedSubjects, id];
+    setSelectedSubjects(next);
+    setValue("subjects", next);
+  };
+
+  const filteredSubjects = subjects?.filter((s: { name: string }) =>
+    s.name.toLowerCase().includes(subjectSearch.toLowerCase())
+  );
+
   const onSubmit = handleSubmit((formData) => {
-    console.log("Form data before submission:", formData);
-    
-    // Get selected subjects from the form
-    const subjectsSelect = document.querySelector('select[multiple]') as HTMLSelectElement;
-    const selectedSubjects = Array.from(subjectsSelect?.selectedOptions || []).map(option => option.value);
-    
     const formattedData = {
       ...formData,
       img: img || undefined,
-      subjects: selectedSubjects || [],
+      subjects: selectedSubjects,
       email: formData.email || undefined,
       phone: formData.phone || undefined,
       password: type === "update" && formData.password === "" ? undefined : formData.password,
     };
-    
-    console.log("Formatted data:", formattedData);
-    
     startTransition(() => {
       formAction(formattedData);
     });
@@ -192,27 +204,40 @@ const TeacherForm = ({
               </p>
             )}
           </div>
-          <div className="flex flex-col gap-2 w-full md:w-1/2">
+          <div className="flex flex-col gap-2 w-full">
             <label className="text-xs text-gray-500">Subjects</label>
-            <select
-              multiple
-              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full h-32"
-              {...register("subjects")}
-              defaultValue={data?.subjects?.map((subject: any) => subject.id.toString()) || []}
-            >
-              {subjects?.map((subject: { id: number; name: string }) => (
-                <option value={subject.id.toString()} key={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-400">
-              Hold Ctrl/Cmd to select multiple subjects
-            </p>
+            <input
+              type="text"
+              placeholder="Search subjects..."
+              value={subjectSearch}
+              onChange={(e) => setSubjectSearch(e.target.value)}
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
+            />
+            <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
+              {filteredSubjects?.length > 0 ? (
+                filteredSubjects.map((subject: { id: number; name: string }) => (
+                  <div key={subject.id} className="flex items-center gap-2 mb-2 last:mb-0">
+                    <input
+                      type="checkbox"
+                      id={`subject-${subject.id}`}
+                      checked={selectedSubjects.includes(subject.id.toString())}
+                      onChange={() => handleSubjectToggle(subject.id.toString())}
+                      className="w-4 h-4 accent-orange-400"
+                    />
+                    <label htmlFor={`subject-${subject.id}`} className="text-sm cursor-pointer flex-1">
+                      {subject.name}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 italic">No subjects found</p>
+              )}
+            </div>
+            {selectedSubjects.length > 0 && (
+              <p className="text-xs text-gray-500">{selectedSubjects.length} subject(s) selected</p>
+            )}
             {errors.subjects?.message && (
-              <p className="text-xs text-red-400">
-                {errors.subjects.message.toString()}
-              </p>
+              <p className="text-xs text-red-400">{errors.subjects.message.toString()}</p>
             )}
           </div>
           <PhotoUploadWidget
