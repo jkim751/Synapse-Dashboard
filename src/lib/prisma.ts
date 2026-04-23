@@ -19,7 +19,39 @@ const prismaClientSingleton = () => {
     ? new PrismaClient({ log: ['query'], accelerateUrl: dbUrl })
     : new PrismaClient({ log: ['query'], adapter: new PrismaPg({ connectionString: dbUrl }) });
 
-  const extended = base
+  const isTransientError = (e: any): boolean => {
+    const msg: string = e?.message ?? '';
+    const causeCode: string = e?.cause?.code ?? '';
+    const code: string = e?.code ?? '';
+    return (
+      causeCode === 'UND_ERR_SOCKET' ||
+      msg.includes('fetch failed') ||
+      msg.includes('other side closed') ||
+      code === 'P6000' ||
+      code === 'P6006'
+    );
+  };
+
+  const withRetry = base.$extends({
+    query: {
+      $allOperations: async ({ args, query }) => {
+        const MAX_RETRIES = 3;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            return await query(args);
+          } catch (e: any) {
+            if (attempt < MAX_RETRIES && isTransientError(e)) {
+              await new Promise((r) => setTimeout(r, 150 * 2 ** attempt));
+              continue;
+            }
+            throw e;
+          }
+        }
+      },
+    },
+  });
+
+  const extended = withRetry
     .$extends({
       query: {
         student: {
