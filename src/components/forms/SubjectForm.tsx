@@ -6,7 +6,7 @@ import InputField from "../InputField";
 import { subjectSchema, SubjectSchema } from "@/lib/formValidationSchemas";
 import { createSubject, updateSubject } from "@/lib/actions";
 import { useActionState } from "react";
-import { Dispatch, SetStateAction, useEffect, useTransition } from "react";
+import { Dispatch, SetStateAction, useEffect, useState, useTransition } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
@@ -25,9 +25,18 @@ const SubjectForm = ({
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<SubjectSchema>({
     resolver: zodResolver(subjectSchema),
+    defaultValues: {
+      teachers: data?.teachers?.map((t: any) => (typeof t === "string" ? t : t.id)) || [],
+    },
   });
+
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>(
+    data?.teachers?.map((t: any) => (typeof t === "string" ? t : t.id)) || []
+  );
+  const [teacherSearch, setTeacherSearch] = useState("");
 
   const [isPending, startTransition] = useTransition();
 
@@ -55,9 +64,21 @@ const SubjectForm = ({
 
   const { teachers } = relatedData;
 
+  const handleTeacherToggle = (id: string) => {
+    const next = selectedTeachers.includes(id)
+      ? selectedTeachers.filter((t) => t !== id)
+      : [...selectedTeachers, id];
+    setSelectedTeachers(next);
+    setValue("teachers", next);
+  };
+
+  const filteredTeachers = teachers.filter((t: { name: string; surname: string }) =>
+    `${t.name} ${t.surname}`.toLowerCase().includes(teacherSearch.toLowerCase())
+  );
+
   const onSubmit = handleSubmit((data) => {
     startTransition(() => {
-      formAction(data);
+      formAction({ ...data, teachers: selectedTeachers });
     });
   });
 
@@ -85,24 +106,40 @@ const SubjectForm = ({
               hidden
             />
           )}
-          <div className="flex flex-col gap-2 w-full md:w-1/3">
+          <div className="flex flex-col gap-2 w-full">
             <label className="text-xs text-gray-500">Teachers</label>
-            <select
-              multiple
+            <input
+              type="text"
+              placeholder="Search teachers..."
+              value={teacherSearch}
+              onChange={(e) => setTeacherSearch(e.target.value)}
               className="ring-[1.5px] ring-gray-300 p-2 rounded-xl text-sm w-full"
-              {...register("teachers")}
-              defaultValue={data?.teachers}
-            >
-              {teachers.map((teacher: { id: string; name: string; surname: string }) => (
-                <option value={teacher.id} key={teacher.id}>
-                  {teacher.name + " " + teacher.surname}
-                </option>
-              ))}
-            </select>
+            />
+            <div className="border rounded-xl p-3 max-h-40 overflow-y-auto">
+              {filteredTeachers.length > 0 ? (
+                filteredTeachers.map((teacher: { id: string; name: string; surname: string }) => (
+                  <div key={teacher.id} className="flex items-center gap-2 mb-2 last:mb-0">
+                    <input
+                      type="checkbox"
+                      id={`teacher-${teacher.id}`}
+                      checked={selectedTeachers.includes(teacher.id)}
+                      onChange={() => handleTeacherToggle(teacher.id)}
+                      className="w-4 h-4 accent-orange-400"
+                    />
+                    <label htmlFor={`teacher-${teacher.id}`} className="text-sm cursor-pointer flex-1">
+                      {teacher.name} {teacher.surname}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 italic">No teachers found</p>
+              )}
+            </div>
+            {selectedTeachers.length > 0 && (
+              <p className="text-xs text-gray-500">{selectedTeachers.length} teacher(s) selected</p>
+            )}
             {errors.teachers?.message && (
-              <p className="text-xs text-red-400">
-                {errors.teachers.message.toString()}
-              </p>
+              <p className="text-xs text-red-400">{errors.teachers.message.toString()}</p>
             )}
           </div>
         </div>
