@@ -128,13 +128,13 @@ const AttendanceMarkButton = ({
           <AttendanceStatusDisplay status={status} compact />
         </div>
       )}
-      <div className="flex gap-1 flex-wrap">
+      <div className="flex gap-1.5 md:gap-1 flex-wrap">
         {statuses.map((statusType) => (
           <button
             key={statusType}
             onClick={() => markAttendance(statusType)}
             disabled={isPending}
-            className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
+            className={`w-8 h-8 md:w-6 md:h-6 rounded-full text-xs font-bold transition-all ${
               getStatusColor(statusType, status === statusType)
             } ${isPending ? "opacity-50 cursor-not-allowed" : ""}`}
             title={getStatusTitle(statusType)}

@@ -57,6 +57,7 @@ export async function sendLessonRescheduleEmails(params: {
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
+        teacher: { select: { name: true, surname: true, email: true } },
         class: {
           include: {
             students: {
@@ -71,6 +72,9 @@ export async function sendLessonRescheduleEmails(params: {
       },
     });
 
+    if (lesson?.teacher?.email) {
+      recipients.push({ name: `${lesson.teacher.name} ${lesson.teacher.surname}`, email: lesson.teacher.email });
+    }
     if (lesson?.class) {
       for (const sc of lesson.class.students) {
         const s = sc.student;
@@ -82,6 +86,7 @@ export async function sendLessonRescheduleEmails(params: {
     const rl = await prisma.recurringLesson.findUnique({
       where: { id: recurringLessonId },
       include: {
+        teacher: { select: { name: true, surname: true, email: true } },
         class: {
           include: {
             students: {
@@ -96,6 +101,9 @@ export async function sendLessonRescheduleEmails(params: {
       },
     });
 
+    if (rl?.teacher?.email) {
+      recipients.push({ name: `${rl.teacher.name} ${rl.teacher.surname}`, email: rl.teacher.email });
+    }
     if (rl?.class) {
       for (const sc of rl.class.students) {
         const s = sc.student;
@@ -166,6 +174,7 @@ export async function sendMakeupLessonEmails(lessonId: number) {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     include: {
+      teacher: { select: { name: true, surname: true, email: true } },
       makeupStudents: {
         include: {
           student: {
@@ -179,6 +188,10 @@ export async function sendMakeupLessonEmails(lessonId: number) {
   if (!lesson) return { sent: 0 };
 
   let recipients: { name: string; email: string }[] = [];
+
+  if (lesson.teacher?.email) {
+    recipients.push({ name: `${lesson.teacher.name} ${lesson.teacher.surname}`, email: lesson.teacher.email });
+  }
 
   for (const ms of lesson.makeupStudents) {
     const s = ms.student;

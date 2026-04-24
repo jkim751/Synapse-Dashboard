@@ -312,28 +312,27 @@ const SingleClassAttendancePage = async ({
     return (
       <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
         {/* TOP */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="min-w-0">
             <h1 className="text-lg font-semibold">
-              Attendance - {classInfo.name}
+              Attendance — {classInfo.name}
             </h1>
             <p className="text-sm text-gray-500">
               {supervisorName ?? "—"} • Grade {classInfo.grade.level}
             </p>
             <p className="text-sm text-gray-500">
-            {selectedDate.toLocaleDateString('en-GB', {
+              {selectedDate.toLocaleDateString('en-GB', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
               })}
             </p>
           </div>
-          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 md:gap-4">
             <TableSearch />
-         {/* Date Picker for history */}
-         <form method="GET" action={`/list/attendance/${classId}`}>
-         <DateSelector currentDate={selectedDate} classId={classId} />
+            <form method="GET" action={`/list/attendance/${classId}`}>
+              <DateSelector currentDate={selectedDate} classId={classId} />
               <input type="hidden" name="date" value={selectedDate.toISOString().split('T')[0]} />
             </form>
             {(role === "admin" || role === "director" || role === "teacher-admin") && (
@@ -351,17 +350,17 @@ const SingleClassAttendancePage = async ({
         {/* LESSONS INFO */}
         {allLessons.length > 0 ? (
           <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <h3 className="font-semibold">
-                Lessons for {selectedDate.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'long', 
-                  day: 'numeric' 
+                Lessons for {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
                 })}:
               </h3>
               {isPastDate && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  Historical Date - You can still update attendance
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full whitespace-nowrap">
+                  Historical — attendance still editable
                 </span>
               )}
             </div>
@@ -411,7 +410,7 @@ const SingleClassAttendancePage = async ({
         {/* ATTENDANCE TABLE */}
         {allLessons.length > 0 ? (
           <>
-            <Table columns={columns} renderRow={renderRow} data={students} />
+            <Table columns={columns} renderRow={renderRow} data={students} hideHeaderOnMobile />
             <Pagination page={p} count={count} />
           </>
         ) : (

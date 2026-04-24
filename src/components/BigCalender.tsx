@@ -125,7 +125,19 @@ const BigCalendar = ({
   }, [initialLessons, initialEvents]);
 
   const [view, setView] = useState<View>(Views.WEEK);
+  const [isMobile, setIsMobile] = useState(false);
   const [date, setDate] = useState(new Date());
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+      if (e.matches) setView(Views.DAY);
+    };
+    update(mq);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   const [selectedEvent, setSelectedEvent] = useState<ProcessedEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -361,9 +373,10 @@ const BigCalendar = ({
     <DndProvider backend={HTML5Backend}>
       <div className="h-full flex flex-col overflow-hidden">
         {/* Toolbar */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-1 sm:gap-2">
+            {/* Navigation */}
+            <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={() => {
                   const newDate = new Date(date);
@@ -372,17 +385,17 @@ const BigCalendar = ({
                   else newDate.setDate(newDate.getDate() - 1);
                   handleNavigate(newDate);
                 }}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
+                className="px-2 sm:px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center gap-1"
               >
                 <span>←</span>
-                <span className="text-sm font-medium">
-                  {view === 'month' ? 'Previous Month' : view === 'week' ? 'Previous Week' : 'Previous Day'}
+                <span className="hidden sm:inline text-sm font-medium">
+                  {view === 'month' ? 'Month' : view === 'week' ? 'Week' : 'Day'}
                 </span>
               </button>
 
               <button
                 onClick={() => handleNavigate(new Date())}
-                className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors text-sm font-medium"
+                className="px-2 sm:px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors text-sm font-medium"
               >
                 Today
               </button>
@@ -395,44 +408,50 @@ const BigCalendar = ({
                   else newDate.setDate(newDate.getDate() + 1);
                   handleNavigate(newDate);
                 }}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center space-x-1"
+                className="px-2 sm:px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center gap-1"
               >
-                <span className="text-sm font-medium">
-                  {view === 'month' ? 'Next Month' : view === 'week' ? 'Next Week' : 'Next Day'}
+                <span className="hidden sm:inline text-sm font-medium">
+                  {view === 'month' ? 'Month' : view === 'week' ? 'Week' : 'Day'}
                 </span>
                 <span>→</span>
               </button>
             </div>
 
-            <div className="flex-1 text-center">
-              <h2 className="text-xl font-semibold text-gray-800">
+            {/* Date title */}
+            <div className="flex-1 text-center min-w-0">
+              <h2 className="text-sm sm:text-xl font-semibold text-gray-800 truncate">
                 {view === 'month'
                   ? date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
                   : view === 'week'
                     ? (() => {
                       const weekStart = moment(date).startOf('week').toDate();
                       const weekEnd = moment(date).endOf('week').toDate();
-                      return `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                      return `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
                     })()
-                    : date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                    : isMobile
+                      ? date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+                      : date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
                 }
               </h2>
             </div>
 
-            <div className="flex bg-gray-100 rounded-xl p-1">
-              {(['month', 'week', 'day'] as View[]).map((viewType) => (
-                <button
-                  key={viewType}
-                  onClick={() => handleView(viewType)}
-                  className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${view === viewType
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                >
-                  {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
-                </button>
-              ))}
-            </div>
+            {/* View switcher — hidden on mobile (day view only) */}
+            {!isMobile && (
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                {(['month', 'week', 'day'] as View[]).map((viewType) => (
+                  <button
+                    key={viewType}
+                    onClick={() => handleView(viewType)}
+                    className={`px-3 py-1 text-sm font-medium rounded-xl transition-colors ${view === viewType
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                  >
+                    {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -443,7 +462,7 @@ const BigCalendar = ({
             events={sortedEvents}
             startAccessor={(event) => (event as ProcessedEvent).start}
             endAccessor={(event) => (event as ProcessedEvent).end}
-            views={["month", "week", "day"]}
+            views={isMobile ? ["day"] : ["month", "week", "day"]}
             view={view}
             date={date}
             style={{ height: "100%", width: "100%", minHeight: "400px" }}

@@ -32,7 +32,7 @@ const TeacherPage = async () => {
       
       <div className="h-full flex-1 p-4 flex gap-4 flex-col xl:flex-row">
         {/* LEFT */}
-        <div className="h-[900px] w-full xl:w-2/3">
+        <div className="h-[500px] md:h-[700px] lg:h-[900px] w-full xl:w-2/3">
           <div className="h-full bg-white p-4 rounded-xl flex flex-col">
             <h1 className="text-xl font-semibold mb-4">Schedule</h1>
             <div className="flex-1 min-h-0">

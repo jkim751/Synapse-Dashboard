@@ -61,7 +61,7 @@ const StudentPage = async () => {
       </div>
       
       {/* BOTTOM */}
-      <div className="mt-4 ml-4 mr-4 bg-white rounded-xl p-4 h-[900px] overflow-hidden">
+      <div className="mt-4 ml-4 mr-4 bg-white rounded-xl p-4 h-[500px] md:h-[700px] lg:h-[900px] overflow-hidden">
         <h1 className="mb-4">Student&apos;s Schedule</h1>
         <div className="h-[calc(100%-2rem)]">
           <BigCalendarContainer

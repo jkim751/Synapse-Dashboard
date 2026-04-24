@@ -52,7 +52,7 @@ const ParentPage = async () => {
       <div className="flex-1 p-4 flex gap-4 flex-col xl:flex-row">
         <div className="w-full xl:w-2/3">
           {students.length > 0 ? (
-            <div className="bg-white p-4 rounded-xl h-[850px]">
+            <div className="bg-white p-4 rounded-xl h-[500px] md:h-[700px] lg:h-[850px]">
               <h1 className="text-xl font-semibold mb-4">
                 {students.length > 1 && (
                   <span className="text-sm text-gray-600 ml-2">

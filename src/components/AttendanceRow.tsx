@@ -21,15 +21,14 @@ interface AttendanceRowProps {
   date: Date;
 }
 
-const AttendanceRow = ({ 
-  student, 
-  attendanceMap, 
-  todayLessons, 
-  date 
+const AttendanceRow = ({
+  student,
+  attendanceMap,
+  todayLessons,
+  date
 }: AttendanceRowProps) => {
   const [localAttendanceMap, setLocalAttendanceMap] = useState(attendanceMap);
 
-  // Reset attendance map when date or attendanceMap changes
   useEffect(() => {
     setLocalAttendanceMap(new Map(attendanceMap));
   }, [attendanceMap, date]);
@@ -41,65 +40,71 @@ const AttendanceRow = ({
   ) => {
     const key = lessonId ? `lesson_${lessonId}` : `recurring_${recurringLessonId}`;
     const newMap = new Map(localAttendanceMap);
-    
     if (status === undefined) {
-      newMap.delete(key); // Remove the entry if status is cleared
+      newMap.delete(key);
     } else {
       newMap.set(key, status);
     }
-    
     setLocalAttendanceMap(newMap);
   };
 
-  // Calculate overall attendance status for the day
   const getOverallStatus = () => {
     if (todayLessons.length === 0) return null;
-    
-    const statuses = todayLessons.map(lesson => 
-      localAttendanceMap.get(lesson.id)
-    ).filter(Boolean);
-    
+    const statuses = todayLessons.map(lesson => localAttendanceMap.get(lesson.id)).filter(Boolean);
     if (statuses.length === 0) return null;
-    
-    // If all are present, show present
     if (statuses.every(s => s === 'present')) return 'present';
-    // If any are absent, show absent
     if (statuses.some(s => s === 'absent')) return 'absent';
-    // If mixed or other statuses, show the first non-present status
     return statuses.find(s => s !== 'present') || statuses[0];
   };
 
   const overallStatus = getOverallStatus();
 
   return (
-    <tr className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
-      <td className="flex items-center gap-4 p-4">
-        <div>
-          <h3 className="font-medium">{student.name} {student.surname}</h3>
-          <p className="text-xs text-gray-500">{student.email}</p>
+    /* Mobile: display as stacked card. Desktop: normal table row. */
+    <tr className="border-b border-gray-200 even:bg-slate-50 text-sm block md:table-row hover:bg-lamaPurpleLight">
+
+      {/* Student info — on mobile also shows overall status badge inline */}
+      <td className="block md:table-cell p-3 md:p-4 md:pb-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="font-medium">{student.name} {student.surname}</h3>
+            <p className="text-xs text-gray-500">{student.email}</p>
+          </div>
+          {/* Overall badge — visible only on mobile */}
+          <div className="md:hidden flex-shrink-0">
+            {overallStatus ? (
+              <AttendanceStatusDisplay status={overallStatus as AttendanceStatus} />
+            ) : (
+              <span className="text-gray-400 text-xs whitespace-nowrap">
+                {todayLessons.length === 0 ? "No lessons" : "Not marked"}
+              </span>
+            )}
+          </div>
         </div>
       </td>
-      
-      <td className="p-4">
+
+      {/* Lesson mark buttons */}
+      <td className="block md:table-cell px-3 md:p-4 pb-3 md:pb-4">
         <div className="space-y-2">
           {todayLessons.length > 0 ? (
             todayLessons.map((lesson) => {
               const currentStatus = localAttendanceMap.get(lesson.id);
-              
               return (
-                <div key={`${lesson.id}-${date.toISOString()}`} className="flex items-center gap-3 py-1">
-                  <div className="min-w-[120px] text-xs">
+                <div
+                  key={`${lesson.id}-${date.toISOString()}`}
+                  className="flex items-center gap-2 flex-wrap py-0.5"
+                >
+                  <div className="text-xs min-w-[100px]">
                     <div className="font-medium">{lesson.subject.name}</div>
                     <div className="text-gray-500">
                       {lesson.startTime.toLocaleTimeString('en-US', {
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
                       })}
                     </div>
                   </div>
-                  
                   <AttendanceMarkButton
-                    key={`${lesson.id}-${date.toDateString()}`} // Force re-render on date change
+                    key={`${lesson.id}-${date.toDateString()}`}
                     studentId={student.id}
                     lessonId={lesson.originalType === 'regular' ? lesson.originalId : undefined}
                     recurringLessonId={lesson.originalType === 'recurring' ? lesson.originalId : undefined}
@@ -116,10 +121,11 @@ const AttendanceRow = ({
           )}
         </div>
       </td>
-      
-      <td className="p-4 text-center">
+
+      {/* Overall status — desktop only (shown inline on mobile above) */}
+      <td className="hidden md:table-cell p-4 text-center">
         {overallStatus ? (
-          <AttendanceStatusDisplay status={overallStatus} />
+          <AttendanceStatusDisplay status={overallStatus as AttendanceStatus} />
         ) : (
           <span className="text-gray-400 text-xs">
             {todayLessons.length === 0 ? "No lessons" : "Not marked"}

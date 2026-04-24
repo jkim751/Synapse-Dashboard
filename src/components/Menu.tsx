@@ -120,7 +120,7 @@ const menuItems = [
       },
       {
         icon: "/attendance.png",
-        label: "Worked Hours",
+        label: "Time Sheets",
         href: "/list/hours",
         visible: ["director", "teacher-admin", "teacher"],
       },
@@ -147,7 +147,12 @@ const accountItems = [
   { icon: "/parent.png", label: "Parents", href: "/list/parents", visible: ["admin", "director", "teacher-admin"] },
 ];
 
-const Menu = () => {
+interface MenuProps {
+  onClose?: () => void;
+  showLabels?: boolean;
+}
+
+const Menu = ({ onClose, showLabels = false }: MenuProps) => {
   const { user } = useUser();
   const role = user?.publicMetadata?.role as string;
   const pathname = usePathname();
@@ -156,11 +161,14 @@ const Menu = () => {
   const visibleAccountItems = accountItems.filter((item) => item.visible.includes(role));
   const isAccountsActive = accountItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
 
+  const labelClass = showLabels ? "block" : "hidden lg:block";
+  const justifyClass = showLabels ? "justify-start" : "justify-center lg:justify-start";
+
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
         <div className="flex flex-col gap-2" key={i.title}>
-          <span className="hidden lg:block text-gray-400 font-light my-4">
+          <span className={showLabels ? "text-gray-400 font-light my-4 block" : "hidden lg:block text-gray-400 font-light my-4"}>
             {i.title}
           </span>
 
@@ -171,39 +179,41 @@ const Menu = () => {
               <div key={item.label}>
                 <Link
                   href={item.href}
-                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${isActive ? 'bg-orange-100' : ''}`}
+                  onClick={() => onClose?.()}
+                  className={`flex items-center ${justifyClass} gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${isActive ? 'bg-orange-100' : ''}`}
                 >
                   <Image src={item.icon} alt="" width={20} height={20} />
-                  <span className="hidden lg:block">{item.label}</span>
+                  <span className={labelClass}>{item.label}</span>
                 </Link>
                 {item.href === '/' && visibleAccountItems.length > 0 && (
                   <div key="accounts-dropdown">
                     <button
                       onClick={() => setAccountsOpen((o) => !o)}
-                      className={`w-full flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${
+                      className={`w-full flex items-center ${justifyClass} gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${
                         isAccountsActive ? 'bg-orange-100' : ''
                       }`}
                     >
                       <Image src="/admin.png" alt="" width={20} height={20} />
-                      <span className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-between">
+                      <span className={showLabels ? "flex flex-1 items-center justify-between" : "hidden lg:flex lg:flex-1 lg:items-center lg:justify-between"}>
                         Accounts
                         <span className="mr-1 text-xs">{accountsOpen ? '▴' : '▾'}</span>
                       </span>
                     </button>
                     {accountsOpen && (
-                      <div className="flex flex-col gap-1 ml-0 lg:ml-4 mt-1 animate-slide-down">
+                      <div className={`flex flex-col gap-1 mt-1 animate-slide-down ${showLabels ? "ml-4" : "ml-0 lg:ml-4"}`}>
                         {visibleAccountItems.map((acc) => {
                           const accActive = pathname === acc.href || pathname.startsWith(acc.href + '/');
                           return (
                             <Link
                               href={acc.href}
                               key={acc.label}
-                              className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
+                              onClick={() => onClose?.()}
+                              className={`flex items-center ${justifyClass} gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
                                 accActive ? 'bg-orange-100' : ''
                               }`}
                             >
                               <Image src={acc.icon} alt="" width={20} height={20} />
-                              <span className="hidden lg:block">{acc.label}</span>
+                              <span className={labelClass}>{acc.label}</span>
                             </Link>
                           );
                         })}

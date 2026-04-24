@@ -148,7 +148,7 @@ const AttendanceHistoryPage = async ({
     {
       header: "Teacher",
       accessor: "teacher",
-      className: "text-left min-w-[120px]",
+      className: "text-left min-w-[120px] hidden md:table-cell",
     },
     {
       header: "Status",
@@ -234,7 +234,7 @@ const AttendanceHistoryPage = async ({
         </td>
         {/* --- FIX: Use lessonDetails --- */}
         <td className="p-4">{lessonDetails.subject.name}</td>
-        <td className="p-4">
+        <td className="p-4 hidden md:table-cell">
           {lessonDetails.teacher.name} {lessonDetails.teacher.surname}
         </td>
         <td className="p-4 text-center">
@@ -247,14 +247,14 @@ const AttendanceHistoryPage = async ({
   return (
     <div className="bg-white p-4 rounded-xl flex-1 m-4 mt-0">
       {/* TOP */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold">Attendance History</h1>
           <p className="text-sm text-gray-500">
             {selectedDate.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 md:gap-4">
           <TableSearch />
           <DateFilter currentDate={selectedDate} />
         </div>
@@ -281,7 +281,9 @@ const AttendanceHistoryPage = async ({
       </div>
 
       {/* TABLE */}
-      <Table columns={columns} renderRow={renderRow} data={attendanceRecords} />
+      <div className="overflow-x-auto">
+        <Table columns={columns} renderRow={renderRow} data={attendanceRecords} />
+      </div>
       <Pagination page={p} count={count} />
     </div>
   );

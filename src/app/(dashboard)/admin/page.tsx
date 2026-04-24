@@ -50,7 +50,7 @@ const AdminPage = async ({
             <Checklist type="MONTHLY" />
           </div>
           {/* CALENDAR */}
-          <div className="w-full h-[1000px]">
+          <div className="w-full h-[500px] md:h-[700px] lg:h-[1000px]">
             <div className="bg-white p-4 rounded-md h-full flex flex-col">
               {/* Header row */}
               <div className="flex items-center gap-4 mb-4 flex-shrink-0">
