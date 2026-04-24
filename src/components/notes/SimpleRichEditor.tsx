@@ -790,8 +790,8 @@ export default function SimpleRichEditor({ value, onChange, placeholder }: Simpl
   return (
     <div className="relative">
       {showTableDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center animate-fade-in">
+          <div className="bg-white rounded-lg p-6 shadow-xl max-w-md w-full animate-modal-in">
             <h3 className="text-lg font-semibold mb-4">Insert Table</h3>
             
             <div className="space-y-4">

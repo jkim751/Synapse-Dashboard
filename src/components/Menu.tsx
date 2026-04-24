@@ -165,7 +165,7 @@ const Menu = () => {
               <div key={item.label}>
                 <Link
                   href={item.href}
-                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${isActive ? 'bg-orange-100' : ''}`}
+                  className={`flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${isActive ? 'bg-orange-100' : ''}`}
                 >
                   <Image src={item.icon} alt="" width={20} height={20} />
                   <span className="hidden lg:block">{item.label}</span>
@@ -174,7 +174,7 @@ const Menu = () => {
                   <div key="accounts-dropdown">
                     <button
                       onClick={() => setAccountsOpen((o) => !o)}
-                      className={`w-full flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight ${
+                      className={`w-full flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-xl hover:bg-lamaSkyLight transition-colors ${
                         isAccountsActive ? 'bg-orange-100' : ''
                       }`}
                     >
@@ -185,7 +185,7 @@ const Menu = () => {
                       </span>
                     </button>
                     {accountsOpen && (
-                      <div className="flex flex-col gap-1 ml-0 lg:ml-4 mt-1">
+                      <div className="flex flex-col gap-1 ml-0 lg:ml-4 mt-1 animate-slide-down">
                         {visibleAccountItems.map((acc) => {
                           const accActive = pathname === acc.href || pathname.startsWith(acc.href + '/');
                           return (

@@ -107,8 +107,8 @@ export default function CreateMakeupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 overflow-y-auto max-h-[90vh] animate-modal-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Create Makeup Class</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>

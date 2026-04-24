@@ -160,8 +160,8 @@ const AddEventModal = ({ onSuccess }: { onSuccess?: () => void } = {}) => {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl max-h-[90vh] overflow-y-auto animate-modal-in">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-semibold text-gray-800">
                 Add {isShift ? "Shift" : "Event"}

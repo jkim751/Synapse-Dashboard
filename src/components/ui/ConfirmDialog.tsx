@@ -58,7 +58,7 @@ export default function ConfirmDialog({
       />
       
       {/* Dialog */}
-      <div className={`relative ${style.bg} border-2 ${style.border} rounded-xl shadow-2xl p-6 max-w-md w-full animate-in fade-in zoom-in duration-200`}>
+      <div className={`relative ${style.bg} border-2 ${style.border} rounded-xl shadow-2xl p-6 max-w-md w-full animate-modal-in`}>
         <div className="flex items-start gap-4">
           {/* Icon */}
           <div className={`${style.iconBg} rounded-full p-3 text-2xl flex-shrink-0`}>

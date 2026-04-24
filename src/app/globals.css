@@ -122,6 +122,7 @@
   display: block;
   position: relative;
   box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .rbc-month-view .rbc-event:hover {
   transform: scale(1.02);
@@ -255,6 +256,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .rbc-event:hover {
   transform: translateY(-1px);

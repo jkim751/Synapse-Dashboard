@@ -488,8 +488,8 @@ const BigCalendar = ({
 
         {/* Event details modal */}
         {isModalOpen && selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl animate-modal-in">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800">
                   {selectedEvent.type === 'event' ? 'Event' : 'Lesson'} Details
@@ -616,8 +616,8 @@ const BigCalendar = ({
 
         {/* Recurring lesson reschedule scope modal */}
         {pendingReschedule && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white rounded-xl p-6 w-96 max-w-lg mx-4 shadow-xl animate-modal-in">
               <h2 className="text-xl font-bold text-gray-800 mb-2">Reschedule Recurring Lesson</h2>
               <p className="text-gray-600 mb-1">
                 <span className="font-medium">{pendingReschedule.event.title}</span>

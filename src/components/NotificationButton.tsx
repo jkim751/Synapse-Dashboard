@@ -45,7 +45,7 @@ const NotificationButton = () => {
       </div>
       
       {isOpen && (
-        <div className="absolute right-0 top-8 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+        <div className="absolute right-0 top-8 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto animate-dropdown-in">
           <div className="p-3 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800">Notifications</h3>
             <div className="flex items-center gap-2">
