@@ -89,6 +89,12 @@ const menuItems = [
         visible: [ "director"],
       },
       {
+        icon: "/finance.png",
+        label: "Cashbook",
+        href: "/list/cashbook",
+        visible: ["admin", "director", "teacher-admin"],
+      },
+      {
         icon: "/payrates.png",
         label: "Pay Rates",
         href: "/list/pay",

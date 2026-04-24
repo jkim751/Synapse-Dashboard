@@ -528,6 +528,22 @@ model Schedule {
   @@map("schedules")
 }
 
+model CashbookEntry {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Float
+  date      DateTime @default(now())
+  xero      Boolean  @default(false)
+  receipt   Boolean  @default(false)
+  cashbook  Boolean  @default(false)
+  addedBy   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@map("cashbook_entries")
+}
+
 
 
 
