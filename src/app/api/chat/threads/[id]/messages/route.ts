@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { canAccessThread, getSenderName } from "@/lib/chatUtils";
 
-const LIMIT = 50;
+const LIMIT = 80;
 
 export async function GET(
   req: NextRequest,

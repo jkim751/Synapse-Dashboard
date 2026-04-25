@@ -8,9 +8,10 @@ import NewChatModal from "./NewChatModal";
 interface Props {
   role: string;
   userId: string;
+  userName: string;
 }
 
-export default function ChatShell({ role, userId }: Props) {
+export default function ChatShell({ role, userId, userName }: Props) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
   const [showNewChat, setShowNewChat] = useState(false);
@@ -49,6 +50,7 @@ export default function ChatShell({ role, userId }: Props) {
           threadType={selectedThread.type}
           role={role}
           userId={userId}
+          userName={userName}
           canSend={canSend}
           onMessageSent={fetchThreads}
         />
