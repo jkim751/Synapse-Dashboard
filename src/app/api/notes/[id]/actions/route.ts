@@ -7,19 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify admin exists
-    const admin = await prisma.admin.findUnique({
-      where: { id: userId }
-    })
-
-    if (!admin) {
-      return NextResponse.json([])
     }
 
     const { id } = await params
@@ -44,10 +36,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
     const user = await currentUser()
-    
-    if (!userId) {
+
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

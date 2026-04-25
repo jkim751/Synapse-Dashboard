@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   const { sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
-  if (role !== "admin" && role !== "director") {
+  if (role !== "admin" && role !== "director" && role !== "teacher-admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -33,7 +33,7 @@ export async function DELETE(
 ) {
   const { sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
-  if (role !== "admin" && role !== "director") {
+  if (role !== "admin" && role !== "director" && role !== "teacher-admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

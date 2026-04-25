@@ -46,12 +46,19 @@ const FormContainer = async ({ table, type, data, id }: FormContainerProps) => {
   if (type !== "delete") {
     switch (table) {
 
-      case "subject":
-        const subjectTeachers = await prisma.teacher.findMany({
-          select: { id: true, name: true, surname: true },
-        });
-        relatedData = { teachers: subjectTeachers };
+      case "subject": {
+        const [subjectTeachers, subjectTeacherAdmins] = await Promise.all([
+          getAllTeachers(),
+          getAllTeacherAdmins(),
+        ]);
+        const subjectTeacherAdminIds = new Set(subjectTeacherAdmins.map((ta) => ta.id));
+        const allSubjectTeachers = [
+          ...subjectTeachers.filter((t) => !subjectTeacherAdminIds.has(t.id)),
+          ...subjectTeacherAdmins,
+        ];
+        relatedData = { teachers: allSubjectTeachers };
         break;
+      }
 
       case "class": {
         const [classGrades, classTeachers, classTeacherAdmins] = await Promise.all([

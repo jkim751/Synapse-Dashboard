@@ -9,24 +9,25 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userRoles = (sessionClaims?.metadata as { roles?: string[] })?.roles || [];
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    const isAdmin = role === 'admin' || role === 'director' || role === 'teacher-admin';
     let userClassIds: number[] = [];
 
     // --- Get the relevant class IDs based on the user's role ---
-    if (!userRoles.includes('admin') && !userRoles.includes('director')) {
-      if (userRoles.includes('student')) {
+    if (!isAdmin) {
+      if (role === 'student') {
         const studentClasses = await prisma.studentClass.findMany({
           where: { studentId: userId },
           select: { classId: true },
         });
         userClassIds = studentClasses.map((sc: { classId: any; }) => sc.classId);
-      } else if (userRoles.includes('teacher')) {
+      } else if (role === 'teacher') {
         const teacherClasses = await prisma.class.findMany({
           where: { lessons: { some: { teacherId: userId } } },
           select: { id: true },
         });
         userClassIds = teacherClasses.map((c: { id: any; }) => c.id);
-      } else if (userRoles.includes('parent')) {
+      } else if (role === 'parent') {
         const parentClasses = await prisma.studentClass.findMany({
           where: { student: { parentId: userId } },
           select: { classId: true },
@@ -39,7 +40,7 @@ export async function GET() {
     // --- Fetch all relevant events ---
     const eventsFromDb = await prisma.event.findMany({
       where: {
-        ...(userRoles.includes('admin') || userRoles.includes('director') ? {} : {
+        ...(isAdmin ? {} : {
           OR: [
             { classId: null }, // Global events
             { classId: { in: userClassIds } }, // Class-specific events

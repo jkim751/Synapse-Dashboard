@@ -32,6 +32,7 @@ export async function GET() {
     switch (role) {
       case "admin":
       case "director":
+      case "teacher-admin":
         assessments = await prisma.assessment.findMany({ include });
         break;
       case "teacher":

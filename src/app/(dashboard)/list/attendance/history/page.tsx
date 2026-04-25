@@ -34,7 +34,7 @@ const AttendanceHistoryPage = async ({
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
 
-  if (!role || !["admin", "director", "teacher"].includes(role)) {
+  if (!role || !["admin", "director", "teacher", "teacher-admin"].includes(role)) {
     redirect("/");
   }
 

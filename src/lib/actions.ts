@@ -305,6 +305,7 @@ export const createSubject = async (
     // Validate data against schema
     const validatedData = subjectSchema.parse(data);
 
+    await Promise.all(validatedData.teachers.map((id) => ensureTeacherRecord(id)));
     await prisma.subject.create({
       data: {
         name: validatedData.name,
@@ -333,6 +334,7 @@ export const updateSubject = async (
       return { success: false, error: true, message: "Subject ID is required for update!" };
     }
 
+    await Promise.all(validatedData.teachers.map((id) => ensureTeacherRecord(id)));
     await prisma.subject.update({
       where: {
         id: validatedData.id,

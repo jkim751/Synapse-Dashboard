@@ -4,9 +4,10 @@ import prisma from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
 
-    if (!userId) {
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -109,9 +110,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -164,9 +166,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    
-    if (!userId) {
+    const { userId, sessionClaims } = await auth()
+    const role = (sessionClaims?.metadata as { role?: string })?.role
+
+    if (!userId || (role !== 'admin' && role !== 'director' && role !== 'teacher-admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

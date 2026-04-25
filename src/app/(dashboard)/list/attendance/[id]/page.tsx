@@ -39,7 +39,7 @@ const SingleClassAttendancePage = async ({
     const userRoles = role ? [role] : [];
     const resolvedSearchParams = await searchParams;
 
-    if (!userRoles.includes("admin") && !userRoles.includes("director") && !userRoles.includes("teacher")) {
+    if (!userRoles.includes("admin") && !userRoles.includes("director") && !userRoles.includes("teacher") && !userRoles.includes("teacher-admin")) {
       redirect("/"); // Redirect non-admins/teachers immediately
     }
 
