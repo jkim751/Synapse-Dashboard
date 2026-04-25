@@ -131,6 +131,12 @@ const menuItems = [
         visible: [],
       },
       {
+        icon: "/message.png",
+        label: "Chat",
+        href: "/list/chat",
+        visible: ["admin", "director", "teacher-admin", "teacher", "student"],
+      },
+      {
         icon: "/announcement.png",
         label: "Announcements",
         href: "/list/announcements",

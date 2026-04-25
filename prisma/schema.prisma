@@ -113,6 +113,7 @@ model Class {
   lessons         Lesson[]
   RecurringLesson RecurringLesson[]
   students        StudentClass[]
+  chatThreads     ChatThread[]
 }
 
 model Subject {
@@ -546,6 +547,63 @@ model CashbookEntry {
 
 
 
+
+enum ChatThreadType {
+  CLASS
+  DIRECT
+}
+
+model ChatThread {
+  id           Int                     @id @default(autoincrement())
+  type         ChatThreadType
+  name         String?
+  classId      Int?
+  class        Class?                  @relation(fields: [classId], references: [id])
+  messages     ChatMessage[]
+  reads        ChatThreadRead[]
+  participants ChatThreadParticipant[]
+  createdBy    String
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@map("chat_threads")
+}
+
+model ChatThreadParticipant {
+  threadId Int
+  userId   String
+  role     String
+  name     String     @default("")
+  thread   ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+  @@map("chat_thread_participants")
+}
+
+model ChatMessage {
+  id         Int        @id @default(autoincrement())
+  threadId   Int
+  senderId   String
+  senderName String
+  content    String
+  isDeleted  Boolean    @default(false)
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([threadId, createdAt])
+  @@map("chat_messages")
+}
+
+model ChatThreadRead {
+  threadId   Int
+  userId     String
+  lastReadAt DateTime   @default(now())
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+  @@map("chat_thread_reads")
+}
 
 enum ChecklistType {
   DAILY
