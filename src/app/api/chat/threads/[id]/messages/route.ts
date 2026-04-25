@@ -65,13 +65,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { content } = await req.json();
-  if (!content?.trim()) return NextResponse.json({ error: "Content required" }, { status: 400 });
+  const body = await req.json();
+  const content: string = body.content ?? "";
+  const attachments: string[] = Array.isArray(body.attachments) ? body.attachments : [];
+
+  if (!content.trim() && attachments.length === 0) {
+    return NextResponse.json({ error: "Message or attachment required" }, { status: 400 });
+  }
 
   const senderName = await getSenderName(userId, role!);
 
   const message = await prisma.chatMessage.create({
-    data: { threadId, senderId: userId, senderName, content: content.trim() },
+    data: { threadId, senderId: userId, senderName, content: content.trim(), attachments },
   });
 
   await prisma.chatThread.update({
@@ -79,8 +84,8 @@ export async function POST(
     data: { updatedAt: new Date() },
   });
 
-  // Resolve notification recipients without blocking the response
-  sendChatNotifications(threadId, userId, senderName, content.trim()).catch(() => {});
+  const previewText = content.trim() || (attachments.length > 0 ? "📎 Attachment" : "");
+  sendChatNotifications(threadId, userId, senderName, previewText).catch(() => {});
 
   return NextResponse.json(message, { status: 201 });
 }

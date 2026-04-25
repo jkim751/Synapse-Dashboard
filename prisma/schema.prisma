@@ -581,15 +581,16 @@ model ChatThreadParticipant {
 }
 
 model ChatMessage {
-  id         Int        @id @default(autoincrement())
-  threadId   Int
-  senderId   String
-  senderName String
-  content    String
-  isDeleted  Boolean    @default(false)
-  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id          Int        @id @default(autoincrement())
+  threadId    Int
+  senderId    String
+  senderName  String
+  content     String
+  attachments String[]   @default([])
+  isDeleted   Boolean    @default(false)
+  thread      ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([threadId, createdAt])
   @@map("chat_messages")
